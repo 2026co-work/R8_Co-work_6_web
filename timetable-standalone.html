@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff0ad">
+  <title>わたしの時間割</title>
+  <style>
+    :root { color-scheme: light; font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif; color: #24251f; background: #faf9f5; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    .footnote a { color: #475d38; text-underline-offset: 3px; }
+    body { margin: 0; }
+    main { max-width: 1440px; margin: auto; padding: 40px 32px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+    .eyebrow { font-size: 11px; letter-spacing: .18em; color: #77745c; margin: 0 0 8px; }
+    h1 { font-size: clamp(24px, 3vw, 34px); font-weight: 600; letter-spacing: .05em; margin: 0; }
+    .lead { color: #747367; font-size: 13px; margin: 10px 0 0; line-height: 1.8; }
+    .sample { border: 1px solid #dedbd0; border-radius: 20px; padding: 6px 12px; font-size: 11px; white-space: nowrap; color: #77745c; }
+    form { display: flex; flex-wrap: wrap; align-items: end; gap: 18px; padding: 23px; border: 1px solid #e6e3d8; border-radius: 12px; background: white; }
+    label { display: flex; flex: 1; min-width: 135px; flex-direction: column; gap: 8px; font-size: 12px; font-weight: 600; }
+    label span { font-size: 10px; font-weight: 400; color: #797969; margin-left: 8px; }
+    select, button { font: inherit; min-height: 45px; border-radius: 6px; }
+    select { width: 100%; color: #33352a; background: #fff; border: 1px solid #d7d7cb; padding: 10px 12px; }
+    select:disabled { color: #8d8c83; background: #f2f2ee; cursor: not-allowed; }
+    button { background: #353d30; color: white; border: 0; padding: 11px 25px; font-size: 13px; cursor: pointer; }
+    button:hover { background: #4a5542; }
+    :focus-visible { outline: 3px solid #6884ae; outline-offset: 4px; }
+    .hint { font-size: 12px; color: #767668; margin: 12px 2px 26px; line-height: 1.8; }
+    .result-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 2px 12px; }
+    h2 { font-size: 17px; font-weight: 600; margin: 0; }
+    #summary { font-size: 11px; color: #77745c; margin: 0; }
+    .sheet { background: #fff0ad; padding: 6px 34px 16px 8px; overflow-x: auto; border-radius: 3px; }
+    table { width: 100%; min-width: 780px; table-layout: fixed; border-collapse: collapse; color: #151610; }
+    caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    col.day { width: 48px; }
+    th, td { font-weight: 400; }
+    thead th, tfoot td { height: 100px; font-size: clamp(18px, 2.1vw, 28px); text-align: center; white-space: nowrap; }
+    thead th:first-child, tfoot td:first-child { border: 0; }
+    thead th:not(:first-child) { border-bottom: 4px solid #202217; }
+    thead th:nth-child(n+3), tfoot td:nth-child(n+3) { border-left: 4px solid #d1c58e; }
+    tbody th { font-size: clamp(26px, 3vw, 36px); text-align: center; padding-right: 10px; }
+    tbody td { height: 142px; padding: 16px 20px; border-bottom: 4px solid #aaa16e; vertical-align: middle; }
+    tbody td + td { border-left: 4px solid #d1c58e; }
+    .lesson { max-width: 100%; width: fit-content; margin: auto; line-height: 1.5; overflow-wrap: anywhere; font-size: clamp(17px, 2vw, 25px); }
+    .subject { display: block; font-weight: 400; }
+    .details { display: block; }
+    .notes { display: block; font-size: 12px; color: #736640; margin-top: 5px; }
+    .empty { text-align: center; font-size: clamp(20px, 2.4vw, 29px); }
+    .conflict { background: #ffe0bf; }
+    .conflict .lesson + .lesson { border-top: 1px dashed #b86c34; margin-top: 9px; padding-top: 9px; }
+    .conflict-label { display: block; color: #973a13; font-size: 11px; text-align: center; margin-bottom: 8px; }
+    #feedback { color: #686650; font-size: 12px; margin: 12px 0; min-height: 20px; }
+    .footnote { color: #807d6b; font-size: 11px; line-height: 1.9; margin-top: 15px; }
+    .footnote p { margin: 3px 0; }
+    @media (max-width: 700px) {
+      main { padding: 24px 15px; }
+      header { align-items: start; gap: 12px; }
+      .sample { font-size: 10px; }
+      form { padding: 16px; gap: 14px; }
+      label { min-width: calc(50% - 14px); }
+      button { flex: 1; }
+      .result-header { align-items: start; flex-direction: column; gap: 6px; }
+      .sheet { padding-right: 18px; }
+      thead th, tfoot td { height: 78px; }
+      tbody td { height: 125px; padding: 13px; }
+      .hint { margin-bottom: 20px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><p class="eyebrow">MY WEEKLY TIMETABLE</p><h1>わたしの時間割</h1><p class="lead">学年・学科・クラスから、あなたの1週間を。</p></div>
+    <span class="sample">令和8年度 後期</span>
+  </header>
+  <form id="selection-form">
+    <label for="grade">学年<select id="grade" name="grade" required><option value="1">1年</option><option value="2">2年</option><option value="3">3年</option><option value="4">4年</option><option value="5">5年</option></select></label>
+    <label for="department">学科<select id="department" name="department" required><option value="M">M学科</option><option value="E">E学科</option><option value="C">C学科</option><option value="A">A学科</option></select></label>
+    <label for="class-group">クラス<span id="class-state">1・2年生は必須</span><select id="class-group" name="classGroup" required aria-describedby="class-state"><option value="1">1組</option><option value="2">2組</option><option value="3">3組</option><option value="4">4組</option></select></label>
+    <label for="student-type" id="student-field">留学生の区分<select id="student-type" name="studentType" required aria-describedby="student-help"><option value="regular">留学生ではない</option><option value="international">留学生</option></select></label>
+    <label for="course" id="course-field">E学科のコース<span id="course-help">4・5年のE学科で選択</span><select id="course" name="course" disabled aria-describedby="course-help"><option value="">選択してください</option><option value="EJ">情報コース（EJ）</option><option value="ED">電気電子コース（ED）</option></select></label>
+    <label for="arts" id="arts-field">芸術選択<span>1年生</span><select id="arts" name="arts"><option value="music">音楽</option><option value="art">美術</option></select></label>
+    <button type="submit">時間割を生成</button>
+  </form>
+  <p class="hint" id="selection-hint">1・2年生は「クラスの一般科目」と「学科の専門科目」を組み合わせます。</p>
+  <p class="hint" id="student-help">添付表の留学生別の授業は3年生に記載されています。他の学年では共通の時間割を表示します。</p>
+  <section aria-labelledby="result-title">
+    <div class="result-header"><h2 id="result-title">時間割</h2><p id="summary"></p></div>
+    <div class="sheet" tabindex="0" role="region" aria-label="週間時間割。画面に収まらない場合は左右にスクロールできます。">
+      <table id="timetable"><caption id="table-caption">月曜日から金曜日の時間割</caption><colgroup><col class="day"><col><col><col><col></colgroup><thead id="table-head"></thead><tbody id="table-body"></tbody><tfoot id="table-foot"></tfoot></table>
+    </div>
+    <p id="feedback" role="status" aria-live="polite"></p>
+    <div class="footnote"><p>出典：<a href="https://www.akashi.ac.jp/o7en060000000c2u-att/R8_koukijikanwari_20260924-2.pdf" target="_blank" rel="noopener noreferrer">明石高専 令和8年度後期授業時間割（2026年9月24日更新）</a>。2026年10月8日提供の画像で照合・補正。本科1〜5年を収録しています。</p><p>「空き」は原本の空欄です。未記載の教室は補完していません。選択授業の履修可否や個別の休講・変更は、学校の案内で確認してください。</p><p>スマートフォンでは表を左右にスクロールできます。上下の時刻は同じ時限を表しています。</p></div>
+  </section>
+  <noscript>時間割の生成にはJavaScriptを有効にしてください。</noscript>
+</main>
+<script>
+'use strict';
+// ===== データと合成ロジック（DOMに依存しない部分） =====
+const DAYS = ['月', '火', '水', '木', '金'];
+const TIMES = ['9:00–10:30', '10:40–12:10', '13:00–14:30', '14:40–16:10'];
+const DEPARTMENTS = ['M', 'E', 'C', 'A'];
+const COURSE_LABELS = { EJ: '情報コース（EJ）', ED: '電気電子コース（ED）' };
+
+// 原本のセル座標を保持。行は上から0始まり、列は月1限=0〜金4限=19。
+// 1・2年は各4行、3年は各学科の通常・留学生の2行、4・5年はM/ED/EJ/C/A。
+const SOURCE = {
+  title: '明石工業高等専門学校 令和8年度後期授業時間割',
+  updated: '2026-09-24',
+  url: 'https://www.akashi.ac.jp/o7en060000000c2u-att/R8_koukijikanwari_20260924-2.pdf'
+};
+const SOURCE_CELLS = [
+  [0, 0, 0, 1, "機械工学実習ⅠB/工作実習ⅠB\n[工場・情2・情3]加藤・大森"],
+  [0, 0, 2, 2, "機械製図Ⅱ\n[M製図]史"],
+  [0, 0, 4, 4, "データサイエンス\n演習\n[情1・情4]土田・森津"],
+  [0, 0, 5, 5, "英語ⅠＢ-2\n北川"],
+  [0, 0, 6, 6, "数学ⅠＡ-2\n面田"],
+  [0, 0, 7, 7, "歴史-2\n荒川"],
+  [0, 0, 8, 8, "国語Ⅰ-2\n小西"],
+  [0, 0, 9, 9, "保健体育Ⅰ-2\n後藤・(澤田)"],
+  [0, 0, 10, 10, "機械設計Ⅰ\n森下"],
+  [0, 0, 11, 11, "HR\n（主）北川\n（副）マウンイェ"],
+  [0, 0, 12, 12, "数学ⅠＡ-2\n面田"],
+  [0, 0, 13, 13, "数学ⅠＢ-2\n島田"],
+  [0, 0, 16, 16, "サイエンスⅠ-2\n武内"],
+  [0, 0, 17, 17, "英語ⅠＡ-2\n穐本"],
+  [0, 1, 18, 18, "音楽-2\n[福研](泉)\n美術-2\n(大野)"],
+  [1, 1, 0, 0, "プログラミングⅠB\n[情基]森津"],
+  [1, 1, 1, 1, "情報リテラシーB\n[情基]牟田神東"],
+  [1, 1, 4, 4, "英語ⅠＢ-2\n北川"],
+  [1, 1, 5, 5, "データサイエンス\n演習\n[情1・情4]土田・森津"],
+  [1, 1, 6, 6, "歴史-2\n荒川"],
+  [1, 1, 7, 7, "数学ⅠＡ-2\n面田"],
+  [1, 1, 8, 8, "保健体育Ⅰ-2\n後藤・(澤田)"],
+  [1, 1, 9, 9, "国語Ⅰ-2\n丹下"],
+  [1, 1, 11, 11, "HR\n（主）黒杭\n（副）アセド"],
+  [1, 1, 12, 12, "数学ⅠＢ-2\n島田"],
+  [1, 1, 13, 13, "数学ⅠＡ-2\n面田"],
+  [1, 1, 14, 14, "英語ⅠＡ-2\n穐本"],
+  [1, 1, 17, 17, "サイエンスⅠ-2\n武内"],
+  [2, 2, 0, 0, "測量学ⅠB\n生田"],
+  [2, 2, 2, 3, "測量実習B\n[C製図]生田・ラ・小野"],
+  [2, 2, 4, 4, "データサイエンス\n演習\n[情1・情4]土田・森津"],
+  [2, 2, 5, 5, "国語Ⅰ-2\n丹下"],
+  [2, 2, 6, 6, "数学ⅠＢ-2\n島田"],
+  [2, 2, 7, 7, "英語ⅠＡ-2\n穐本"],
+  [2, 2, 8, 8, "数学ⅠＡ-2\n面田"],
+  [2, 2, 9, 9, "保健体育Ⅰ-2\n後藤・(澤田)"],
+  [2, 2, 11, 11, "HR\n（主）島崎\n（副）ラ"],
+  [2, 2, 12, 12, "英語ⅠＢ-2\n北川"],
+  [2, 2, 13, 13, "サイエンスⅠ-2\n武内"],
+  [2, 2, 16, 16, "歴史-2\n荒川"],
+  [2, 3, 17, 17, "音楽-2\n[福研]（泉）\n美術-2\n（大野）"],
+  [2, 2, 18, 18, "数学ⅠＡ-2\n面田"],
+  [3, 3, 0, 0, "建築史Ⅰ\n[もの]\n東野・（山本）"],
+  [3, 3, 2, 2, "建築設計演習ⅠB\n[もの]東野・縄田・\n（宮本・大久保）"],
+  [3, 3, 4, 4, "国語Ⅰ-2\n丹下"],
+  [3, 3, 5, 5, "データサイエンス\n演習\n[情1・情4]土田・森津"],
+  [3, 3, 6, 6, "英語ⅠＡ-2\n穐本"],
+  [3, 3, 7, 7, "数学ⅠＢ-2\n島田"],
+  [3, 3, 8, 8, "保健体育Ⅰ-2\n後藤・(澤田)"],
+  [3, 3, 9, 9, "数学ⅠＡ-2\n面田"],
+  [3, 3, 11, 11, "HR\n（主）ハーバート\n（副）島田"],
+  [3, 3, 12, 12, "サイエンスⅠ-2\n武内"],
+  [3, 3, 13, 13, "英語ⅠＢ-2\n北川"],
+  [3, 3, 16, 16, "数学ⅠＡ-2\n面田"],
+  [3, 3, 18, 18, "歴史-2\n荒川"],
+  [4, 4, 0, 0, "英語ⅡA-2\n(森元)"],
+  [4, 4, 1, 1, "サイエンスⅡＢ-2\n櫻井"],
+  [4, 4, 3, 3, "国語Ⅱ-2\n小西"],
+  [4, 4, 4, 4, "工業力学ⅠB\n岸本"],
+  [4, 4, 5, 5, "機械製図Ⅳ\n[M製図]松塚"],
+  [4, 4, 6, 6, "プログラミング基礎\n[情2]田中"],
+  [4, 4, 7, 7, "機械加工学Ⅱ\n加藤"],
+  [4, 4, 8, 8, "数学ⅡＡ-2\n[情2]松宮"],
+  [4, 4, 9, 9, "サイエンスⅡＡ-2\n武内"],
+  [4, 4, 10, 10, "保健体育Ⅱ-2\n(石田・前田)"],
+  [4, 4, 11, 11, "HR\n堀口"],
+  [4, 4, 12, 12, "数学ⅡＢ-2\n堀口"],
+  [4, 4, 13, 13, "グローバル\nスタディーズ入門\n荒川"],
+  [4, 7, 14, 14, "Co+workⅠB\n担当教員"],
+  [4, 4, 15, 15, "数学ⅡＡ-2\n[情4]松宮"],
+  [4, 4, 17, 17, "英語ⅡB-2\n(田丸)"],
+  [4, 4, 18, 19, "機械工学実習ⅡB/工作実習ⅡB\n[工場・情2・情3]\n加藤・関森/加藤・大森"],
+  [5, 5, 0, 0, "サイエンスⅡＢ-2\n櫻井"],
+  [5, 5, 1, 1, "英語ⅡA-2\n(森元)"],
+  [5, 5, 2, 2, "ディジタル回路 Ｂ\n大向"],
+  [5, 5, 3, 3, "数学ⅡＡ-2\n[情4]松宮"],
+  [5, 5, 4, 4, "情報セキュリティ\n[トーカロ]野村"],
+  [5, 5, 5, 5, "電気回路B\n[視聴]梶村"],
+  [5, 5, 6, 6, "プログラミングⅡB\n[情基]平野"],
+  [5, 5, 7, 7, "電気電子計測B\n細川"],
+  [5, 5, 8, 8, "サイエンスⅡＡ-2\n武内"],
+  [5, 5, 9, 9, "数学ⅡＡ-2\n[情2]松宮"],
+  [5, 5, 11, 11, "HR\n櫻井"],
+  [5, 5, 12, 12, "グローバル\nスタディーズ入門\n荒川"],
+  [5, 5, 13, 13, "数学ⅡＢ-2\n堀口"],
+  [5, 5, 15, 15, "保健体育Ⅱ-2\n(石田・前田)"],
+  [5, 5, 16, 16, "英語ⅡB-2\n(田丸)"],
+  [5, 5, 17, 17, "国語Ⅱ-2\n小西"],
+  [5, 5, 18, 19, "電気情報工学実験Ⅱ\n[電基・情制・通信]\n梶村・細川・周山・牟田神東"],
+  [6, 6, 0, 0, "英語ⅡＢ-2\n(田丸)"],
+  [6, 6, 1, 1, "数学ⅡＡ-2\n[情4]松宮"],
+  [6, 6, 4, 4, "土木史\n（八尾）"],
+  [6, 6, 5, 5, "建設材料Ⅱ\n武田"],
+  [6, 6, 6, 6, "都市システム工学\n概論Ⅱ\n武田"],
+  [6, 6, 8, 8, "グローバル\nスタディーズ入門\n荒川"],
+  [6, 6, 9, 9, "英語ⅡA-2\n(森元)"],
+  [6, 6, 10, 10, "保健体育Ⅱ-2\n(石田・前田)"],
+  [6, 6, 11, 11, "HR\n面田"],
+  [6, 6, 12, 12, "サイエンスⅡA-2\n(豊田)"],
+  [6, 6, 13, 13, "数学ⅡＡ-2\n[情2]松宮"],
+  [6, 6, 15, 15, "国語Ⅱ-2\n小西"],
+  [6, 6, 16, 16, "サイエンスⅡB-2\n櫻井"],
+  [6, 6, 17, 17, "数学ⅡＢ-2\n堀口"],
+  [6, 6, 18, 19, "測量演習Ｂ\n[C製図]生田・\n小川・小野"],
+  [7, 7, 0, 0, "数学ⅡＡ-2\n[情4]松宮"],
+  [7, 7, 1, 1, "英語ⅡＢ-2\n(田丸)"],
+  [7, 7, 3, 3, "サイエンスⅡA-2\n(豊田)"],
+  [7, 7, 5, 5, "建築構造力学ⅠB\n角野"],
+  [7, 7, 7, 7, "建築意匠B\n[もの]本塚"],
+  [7, 7, 8, 8, "英語ⅡA-2\n(森元)"],
+  [7, 7, 9, 9, "グローバル\nスタディーズ入門\n荒川"],
+  [7, 7, 11, 11, "HR\n小西"],
+  [7, 7, 12, 12, "数学ⅡＡ-2\n[情2]松宮"],
+  [7, 7, 13, 13, "国語Ⅱ-2\n小西"],
+  [7, 7, 15, 15, "保健体育Ⅱ-2\n(石田・前田)"],
+  [7, 7, 16, 16, "数学ⅡＢ-2\n堀口"],
+  [7, 7, 17, 17, "サイエンスⅡB-2\n櫻井"],
+  [7, 7, 18, 19, "建築設計演習ⅡB\n［A設計・ソネック］\n江本・（松下）"],
+  [8, 8, 1, 1, "国語ⅢＡ\n丹下"],
+  [8, 9, 2, 3, "機械工学実験ⅠB/工作実習ⅢB\n[工場・情3]\n加藤・國峰・森下・田中/加藤・大森"],
+  [8, 9, 4, 4, "数学ⅢＡ-2\n島崎"],
+  [8, 8, 5, 5, "政治学-2\n黒杭"],
+  [8, 9, 6, 6, "英会話Ⅰ-2\n[情5](Mertens)"],
+  [8, 9, 7, 7, "機構学\n関森"],
+  [8, 9, 8, 8, "サイエンスⅢ-2\n櫻井"],
+  [8, 9, 9, 9, "基礎力学\n小笠原"],
+  [8, 9, 11, 11, "HR\n中村"],
+  [8, 9, 12, 12, "設計工学Ⅰ\n松塚"],
+  [8, 9, 13, 13, "保健体育Ⅲ-2\n後藤・(石田)"],
+  [8, 15, 14, 14, "Co+workⅡB\n担当教員"],
+  [8, 9, 16, 17, "設計製図ⅢB\n[M製図]中村"],
+  [8, 9, 18, 18, "英語Ⅲ-2\n[トーカロ]穐本"],
+  [9, 9, 1, 1, "日本語Ⅲ-2\n[テラス]久保田"],
+  [9, 9, 19, 19, "日本語総合演習Ⅱ\n[テラス]久保田"],
+  [10, 11, 0, 0, "ディジタル\n電子回路 Ｂ\n大向"],
+  [10, 10, 1, 1, "国語ⅢＢ\n[視聴]小西"],
+  [10, 11, 2, 3, "電気情報工学実験ⅡB\n[電基・情基・情応]\n周山・廣田・アセド・森津"],
+  [10, 11, 5, 5, "数学IIIA-2\n島崎"],
+  [10, 10, 6, 6, "政治学-2\n黒杭"],
+  [10, 11, 7, 7, "電気磁気学Ⅰ\n大向"],
+  [10, 11, 8, 8, "基礎力学\n小笠原"],
+  [10, 11, 9, 9, "英語Ⅲ-2\n(佐川)"],
+  [10, 11, 10, 10, "サイエンスⅢ-2\n櫻井"],
+  [10, 11, 11, 11, "HR\n森津"],
+  [10, 13, 12, 12, "保健体育Ⅲ-2\n後藤・(石田)"],
+  [10, 11, 13, 13, "英会話Ⅰ-2\n[情5](Kelly)"],
+  [10, 11, 17, 17, "回路論B\n周山"],
+  [10, 11, 18, 18, "情報工学概論\n[情1]土田"],
+  [11, 11, 1, 1, "日本語Ⅲ-2\n[テラス]久保田"],
+  [11, 11, 19, 19, "日本語総合演習Ⅱ\n[テラス]久保田"],
+  [12, 13, 2, 2, "水理学Ⅱ\n小川"],
+  [12, 12, 3, 3, "国語ⅢＡ\n丹下"],
+  [12, 13, 4, 4, "基礎力学\n小笠原"],
+  [12, 13, 5, 5, "英会話Ⅰ-2\n[情5](Mertens)"],
+  [12, 13, 6, 6, "数学ⅢＡ-2\n堀口"],
+  [12, 13, 7, 7, "地盤工学Ⅱ\n（岡田）"],
+  [12, 13, 8, 9, "工学実験Ⅰ\n[C材料]武田・生田"],
+  [12, 13, 10, 10, "英語Ⅲ-2\n(佐川)"],
+  [12, 13, 11, 11, "HR\n小川"],
+  [12, 12, 13, 13, "政治学-2\n黒杭"],
+  [12, 13, 15, 15, "サイエンスⅢ-2\n櫻井"],
+  [12, 13, 17, 17, "構造力学Ⅱ\nラ"],
+  [12, 13, 18, 18, "土木設計製図\nラ"],
+  [13, 13, 1, 1, "日本語Ⅲ-2\n[テラス]久保田"],
+  [13, 13, 19, 19, "日本語総合演習Ⅱ\n[テラス]久保田"],
+  [14, 14, 0, 0, "国語ⅢＢ\n[視聴]丹下"],
+  [14, 14, 1, 1, "政治学-2\n黒杭"],
+  [14, 15, 2, 3, "建築設計演習ⅢB\n[A設計・ソネック]工藤・平石・(後藤)"],
+  [14, 15, 5, 5, "基礎力学\n小笠原"],
+  [14, 15, 6, 6, "建築環境工学Ⅰ\n[ソネック]平石"],
+  [14, 15, 7, 7, "数学ⅢＡ-2\n堀口"],
+  [14, 15, 8, 8, "英語Ⅲ-2\n(佐川)"],
+  [14, 15, 9, 9, "建築情報デザイン\n[情4]縄田・江端"],
+  [14, 15, 10, 10, "サイエンスⅢ-2\n(井上)"],
+  [14, 15, 11, 11, "HR\n東野"],
+  [14, 15, 12, 12, "英会話Ⅰ-2\n[情5](Kelly)"],
+  [14, 15, 13, 13, "保健体育Ⅲ-2\n後藤・(石田)"],
+  [14, 15, 16, 16, "建築計画Ⅱ\n[ソネック]江本"],
+  [14, 15, 17, 17, "建築構造力学ⅡＢ\n[ソネック](前田)"],
+  [15, 15, 1, 1, "日本語Ⅲ-2\n[テラス]久保田"],
+  [15, 15, 19, 19, "日本語総合演習Ⅱ\n[テラス]久保田"],
+  [16, 16, 0, 0, "機械工学ゼミナール\nM全"],
+  [16, 16, 1, 1, "流体力学Ⅰ\n田中"],
+  [16, 16, 2, 2, "英語ⅣB\n(田丸)"],
+  [16, 16, 3, 3, "応用数学B\n小笠原"],
+  [16, 16, 4, 4, "第二外国語-2\n[RD](有川)"],
+  [16, 18, 5, 5, "スポーツ科学\n実習Ⅱ\n後藤・(前田)"],
+  [16, 16, 6, 6, "設計製図ⅣB\n[情4]史"],
+  [16, 20, 7, 7, "Advanced\nEnglishⅡ\n[視聴]\n(Mertens)"],
+  [16, 16, 8, 9, "機械工学実験ⅡB/工作実習ⅣB\n[工場・情3・CAD]加藤・関森・\n松塚・中村・マウンイェ/大森"],
+  [16, 16, 10, 10, "機械工学ゼミナール\nM全"],
+  [16, 16, 12, 12, "機械工学ゼミナール\nM全"],
+  [16, 16, 13, 13, "応用数学B\n小笠原"],
+  [16, 20, 14, 14, "Co+workⅢB\n担当教員"],
+  [16, 16, 16, 16, "材料力学Ⅱ\n森下"],
+  [16, 16, 17, 17, "電気電子工学Ⅰ\n[共通]岸本"],
+  [16, 16, 18, 18, "応用物理B\n島田"],
+  [17, 18, 1, 1, "制御工学Ⅰ\n細川"],
+  [17, 18, 2, 2, "応用数学B\n小笠原"],
+  [17, 18, 3, 3, "応用物理B\n（櫻井）"],
+  [17, 17, 4, 4, "固体物性B\n大向"],
+  [17, 18, 6, 6, "離散数学B\nアセド"],
+  [17, 18, 8, 8, "第二外国語-2\n[RD](有川)"],
+  [17, 18, 9, 9, "課題研究\nE全"],
+  [17, 18, 10, 10, "電子回路Ⅱ\n大向"],
+  [17, 18, 12, 12, "応用数学B\n小笠原"],
+  [17, 18, 15, 15, "電気磁気学ⅡB\n大向"],
+  [17, 17, 16, 17, "電気電子工学実験ⅠB\n[電基・情応・高通・通信・放応]\n牟田神東・廣田・野村"],
+  [17, 18, 18, 18, "英語ⅣＢ\n(田丸)"],
+  [18, 18, 0, 0, "データ構造と\nアルゴリズム\n[情１]土田"],
+  [18, 18, 4, 4, "オペレーティング\nシステム\n[トーカロ]野村"],
+  [18, 18, 16, 17, "情報工学実験ⅠB\n[情基・情応・高通・通信・放応]\n牟田神東・アセド・野村"],
+  [18, 18, 19, 19, "プログラミングⅢB\n[情基]平野"],
+  [19, 20, 0, 0, "スポーツ科学\n実習Ⅱ\n後藤・(山内)"],
+  [19, 19, 2, 2, "英語ⅣB\n(森元)"],
+  [19, 19, 3, 3, "計画学Ⅱ\n(小塚)"],
+  [19, 19, 5, 5, "第二外国語-2\n[RD](有川)"],
+  [19, 19, 6, 6, "地盤工学Ⅲ\n(鍋島)"],
+  [19, 19, 9, 9, "応用数学B\n島崎"],
+  [19, 19, 12, 13, "工学実験Ⅲ\n[衛生・C材料]\n渡部・三好"],
+  [19, 19, 16, 16, "応用数学B\n島崎"],
+  [19, 19, 17, 17, "応用物理B\n島田"],
+  [19, 19, 18, 18, "コンクリート構造学\n武田"],
+  [20, 20, 1, 1, "建築ゼミナール\nＡ全"],
+  [20, 20, 2, 2, "建築工学実験B\n[構材]\n角野・江端"],
+  [20, 20, 4, 5, "建築設計演習ⅣB\n[A設計・ソネック]本塚・縄田・(松森)"],
+  [20, 20, 6, 6, "鉄筋コンクリート\n構造B\n[構材・もの]\n角野・工藤"],
+  [20, 20, 8, 8, "応用数学B\n島崎"],
+  [20, 20, 9, 9, "第二外国語-2\n[RD](有川)"],
+  [20, 20, 10, 10, "英語ⅣB\n(森元)"],
+  [20, 20, 12, 12, "建築構造力学ⅢB\n（山本)"],
+  [20, 20, 13, 13, "建築史Ⅱ\n[もの]東野"],
+  [20, 20, 16, 16, "応用物理B\n島田"],
+  [20, 20, 17, 17, "応用数学B\n島崎"],
+  [20, 20, 19, 19, "鋼構造Ｂ\n（鶴田）"],
+  [21, 21, 0, 0, "伝熱工学\n[共通]國峰"],
+  [21, 21, 1, 1, "英会話Ⅱ\n[情5]ハーバート"],
+  [21, 23, 2, 2, "スポーツ科学\n実習Ⅳ\n後藤・(中尾)"],
+  [21, 21, 3, 3, "熱力学Ⅱ\n[共通]中村"],
+  [21, 21, 4, 4, "卒業研究\nM全"],
+  [21, 25, 5, 5, "Advanced\nEnglish Ⅳ\n[トーカロ]\nハーバート"],
+  [21, 21, 6, 6, "設計製図ⅤB\n[情1]松塚"],
+  [21, 25, 7, 7, "環境物理化学\n[情2・情5]\n小笠原"],
+  [21, 21, 9, 9, "卒業研究\nM全"],
+  [21, 21, 10, 10, "卒業研究\nM全"],
+  [21, 25, 11, 11, "生物物理化学\n[情2・情5]\n（井上）"],
+  [21, 21, 13, 13, "機械工学実験ⅢＢ\n[情3・工場]\nM科担当教員"],
+  [21, 21, 16, 16, "生産工学\n[視聴]大森"],
+  [21, 21, 17, 17, "卒業研究\nM全"],
+  [21, 21, 18, 18, "電気電子工学Ⅱ\n[共通]岸本"],
+  [21, 21, 19, 19, "計測工学\n[視聴]マウンイエ"],
+  [22, 23, 0, 0, "英会話Ⅱ\n[情5]ハーバート"],
+  [22, 23, 1, 1, "卒業研究\nE全"],
+  [22, 23, 4, 4, "通信方式\n[共通](河合)"],
+  [22, 23, 6, 6, "卒業研究\nE全"],
+  [22, 23, 8, 8, "画像工学\n[情1]平野"],
+  [22, 23, 9, 9, "卒業研究\nE全"],
+  [22, 23, 10, 10, "卒業研究\nE全"],
+  [22, 22, 12, 12, "パワー\nエレクトロニクス\n[トーカロ]廣田"],
+  [22, 23, 13, 13, "制御工学Ⅱ\n[共通]アセド"],
+  [22, 22, 15, 15, "エネルギー伝送\n工学\n[共通]廣田"],
+  [22, 23, 16, 16, "情報理論\n[情4]平野"],
+  [22, 23, 17, 17, "卒業研究\nE全"],
+  [22, 23, 18, 18, "卒業研究\nE全"],
+  [23, 23, 3, 3, "人工知能\n[トーカロ]（奥村）"],
+  [23, 23, 12, 12, "情報ネットワーク応\n用\n[情基]野村"],
+  [23, 23, 14, 14, "コンパイラ\n[情基]土田"],
+  [24, 24, 0, 0, "卒業研究\nC全"],
+  [24, 24, 1, 1, "防災工学\n[共通]三好・小川"],
+  [24, 24, 2, 2, "卒業研究\nC全"],
+  [24, 25, 3, 3, "スポーツ科学\n実習Ⅳ\n後藤・(中尾)"],
+  [24, 24, 4, 4, "卒業研究\nC全"],
+  [24, 24, 6, 6, "卒業研究\nC全"],
+  [24, 24, 8, 8, "英会話Ⅱ\n[情5]ハーバート"],
+  [24, 24, 9, 9, "卒業研究\nC全"],
+  [24, 24, 12, 12, "鋼構造学Ⅱ\n[共通]（川村）"],
+  [24, 24, 13, 13, "環境工学\n[視聴] 小野"],
+  [24, 24, 16, 16, "建設法規\n[共通] 小野"],
+  [24, 24, 17, 17, "測量学Ⅲ\n[C製図]生田"],
+  [24, 24, 18, 18, "卒業研究\nC全"],
+  [25, 25, 1, 1, "建築法規\n[ソネック](浦野)"],
+  [25, 25, 2, 2, "卒業研究\nA全"],
+  [25, 25, 8, 8, "卒業研究\nA全"],
+  [25, 25, 9, 9, "英会話Ⅱ\n[情5]ハーバート"],
+  [25, 25, 10, 10, "卒業研究\nA全"],
+  [25, 25, 12, 12, "建築設備Ｂ\n[ソネック]平石"],
+  [25, 25, 13, 13, "建築生産B\n[ソネック](平田)"],
+  [25, 25, 16, 16, "卒業研究\nA全"],
+  [25, 25, 17, 17, "卒業研究\nA全"],
+  [25, 25, 18, 18, "建築構造演習\n[もの]\n(平郡）・東野"],
+  [25, 25, 19, 19, "建築構造特論B\n［もの］(井手)"]
+].map(([rowStart, rowEnd, columnStart, columnEnd, text], index) => ({
+  id: `source-${index}`, rowStart, rowEnd, columnStart, columnEnd, text
+}));
+
+// 二重枠の領域だけ学科対象。行に隣接する「M・1組」などを同じ集団と解釈しない。
+function isDepartmentCell(grade, column) {
+  if (grade === 1) return column <= 3 || column === 10;
+  if (grade === 2) return column === 2 || (column >= 4 && column <= 7) || column >= 18;
+  return true;
+}
+
+function parseSourceText(text) {
+  const lines = text.trim().split('\n').map(line => line.trim()).filter(Boolean);
+  const unwrap = value => value.replace(/([A-Za-z])\n(?=[A-Za-z])/g, '$1 ').replace(/\n/g, '').trim();
+  const locationMatch = text.match(/[［\[]([^］\]]+)[］\]]/);
+  if (locationMatch) {
+    return {
+      subjectName: unwrap(text.slice(0, locationMatch.index)),
+      location: locationMatch[1],
+      teacher: text.slice(locationMatch.index + locationMatch[0].length).replace(/\n/g, '').trim()
+    };
+  }
+  if (lines[0] === 'HR') return { subjectName: 'HR', location: '', teacher: lines.slice(1).join(' ') };
+  return { subjectName: unwrap(lines.slice(0, -1).join('\n')), location: '', teacher: lines.at(-1) || '' };
+}
+
+function sourceTargets(cell) {
+  const targets = [];
+  for (let row = cell.rowStart; row <= cell.rowEnd; row++) {
+    if (row < 8) {
+      const grade = row < 4 ? 1 : 2;
+      const group = row % 4;
+      const targetType = isDepartmentCell(grade, cell.columnStart) ? 'department' : 'class';
+      targets.push({ grade, targetType, targetGroup: targetType === 'class' ? String(group + 1) : DEPARTMENTS[group] });
+    } else if (row < 16) {
+      const group = Math.floor((row - 8) / 2);
+      targets.push({ grade: 3, targetType: 'department', targetGroup: DEPARTMENTS[group], studentType: row % 2 === 0 ? 'regular' : 'international' });
+    } else {
+      const grade = row < 21 ? 4 : 5;
+      const group = (row - (grade === 4 ? 16 : 21));
+      const course = ['M', 'ED', 'EJ', 'C', 'A'][group];
+      targets.push({ grade, targetType: 'department', targetGroup: course.startsWith('E') ? 'E' : course, ...(course.startsWith('E') ? { course } : {}) });
+    }
+  }
+  return targets;
+}
+
+const LESSONS = SOURCE_CELLS.flatMap(cell => {
+  // 音楽・美術は原本で1・2組、3・4組を縦結合した選択授業。両方を必修扱いしない。
+  const artParts = cell.text.includes('音楽-2') && cell.text.includes('美術-2')
+    ? [{ text: cell.text.split('美術-2')[0].trim(), arts: 'music' }, { text: `美術-2${cell.text.split('美術-2')[1]}`.trim(), arts: 'art' }]
+    : [{ text: cell.text }];
+  return sourceTargets(cell).flatMap((target, targetIndex) => artParts.map((part, partIndex) => ({
+    id: `${cell.id}-${targetIndex}-${partIndex}`,
+    ...target,
+    ...parseSourceText(part.text),
+    dayOfWeek: Math.floor(cell.columnStart / 4) + 1,
+    period: cell.columnStart % 4 + 1,
+    duration: cell.columnEnd - cell.columnStart + 1,
+    notes: part.arts ? '芸術選択科目' : '',
+    ...(part.arts ? { arts: part.arts } : {}),
+    changeInfo: null,
+    sourceCellId: cell.id,
+    sourceText: part.text
+  })));
+});
+
+function generateTimetable(data, selection) {
+  const { grade, department, classGroup, course, studentType = 'regular', arts = 'music' } = selection;
+  if (!Number.isInteger(grade) || grade < 1 || grade > 5 || !DEPARTMENTS.includes(department)) {
+    throw new Error('学年と学科を正しく選択してください。');
+  }
+  if (grade <= 2 && !['1', '2', '3', '4'].includes(classGroup)) {
+    throw new Error('1・2年生はクラスを選択してください。');
+  }
+  if (grade >= 4 && department === 'E' && !['ED', 'EJ'].includes(course)) {
+    throw new Error('4・5年生のE学科はED・EJを選択してください。');
+  }
+  if (!['regular', 'international'].includes(studentType)) throw new Error('留学生の区分を選択してください。');
+  if (grade === 1 && !['music', 'art'].includes(arts)) throw new Error('音楽・美術を選択してください。');
+  const selected = data.filter(lesson => {
+    if (lesson.grade !== grade) return false;
+    if (lesson.course && lesson.course !== course) return false;
+    if (lesson.studentType && lesson.studentType !== studentType) return false;
+    if (lesson.arts && lesson.arts !== arts) return false;
+    const matchesDepartment = lesson.targetType === 'department' && lesson.targetGroup === department;
+    const matchesClass = grade <= 2 && lesson.targetType === 'class' && lesson.targetGroup === classGroup;
+    return matchesDepartment || matchesClass;
+  });
+
+  // 5日 × 4限。セルを配列にして、重複を上書きせず検出できるようにする。
+  const grid = Array.from({ length: 5 }, () => Array.from({ length: 4 }, () => []));
+  for (const lesson of selected) {
+    const duration = lesson.duration ?? 1;
+    if (!Number.isInteger(lesson.dayOfWeek) || lesson.dayOfWeek < 1 || lesson.dayOfWeek > 5 ||
+        !Number.isInteger(lesson.period) || lesson.period < 1 ||
+        !Number.isInteger(duration) || duration < 1 || lesson.period + duration - 1 > 4) {
+      throw new Error(`授業 ${lesson.id} の曜日・時限が不正です。`);
+    }
+    for (let offset = 0; offset < duration; offset++) {
+      grid[lesson.dayOfWeek - 1][lesson.period - 1 + offset].push(lesson);
+    }
+  }
+  const conflicts = grid.flat().filter(cell => cell.length > 1).length;
+  return { selected, grid, conflicts };
+}
+
+// ===== UI =====
+const form = document.getElementById('selection-form');
+const gradeSelect = document.getElementById('grade');
+const departmentSelect = document.getElementById('department');
+const classSelect = document.getElementById('class-group');
+const feedback = document.getElementById('feedback');
+const courseSelect = document.getElementById('course');
+const studentSelect = document.getElementById('student-type');
+const artsSelect = document.getElementById('arts');
+
+function updateClassInput() {
+  const grade = Number(gradeSelect.value);
+  const needsClass = grade <= 2;
+  const needsCourse = grade >= 4 && departmentSelect.value === 'E';
+  courseSelect.disabled = !needsCourse;
+  courseSelect.required = needsCourse;
+  document.getElementById('course-help').textContent = needsCourse ? '必須：所属コースを選択' : '4・5年のE学科で選択';
+  document.getElementById('arts-field').hidden = grade !== 1;
+  artsSelect.disabled = grade !== 1;
+  artsSelect.required = grade === 1;
+  document.getElementById('student-help').textContent = grade === 3
+    ? '3年生は留学生の区分に応じて、国語・政治学・日本語などを添付表の該当行から表示します。'
+    : 'この学年は添付表に留学生別の行がないため、留学生を選んでも共通の時間割を表示します。';
+  classSelect.disabled = !needsClass;
+  classSelect.required = needsClass;
+  document.getElementById('class-state').textContent = needsClass ? '1・2年生は必須' : '3〜5年生は選択不要';
+  document.getElementById('selection-hint').textContent = needsClass
+    ? '1・2年生は「クラスの一般科目」と「学科の専門科目」を組み合わせます。'
+    : '3年は通常課程・留学生、4・5年のE学科はED・EJの区分も原本に合わせて選択してください。';
+}
+
+function createLesson(lesson) {
+  const article = document.createElement('div');
+  article.className = 'lesson';
+  const subject = document.createElement('strong');
+  subject.className = 'subject';
+  subject.textContent = lesson.subjectName;
+  const detail = document.createElement('span');
+  detail.className = 'details';
+  detail.textContent = `${lesson.location ? `[${lesson.location}]` : ''}${lesson.teacher}`;
+  article.append(subject, detail);
+  if (lesson.notes) {
+    const notes = document.createElement('small');
+    notes.className = 'notes';
+    notes.textContent = lesson.notes;
+    article.append(notes);
+  }
+  return article;
+}
+
+function renderTimetable() {
+  try {
+    const selection = { grade: Number(gradeSelect.value), department: departmentSelect.value, classGroup: classSelect.value, course: courseSelect.value, studentType: studentSelect.value, arts: artsSelect.value };
+    const { selected, grid, conflicts } = generateTimetable(LESSONS, selection);
+    const groupLabel = selection.grade >= 4 && selection.department === 'E' ? `E学科 ${COURSE_LABELS[selection.course]}` : `${selection.department}学科`;
+    const extraLabel = (selection.grade <= 2 ? `・${selection.classGroup}組${selection.grade === 1 ? `・${selection.arts === 'music' ? '音楽' : '美術'}` : ''}` : '') + (selection.studentType === 'international' ? `・留学生${selection.grade === 3 ? '' : '（共通時間割）'}` : selection.grade === 3 ? '・通常課程' : '');
+    const title = `${selection.grade}年 ${groupLabel}${extraLabel}の時間割`;
+    document.getElementById('result-title').textContent = title;
+    document.getElementById('table-caption').textContent = `${title}：月〜金、1〜4限`;
+    const body = document.getElementById('table-body');
+    body.replaceChildren();
+    grid.forEach((day, dayIndex) => {
+      const row = document.createElement('tr');
+      const dayHeader = document.createElement('th');
+      dayHeader.scope = 'row';
+      dayHeader.textContent = DAYS[dayIndex];
+      row.append(dayHeader);
+      for (let periodIndex = 0; periodIndex < 4; periodIndex++) {
+        const cell = document.createElement('td');
+        const lessons = day[periodIndex];
+        if (lessons.length === 0) {
+          cell.className = 'empty';
+          cell.textContent = '空き';
+        } else {
+          if (lessons.length > 1) {
+            cell.className = 'conflict';
+            const warning = document.createElement('span');
+            warning.className = 'conflict-label';
+            warning.textContent = '授業が重複しています';
+            cell.append(warning);
+          } else {
+            // 同じ授業の連続コマだけ結合。重複があるコマは結合しない。
+            let span = 1;
+            while (periodIndex + span < 4 && day[periodIndex + span].length === 1 &&
+                   day[periodIndex + span][0].id === lessons[0].id) span++;
+            cell.colSpan = span;
+            periodIndex += span - 1;
+          }
+          lessons.forEach(lesson => cell.append(createLesson(lesson)));
+        }
+        row.append(cell);
+      }
+      body.append(row);
+    });
+    const classCount = selected.filter(lesson => lesson.targetType === 'class').length;
+    document.getElementById('summary').textContent = `${selected.length}授業・${grid.flat().filter(cell => cell.length > 0).length}コマ${selection.grade <= 2 ? ` ／ クラス ${classCount}授業 ＋ 学科 ${selected.length - classCount}授業` : ' ／ 学科別'}`;
+    feedback.textContent = conflicts ? `${conflicts}コマで授業が重複しています。原本の曜日・時限と選択条件を確認してください。` : `${title}を生成しました。`;
+  } catch (error) {
+    // 未選択時に前のクラスの時間割を残さない。
+    document.getElementById('table-body').replaceChildren();
+    document.getElementById('result-title').textContent = '選択条件を確認してください';
+    document.getElementById('table-caption').textContent = '選択待ちの時間割';
+    document.getElementById('summary').textContent = '';
+    feedback.textContent = error.message;
+  }
+}
+
+// 時刻を表の上・下の両方に配置し、上側には読み上げ用の時限を付ける。
+for (const [id, tag] of [['table-head', 'th'], ['table-foot', 'td']]) {
+  const row = document.createElement('tr');
+  const blank = document.createElement(tag);
+  if (tag === 'th') blank.setAttribute('aria-label', '曜日');
+  row.append(blank);
+  TIMES.forEach((time, index) => {
+    const cell = document.createElement(tag);
+    cell.textContent = time;
+    if (tag === 'th') {
+      cell.scope = 'col';
+      cell.setAttribute('aria-label', `${index + 1}限 ${time}`);
+    }
+    row.append(cell);
+  });
+  document.getElementById(id).append(row);
+}
+form.addEventListener('change', () => { updateClassInput(); renderTimetable(); });
+form.addEventListener('submit', event => { event.preventDefault(); renderTimetable(); });
+updateClassInput();
+renderTimetable();
+</script>
+</body>
+</html>

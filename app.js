@@ -1,3 +1,5 @@
+import { DAYS, TIMES, DEPARTMENTS, COURSE_LABELS, SOURCE, LESSONS, generateTimetable } from './timetable-data.js';
+
 const icons = {
   home:'M3 10 12 3l9 7v11h-6v-7H9v7H3Z',
   school:'M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M8 9h1m6 0h1M8 12h1m6 0h1',
@@ -31,7 +33,7 @@ const subjects = [
   ['情報ネットワーク','応用物理','キャリアデザイン','自主学習']
 ];
 const defaultClass = '4年 情報工学科';
-let selectedClass = defaultClass;
+let studentSelection = { grade: 1, department: 'M', classGroup: '1', studentType: 'regular', course: '', arts: 'music' };
 let roomDate = today;
 let roomTime = '13:00';
 let roomFilter = 'all';
@@ -71,16 +73,17 @@ function changeRows() {
 }
 function home() {
   const free = rooms.filter(r=>!atTime(r.id,today,'13:00')).length;
-  const list = lessons(today);
+  const list = todaysLessons();
+  const scheduleError = selectedSchedule().error;
   return `${heading('YOUR CAMPUS, AT A GLANCE','こんにちは。', '今日のキャンパスを、ここから。',`<div class="date-block"><strong>${longDate(today)}</strong><small>後期 · キャンパスダッシュボード</small></div>`)}
     <a class="alert" href="#changes">${icon('megaphone')}<div><h2>3件の時間割変更があります <span class="badge red">サンプル</span></h2><p>3限 英語コミュニケーションⅡ の休講などを確認しましょう。</p></div><span class="chevron">${icon('arrow')}</span></a>
     <div class="stats">
       <a class="stat" href="#rooms"><div><div class="stat-label">空き教室</div><div class="stat-number green">${free}<small>室</small></div><div class="stat-note">本日 13:00 時点 · サンプル</div></div><span class="icon-box green">${icon('door')}</span></a>
-      <a class="stat" href="#timetable"><div><div class="stat-label">今日の授業</div><div class="stat-number blue">${list.filter(l=>!l.cancelled).length}<small>コマ</small></div><div class="stat-note">${escapeHTML(defaultClass)} · 休講を除く</div></div><span class="icon-box">${icon('calendar')}</span></a>
+      <a class="stat" href="#timetable"><div><div class="stat-label">今日の授業</div><div class="stat-number blue">${scheduleError?'—':list.reduce((sum,l)=>sum+(l.duration||1),0)}<small>コマ</small></div><div class="stat-note">${escapeHTML(studentLabel())} · 基本時間割</div></div><span class="icon-box">${icon('calendar')}</span></a>
       <a class="stat" href="#register"><div><div class="stat-label">教室の利用登録</div><div class="stat-number rose">${reservations.filter(r=>r.date===today).length}<small>件</small></div><div class="stat-note">本日 · このブラウザーの登録</div></div><span class="icon-box rose">${icon('edit')}</span></a>
     </div>
     <div class="two-col">
-      <section class="panel"><div class="panel-head"><h2>${icon('calendar')}今日の時間割</h2>${link('#timetable','週間を見る')}</div>${list.length ? list.map(l=>`<div class="class-row ${l.cancelled?'cancelled':''}"><div class="period"><strong>${l.period}限</strong>${l.start}</div><div class="class-info"><h3>${l.name}</h3><p>${nameOfRoom(l.room)} · ${l.start}–${l.end}</p></div>${l.cancelled?'<span class="badge red">休講</span>':l.changed?'<span class="badge amber">教室変更</span>':''}</div>`).join(''):'<div class="empty">今日は授業がありません。</div>'}</section>
+      <section class="panel"><div class="panel-head"><h2>${icon('calendar')}今日の時間割</h2>${link('#timetable','週間を見る')}</div>${scheduleError ? `<div class="empty">${escapeHTML(scheduleError)} ${link('#timetable','条件を選択')}</div>` : list.length ? list.map(l=>`<div class="class-row"><div class="period"><strong>${l.period}${l.duration>1?`〜${l.period+l.duration-1}`:''}限</strong>${periods[l.period-1][0]}</div><div class="class-info"><h3>${escapeHTML(l.subjectName)}</h3><p>${escapeHTML(l.location || '教室指定なし')} · ${escapeHTML(l.teacher)}</p></div></div>`).join(''):'<div class="empty">今日は基本時間割に授業がありません。</div>'}</section>
       <section class="panel"><div class="panel-head"><h2>${icon('clock')}最新の時間割変更</h2>${link('#changes','すべて見る')}</div>${changeRows()}<div class="info-note" style="margin-top:21px">登校前に、授業と教室の変更をチェック。</div></section>
     </div>
     <div class="section-title"><h2>${icon('bell')}お知らせ・案内</h2><span class="muted" style="font-size:10px">サンプルのお知らせ</span></div>
@@ -89,14 +92,39 @@ function home() {
     <article class="notice"><span class="icon-box rose">${icon('briefcase')}</span><div class="notice-text"><h3>教室を利用するみなさんへ<span class="badge amber">学生課</span></h3><p>利用後は机・椅子を元の位置に戻し、消灯と戸締まりにご協力ください。</p></div><time datetime="2026-09-25">2026.09.25</time></article>
     <div class="help-strip">${icon('info')}<span>教室の予約は、学生課の紙の予約表への記入が必要です。</span><a href="#register">利用登録はこちら →</a></div>`;
 }
+function studentLabel() {
+  const s = studentSelection;
+  return `${s.grade}年 ${s.department}学科${s.grade <= 2 ? `・${s.classGroup}組` : ''}${s.grade >= 4 && s.department === 'E' ? `・${COURSE_LABELS[s.course] || 'コース未選択'}` : ''}${s.studentType === 'international' ? '・留学生' : ''}${s.grade === 1 ? `・${s.arts === 'art' ? '美術' : '音楽'}` : ''}`;
+}
+function selectedSchedule() {
+  try { return { ...generateTimetable(LESSONS, studentSelection), error: '' }; }
+  catch (error) { return { selected: [], grid: Array.from({ length: 5 }, () => Array.from({ length: 4 }, () => [])), error: error.message }; }
+}
+function todaysLessons() {
+  const day = new Date(`${today}T12:00:00+09:00`).getUTCDay();
+  return selectedSchedule().selected.filter(lesson => lesson.dayOfWeek === day).sort((a,b) => a.period-b.period);
+}
 function timetable() {
-  const base = new Date(`${today}T12:00:00+09:00`);
-  const dow = base.getUTCDay();
-  base.setUTCDate(base.getUTCDate() - (dow===0?6:dow-1));
-  const dates = Array.from({length:5},(_,i)=>{const d=new Date(base);d.setUTCDate(base.getUTCDate()+i);return dateKey(d)});
-  return `${heading('WEEKLY TIMETABLE','時間割','小さな文字の時間割を、見やすく。クラスごとに授業を確認できます。')}
-    <div class="filters"><label class="field">クラス<select id="class-select"><option ${selectedClass===defaultClass?'selected':''}>${defaultClass}</option><option ${selectedClass!==defaultClass?'selected':''}>3年 情報工学科</option></select></label><span class="hint">今週の時間割 · サンプルデータ</span></div>
-    <section class="panel"><div class="panel-head"><h2>${escapeHTML(selectedClass)}</h2><span class="badge gray">後期</span></div><p class="hint">スマートフォンでは表を左右にスクロールできます。</p><div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割"><table><thead><tr><th>時限</th>${dates.map((d,i)=>`<th class="${d===today?'selected-day':''}">${['月','火','水','木','金'][i]}曜日 <small>${Number(d.slice(5,7))}/${Number(d.slice(8))}</small></th>`).join('')}</tr></thead><tbody>${periods.map((p,i)=>`<tr><th>${i+1}限<small style="display:block;font-size:10px;font-weight:400">${p[0]}<br>${p[1]}</small></th>${dates.map(d=>{const l=lessons(d,selectedClass)[i];return `<td class="schedule-cell ${d===today?'selected-day':''}"><strong>${l.name}</strong><small>${nameOfRoom(l.room)}</small>${l.cancelled?'<span class="badge red">休講</span>':l.changed?'<span class="badge amber">教室変更</span>':''}</td>`}).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+  const s = studentSelection;
+  const { selected, grid, error } = selectedSchedule();
+  const options = (values, current) => values.map(([value,label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
+  const field = (label, key, values, disabled = false) => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select></label>`;
+  const needsCourse = s.grade >= 4 && s.department === 'E';
+  const controls = field('学年','grade',[1,2,3,4,5].map(n=>[n,`${n}年`])) +
+    field('学科','department',DEPARTMENTS.map(d=>[d,`${d}学科`])) +
+    field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),s.grade>=3) +
+    field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']]) +
+    field('E学科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],!needsCourse) +
+    (s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
+  const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の後期時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
+    const cell = day[p];
+    if(cell.length===1 && cell[0].period-1<p && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id))) return '';
+    const span = cell.length===1 && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id)) ? (cell[0].duration||1) : 1;
+    return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
+  }).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `${heading('WEEKLY TIMETABLE','時間割','学年・学科・履修区分に合わせて、あなたの1週間を確認。')}
+    <section class="panel timetable-controls"><div class="panel-head"><h2>${icon('calendar')}表示する時間割</h2><span class="badge gray">令和8年度 後期</span></div><div class="filters student-filters">${controls}</div><p class="hint">選択すると自動で更新します。${s.grade<=2?'一般科目はクラス、専門科目は学科で組み合わせます。':''}${s.grade===3?'留学生は原本の留学生用の行を表示します。':'この学年は留学生別の行がないため共通時間割を表示します。'}</p></section>
+    <section class="panel timetable-panel"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge">${selected.length}授業</span></div><p class="hint">スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<p class="timetable-source">出典：<a href="${SOURCE.url}" target="_blank" rel="noopener noreferrer">明石高専・後期時間割（2026年9月24日更新） ↗</a><br>10月8日提供の画像で補正済み。「空き」は原本の空欄です。個別の休講・変更は学校の案内で確認してください。</p></section>`;
 }
 function roomPage() {
   const filtered = rooms.filter(r=>roomFilter!=='free'||!atTime(r.id,roomDate,roomTime));
@@ -140,7 +168,13 @@ function render() {
   document.querySelectorAll('[data-page]').forEach(a=>{a.classList.toggle('active',a.dataset.page===page);if(a.dataset.page===page)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
   const views={home,timetable,rooms:roomPage,register:registerPage,changes:()=>`${heading('TIMETABLE UPDATES','時間割変更','休講・教室変更・補講のお知らせをまとめて確認。')}<section class="panel"><div class="panel-head"><h2>最新のお知らせ</h2><span class="badge gray">サンプル · 3件</span></div>${changeRows()}</section>`};
   document.getElementById('main').innerHTML=views[page]();
-  document.getElementById('class-select')?.addEventListener('change',e=>{selectedClass=e.target.value;render()});
+  document.querySelectorAll('[data-student]').forEach(select=>select.addEventListener('change',e=>{
+    const key=e.target.dataset.student;
+    studentSelection[key]=key==='grade'?Number(e.target.value):e.target.value;
+    const id=e.target.id;
+    render();
+    document.getElementById(id)?.focus({preventScroll:true});
+  }));
   for (const id of ['room-date','room-time','room-filter']) document.getElementById(id)?.addEventListener('change',e=>{if(!e.target.value || !e.target.checkValidity())return;if(id==='room-date')roomDate=e.target.value;if(id==='room-time')roomTime=e.target.value;if(id==='room-filter')roomFilter=e.target.value;render()});
   document.getElementById('reservation-form')?.addEventListener('submit',e=>{
     e.preventDefault();

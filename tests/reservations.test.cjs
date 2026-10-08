@@ -12,7 +12,9 @@ function app() {
     window:{addEventListener:()=>{}},
     localStorage:{getItem:()=>null,setItem:()=>{}},
   });
-  vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8'),context);
+  const data = fs.readFileSync(require('node:path').join(__dirname,'../timetable-data.js'),'utf8').replace(/^export .*$/m,'');
+  const source = fs.readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8').replace(/^import .*;\n/,'');
+  vm.runInContext(data + '\n' + source,context);
   return code=>vm.runInContext(code,context);
 }
 
@@ -60,4 +62,38 @@ test('invalid stored data does not break the dashboard',()=>{
   assert.equal(run('readReservations().length'),0);
   run("localStorage.getItem=()=>'[null,{},42]'");
   assert.equal(run('readReservations().length'),0);
+});
+
+test('portal timetable renders the real EJ course and combines consecutive periods in its existing table layout',()=>{
+  const run=app();
+  run("studentSelection={grade:4,department:'E',classGroup:'1',course:'EJ',studentType:'regular',arts:'music'}");
+  const html=run('timetable()');
+  assert.match(html,/情報コース（EJ）/);
+  assert.match(html,/データ構造とアルゴリズム/);
+  assert.match(html,/情報工学実験ⅠB/);
+  assert.match(html,/rowspan="2"/);
+  assert.doesNotMatch(html,/電気電子工学実験ⅠB/);
+  assert.match(run('home()'),/情報コース（EJ）/);
+});
+
+test('portal hides the timetable when E course is not selected and switches international student subjects',()=>{
+  const run=app();
+  run("studentSelection={grade:4,department:'E',course:'',studentType:'regular',arts:'music'}");
+  assert.match(run('timetable()'),/ED・EJを選択/);
+  assert.doesNotMatch(run('timetable()'),/<table/);
+  assert.equal(run('todaysLessons().length'),0);
+  run("studentSelection={grade:3,department:'M',studentType:'international'}");
+  assert.match(run('timetable()'),/日本語Ⅲ-2/);
+  assert.doesNotMatch(run('timetable()'),/国語ⅢＡ/);
+  run("studentSelection.studentType='regular'");
+  assert.match(run('timetable()'),/国語ⅢＡ/);
+  assert.doesNotMatch(run('timetable()'),/日本語Ⅲ-2/);
+});
+
+test('portal data is identical to the previously verified standalone timetable data',()=>{
+  const run=app();
+  const source=fs.readFileSync(require('node:path').join(__dirname,'../timetable-standalone.html'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1].split('// ===== UI =====')[0];
+  const context=vm.createContext({});
+  vm.runInContext(source,context);
+  assert.equal(run('JSON.stringify(LESSONS)'),vm.runInContext('JSON.stringify(LESSONS)',context));
 });
