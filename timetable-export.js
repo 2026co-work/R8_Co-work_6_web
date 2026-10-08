@@ -1,4 +1,4 @@
-import html2canvas from 'html2canvas';
+import { html2canvas, jsPDF } from './vendor/export-libraries.js';
 
 export function fitOnPage(width, height, pageWidth = 297, pageHeight = 210, margin = 10) {
   if (!(width > 0 && height > 0)) throw new Error('時間割の画像サイズが不正です。');
@@ -50,7 +50,6 @@ export async function exportTimetable(snapshot, format, filename) {
       const blob = await new Promise((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error('PNGを生成できませんでした。')), 'image/png'));
       downloadBlob(blob, `${filename}.png`);
     } else {
-      const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       const bounds = fitOnPage(canvas.width, canvas.height);
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bounds.x, bounds.y, bounds.width, bounds.height, undefined, 'FAST');

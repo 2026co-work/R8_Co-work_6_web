@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "vendor:export": "node scripts/build-export-vendor.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
