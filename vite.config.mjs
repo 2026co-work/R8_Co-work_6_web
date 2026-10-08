@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: './',
+  optimizeDeps: {
+    include: ['html2canvas', 'jspdf'],
+  },
   server: {
     host: '127.0.0.1',
     port: 5180,
