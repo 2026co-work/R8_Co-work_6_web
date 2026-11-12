@@ -50,7 +50,7 @@ let exportSizeConfig = { ...EXPORT_MODES.web };
 let a4ModeEnabled = false;
 let exportIncludeEmpty = false;
 const EXPORT_FORMAT_CONFIGS = {
-  pdf: { copyLabel: '印刷画面を開く', downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
+  pdf: { copyLabel: '📋 コピー', downloadLabel: '💾 PDFダウンロード', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '📋 画像をコピー', downloadLabel: '💾 PNG保存', adjustLabel: 'レイアウト調整' },
   text: { copyLabel: '📋 テキストをコピー', downloadLabel: '💾 テキスト保存', adjustLabel: 'プレビュー＆調整' },
   csv: { copyLabel: '📋 CSVをコピー', downloadLabel: '💾 CSVダウンロード', adjustLabel: '形式プレビュー' },
