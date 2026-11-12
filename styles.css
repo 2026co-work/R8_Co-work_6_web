@@ -265,13 +265,12 @@ body.size-modal-open{overflow:hidden}
 .size-paper-wrap{zoom:var(--sheet-scale,0.65);margin:auto;transition:zoom .15s}
 .size-paper{width:1100px;background:#ffffff;box-shadow:0 12px 36px rgba(0,0,0,0.45);border-radius:2px;overflow:hidden;transition:min-height .2s, box-shadow .2s;position:relative}
 .size-paper[data-theme="dark"]{background:#171b26}
-.size-paper.a4-mode{width:1100px;height:778px;max-height:778px;min-height:778px;box-sizing:border-box;overflow:hidden;outline:2px dashed rgba(121,24,43,0.55);outline-offset:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.1), 0 16px 48px rgba(0,0,0,0.5)}
-.size-paper.a4-mode::after{content:'A4 用紙境界 (297×210)';position:absolute;bottom:6px;right:10px;font-size:11px;font-weight:700;color:var(--wine);opacity:0.7;pointer-events:none}
-[data-theme="dark"] .size-paper.a4-mode{outline-color:rgba(244,168,184,0.65);box-shadow:0 0 0 1px rgba(255,255,255,0.1), 0 16px 48px rgba(0,0,0,0.7)}
+.size-paper.a4-mode{width:1100px;height:778px;max-height:778px;min-height:778px;box-sizing:border-box;overflow:hidden;outline:2px dashed rgba(121,24,43,0.45);outline-offset:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.1), 0 16px 48px rgba(0,0,0,0.5)}
+.size-paper.a4-mode::after{content:'A4 用紙枠 (297×210)';position:absolute;bottom:6px;right:10px;font-size:11px;font-weight:700;color:var(--wine);opacity:0.65;pointer-events:none}
+[data-theme="dark"] .size-paper.a4-mode{outline-color:rgba(244,168,184,0.55);box-shadow:0 0 0 1px rgba(255,255,255,0.1), 0 16px 48px rgba(0,0,0,0.7)}
 [data-theme="dark"] .size-paper.a4-mode::after{color:#f4a8b8}
-.size-paper.a4-mode .export-sheet{height:100%!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important}
-.size-paper.a4-mode .table-scroll{flex:1!important;display:flex!important;flex-direction:column!important}
-.size-paper.a4-mode .real-timetable{height:100%!important}
+.size-paper.a4-mode .export-sheet{width:1100px!important;max-width:none!important;min-height:auto!important;height:auto!important;box-sizing:border-box!important}
+.size-paper.a4-mode .real-timetable{height:auto!important}
 .size-paper .export-sheet{width:1100px!important;max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:var(--export-pad,16px)!important}
 .size-overlay-controls{background:#ffffff;border-top:1px solid var(--line);padding:14px 18px 18px;box-shadow:0 -4px 20px rgba(0,0,0,0.18);flex-shrink:0}
 [data-theme="dark"] .size-overlay-controls{background:#191d28;border-top-color:#2c3240;color:#e4e6eb}
