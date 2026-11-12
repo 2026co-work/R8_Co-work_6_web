@@ -120,7 +120,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${selected.length}授業</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<p class="timetable-source" data-export-exclude>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a><br>個別の休講・変更は学校の案内で確認してください。</p><div class="export-config-bar" data-export-exclude><button class="button secondary" id="export-size-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>サイズ調整</button><span class="size-mode-Summary" id="export-size-summary">みため: ${exportSizeMode === 'nomargin' ? '余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf">PDF（A4横）</option><option value="png">PNG（画像）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':'時間割をダウンロード'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude>${error?'選択条件を設定するとダウンロードできます。':'選択中の時間割全体を保存します。'}</p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${selected.length}授業</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<p class="timetable-source" data-export-exclude>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a><br>個別の休講・変更は学校の案内で確認してください。</p><div class="export-config-bar" data-export-exclude><button class="button secondary" id="export-size-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>サイズ調整</button><span class="size-mode-Summary" id="export-size-summary">みため: ${exportSizeMode === 'nomargin' ? '余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf">PDF（A4横）</option><option value="png">PNG（画像）</option><option value="ics">カレンダー（Google/iPhone / .ics）</option><option value="csv">CSV（Excel用 / .csv）</option><option value="text">テキスト（コピー＆保存）</option><option value="json">JSON（データ / .json）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':'時間割をダウンロード'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude>${error?'選択条件を設定するとダウンロードできます。':'選択中の時間割全体を保存します。'}</p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -226,12 +226,14 @@ async function downloadCurrentTimetable() {
   status.textContent = `${format.toUpperCase()}を作成しています…`;
   try {
     const { exportTimetable } = await import('./timetable-export.js');
-    await exportTimetable(snapshot, format, filename, {
+    const scheduleResult = selectedSchedule();
+    const result = await exportTimetable(snapshot, format, filename, {
       studentLabel: studentLabel(),
+      selectedLessons: scheduleResult.selected || [],
       updated: SOURCE?.updated || '2026-09-24',
       sizeConfig: { ...exportSizeConfig },
     });
-    status.textContent = 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。';
+    status.textContent = result?.message || 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。';
   } catch (error) {
     console.error('Timetable export failed', error);
     status.textContent = 'ファイルを作成できませんでした。通信状態を確認して、もう一度お試しください。';
