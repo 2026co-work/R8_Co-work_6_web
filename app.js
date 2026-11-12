@@ -31,12 +31,19 @@ const COOKIE_NAME = 'campus-student-v1';
 const SELECTION_VALUES = { grade: [1,2,3,4,5], department: DEPARTMENTS, classGroup: ['1','2','3','4'], studentType: ['regular','international'], course: ['','ED','EJ'], arts: ['music','art'] };
 let cookieSaved = false;
 let exportInProgress = false;
-const EXPORT_MODES = {
-  nomargin: { padding: 10, cellHeight: 172, fontScale: 105 },
-  memo: { padding: 36, cellHeight: 118, fontScale: 95 },
+const DEPARTMENT_NAMES = {
+  M: '機械工学科 (M)',
+  E: '電気情報工学科 (E)',
+  C: '都市システム工学科 (C)',
+  A: '建築学科 (A)',
 };
-let exportSizeMode = 'nomargin';
-let exportSizeConfig = { ...EXPORT_MODES.nomargin };
+const EXPORT_MODES = {
+  web: { padding: 0, cellHeight: 140, fontScale: 100 },
+  a4fit: { padding: 0, cellHeight: 172, fontScale: 105 },
+  memo: { padding: 8, cellHeight: 220, fontScale: 95 },
+};
+let exportSizeMode = 'web';
+let exportSizeConfig = { ...EXPORT_MODES.web };
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { actionLabel: '印刷・PDF保存', adjustLabel: 'レイアウト調整' },
   png: { actionLabel: 'PNG画像を保存', adjustLabel: 'レイアウト調整' },
@@ -101,11 +108,12 @@ function selectedSchedule() {
 function timetable() {
   const s = studentSelection;
   const { selected, grid, error } = selectedSchedule();
+  const totalPeriods = selected.reduce((sum, l) => sum + (l.duration || 1), 0);
   const options = (values, current) => values.map(([value,label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
   const field = (label, key, values, disabled = false) => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select></label>`;
   const needsCourse = s.grade >= 4 && s.department === 'E';
   const controls = field('学年','grade',[1,2,3,4,5].map(n=>[n,`${n}年`])) +
-    field('学科','department',DEPARTMENTS.map(d=>[d,`${d}学科`])) +
+    field('学科','department',DEPARTMENTS.map(d=>[d, DEPARTMENT_NAMES[d] || `${d}学科`])) +
     field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),s.grade>=3) +
     field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']]) +
     field('E学科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],!needsCourse) +
@@ -128,14 +136,12 @@ function timetable() {
       <div class="filter-body">
         <div class="filters student-filters">${controls}</div>
         <p class="selection-status" role="status" hidden></p>
-        <p class="hint">選択すると自動で更新します。${s.grade<=2?'一般科目はクラス、専門科目は学科で組み合わせます。':''}${s.grade===3?'留学生は原本の留学生用の行を表示します。':'この学年は留学生別の行がないため共通時間割を表示します。'}</p>
-        <p class="advanced-notice">専攻科の時間割はもう少しお待ちください！！</p>
         <div class="filter-actions">
-          <button type="button" class="button confirm-btn" id="confirm-filter-btn">${icon('check')}決定して閉じる</button>
+          <button type="button" class="button confirm-btn" id="confirm-filter-btn">${icon('check')}決定</button>
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${selected.length}授業</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<p class="timetable-source" data-export-exclude>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a><br>個別の休講・変更は学校の案内で確認してください。</p><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（コピー＆保存）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.actionLabel||'ダウンロード')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（コピー＆保存）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.actionLabel||'ダウンロード')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -146,7 +152,8 @@ function timetable() {
         <div class="size-preset-row">
           <div class="size-preset-group" role="group" aria-label="みため">
             <span class="size-preset-label">みため:</span>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'nomargin' ? 'active' : ''}" data-size-mode="nomargin">余白なし</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web">Web表示のまま（余白なし）</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit">A4余白なし</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
@@ -154,6 +161,24 @@ function timetable() {
           <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
         </div>
         <div class="size-sliders">
+          <label class="size-slider-item">
+            <span class="size-slider-name">余白</span>
+            <input type="range" id="size-slider-padding" min="0" max="48" step="2" value="${exportSizeConfig.padding}">
+            <span class="size-slider-val" id="size-val-padding">${exportSizeConfig.padding}px</span>
+          </label>
+          <label class="size-slider-item">
+            <span class="size-slider-name">マスの高さ</span>
+            <input type="range" id="size-slider-cell" min="80" max="240" step="2" value="${exportSizeConfig.cellHeight}">
+            <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
+          </label>
+          <label class="size-slider-item">
+            <span class="size-slider-name">文字の大きさ</span>
+            <input type="range" id="size-slider-font" min="80" max="130" step="1" value="${exportSizeConfig.fontScale}">
+            <span class="size-slider-val" id="size-val-font">${exportSizeConfig.fontScale}%</span>
+          </label>
+        </div>
+      </div>
+    </div>
           <label class="size-slider-item">
             <span class="size-slider-name">余白</span>
             <input type="range" id="size-slider-padding" min="0" max="48" step="2" value="${exportSizeConfig.padding}">
@@ -209,10 +234,19 @@ function openSizeAdjustModal() {
   paper.setAttribute('data-theme', currentTheme);
   clone.querySelector('.panel-head')?.remove();
   clone.querySelector('.timetable-source')?.remove();
-  const title = document.createElement('h1');
-  title.className = 'export-title';
-  title.textContent = `明石高専後期時間割 ${studentLabel()} Co+work6班 ＜時間割PDF参照日時: ${SOURCE?.updated || '2026-09-24'}＞`;
-  clone.prepend(title);
+  const headerRow = document.createElement('div');
+  headerRow.className = 'export-header-row';
+  headerRow.innerHTML = `
+    <div class="export-header-main">
+      <h1 class="export-title">明石高専 後期時間割</h1>
+      <span class="export-badge-tag">${escapeHTML(studentLabel())}</span>
+      <span class="export-team-tag">Co+work 6班</span>
+    </div>
+    <div class="export-header-sub">
+      <small class="export-pdf-date">PDF参照: ${escapeHTML(SOURCE?.updated || '2026-09-24')}</small>
+    </div>
+  `;
+  clone.prepend(headerRow);
   const scroller = clone.querySelector('.table-scroll');
   if (scroller) scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
   const tbl = clone.querySelector('table');
@@ -285,22 +319,36 @@ async function openDataPreviewModal(format) {
     actionBtn.textContent = 'CSVをダウンロード';
     const csv = generateCsv(lessons, label);
     body.innerHTML = `
-      <p class="data-preview-note">1コマを1行に正規化したCSVです。2コマ連続の授業は2行に展開され、外部スクリプトやExcel・Googleスプレッドシートで直感的に処理できます（BOM付きUTF-8）。</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <p class="data-preview-note" style="margin:0;">1コマを1行に正規化したCSVです（BOM付きUTF-8）。</p>
+        <button type="button" class="button secondary" id="csv-copy-btn" style="min-height:30px;padding:0 12px;font-size:12px;">📋 クリップボードにコピー</button>
+      </div>
       <pre class="preview-code-block">${escapeHTML(csv)}</pre>
     `;
+    document.getElementById('csv-copy-btn')?.addEventListener('click', async (e) => {
+      try {
+        await navigator.clipboard.writeText(csv);
+        e.target.textContent = '✓ コピーしました！';
+        setTimeout(() => { if (e.target) e.target.textContent = '📋 クリップボードにコピー'; }, 2000);
+      } catch (err) {
+        console.error('Copy failed', err);
+      }
+    });
   } else if (format === 'json') {
     title.textContent = 'JSONデータプレビュー';
     actionBtn.textContent = 'JSONをダウンロード';
-    const json = generateJson(lessons, label);
+    const json = generateJson(lessons, label, SOURCE?.updated || '2026-09-24');
     body.innerHTML = `
       <div class="data-schema-doc">
-        <div class="schema-doc-title">💡 データ構造の設計意図</div>
+        <div class="schema-doc-title">データ構造</div>
         <ul class="schema-doc-list">
-          <li><strong>meta</strong>: 令和8年度後期・対象所属（${escapeHTML(label)}）・生成時刻（スナップショット）を明記し、外部データとの混同を防止。</li>
-          <li><strong>lessons[ ]</strong>: 複雑な結合セルを「1授業=1オブジェクト」に正規化。</li>
-          <li><strong>dayOfWeek</strong>: 1(月)〜5(金)の数値型。カレンダー計算やプログラムのインデックスに最適化。</li>
-          <li><strong>period / duration</strong>: 開始時限とコマ数（2コマ連続授業は <code>duration: 2</code>）。</li>
-          <li><strong>location / teacher</strong>: 教室・担当教員（空欄時は空文字 <code>""</code> でスキーマ統一）。</li>
+          <li><code>meta</code>: タイトル、学期、対象所属、元データ参照日時(sourceUpdated)、合計コマ数(totalPeriods)、科目数(totalSubjects)</li>
+          <li><code>lessons[ ]</code>: 授業リスト</li>
+          <li><code>dayOfWeek</code>: 曜日（1:月〜5:金）</li>
+          <li><code>period</code> / <code>duration</code>: 開始時限 / コマ数</li>
+          <li><code>subjectName</code>: 科目名</li>
+          <li><code>location</code> / <code>teacher</code>: 教室 / 担当教員</li>
+          <li><code>notes</code>: 備考</li>
         </ul>
       </div>
       <pre class="preview-code-block">${escapeHTML(json)}</pre>
@@ -372,7 +420,8 @@ function render() {
   const route=location.hash.slice(1).split('?')[0] || 'home';
   const names={home:'ホーム',timetable:'時間割'};
   const page=Object.hasOwn(names,route)?route:'home';
-  document.getElementById('breadcrumb').textContent=names[page];
+  const breadcrumbEl=document.getElementById('breadcrumb');
+  if(breadcrumbEl) breadcrumbEl.textContent=names[page];
   document.title=`${names[page]} — Campus`;
   document.querySelectorAll('[data-page]').forEach(a=>{
     a.classList.toggle('active',a.dataset.page===page);
@@ -447,8 +496,8 @@ function render() {
     syncSizeControlsUI();
   }));
   document.getElementById('size-mode-reset')?.addEventListener('click', () => {
-    exportSizeMode = 'nomargin';
-    exportSizeConfig = { ...EXPORT_MODES.nomargin };
+    exportSizeMode = 'web';
+    exportSizeConfig = { ...EXPORT_MODES.web };
     syncSizeControlsUI();
   });
   const bindSizeSlider = (id, key) => {
@@ -542,7 +591,7 @@ function setupNavigation() {
   return ()=>setOpen(false,false);
 }
 const closeNavigation=setupNavigation();
-window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});});
+window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});document.querySelector?.('.topbar')?.classList?.remove('topbar-hidden');});
 
 const THEME_COOKIE = 'campus-theme';
 function getInitialTheme() {
@@ -591,5 +640,32 @@ function setupTheme() {
     });
   }
 }
+function setupMobileHeaderScroll() {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  let lastY = 0;
+  let ticking = false;
+  const raf = typeof window.requestAnimationFrame === 'function'
+    ? window.requestAnimationFrame
+    : (cb) => setTimeout(cb, 0);
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      raf(() => {
+        const topbar = typeof document.querySelector === 'function' ? document.querySelector('.topbar') : null;
+        const currentY = typeof window.scrollY === 'number' ? window.scrollY : (typeof window.pageYOffset === 'number' ? window.pageYOffset : 0);
+        if (topbar && typeof window.innerWidth === 'number' && window.innerWidth <= 760 && !document.body?.classList?.contains('menu-open')) {
+          if (currentY > lastY && currentY > 50) {
+            topbar.classList?.add('topbar-hidden');
+          } else if (currentY < lastY || currentY <= 20) {
+            topbar.classList?.remove('topbar-hidden');
+          }
+        }
+        lastY = Math.max(0, currentY);
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+}
+setupMobileHeaderScroll();
 setupTheme();
 render();

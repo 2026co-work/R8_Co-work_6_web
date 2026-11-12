@@ -242,14 +242,16 @@ export function generateText(selectedLessons, studentLabel, options = {}) {
 /**
  * JSON形式生成
  */
-export function generateJson(selectedLessons, studentLabel) {
+export function generateJson(selectedLessons, studentLabel, updated = '2026-09-24') {
+  const totalPeriods = selectedLessons.reduce((sum, l) => sum + (l.duration || 1), 0);
   const exportData = {
     meta: {
       title: '明石高専 授業時間割',
       term: '令和8年度後期',
       student: studentLabel,
-      exportedAt: new Date().toISOString(),
-      totalLessons: selectedLessons.length
+      sourceUpdated: updated,
+      totalPeriods: totalPeriods,
+      totalSubjects: selectedLessons.length
     },
     lessons: selectedLessons
   };
@@ -308,10 +310,19 @@ export function prepareExportSnapshot(snapshot, options = {}) {
     headH2.append(fullSpan);
   }
 
-  const title = document.createElement('h1');
-  title.className = 'export-title';
-  title.textContent = `明石高専後期時間割 ${label} Co+work6班 ＜時間割PDF参照日時: ${updated}＞`;
-  snapshot.prepend(title);
+  const headerRow = document.createElement('div');
+  headerRow.className = 'export-header-row';
+  headerRow.innerHTML = `
+    <div class="export-header-main">
+      <h1 class="export-title">明石高専 後期時間割</h1>
+      <span class="export-badge-tag">${label}</span>
+      <span class="export-team-tag">Co+work 6班</span>
+    </div>
+    <div class="export-header-sub">
+      <small class="export-pdf-date">PDF参照: ${updated}</small>
+    </div>
+  `;
+  snapshot.prepend(headerRow);
 
   const scroller = snapshot.querySelector('.table-scroll');
   if (scroller) {
@@ -362,7 +373,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 3. JSON (.json)
   if (format === 'json') {
-    const jsonString = generateJson(selectedLessons, studentLabel);
+    const jsonString = generateJson(selectedLessons, studentLabel, options.updated);
     const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
     downloadBlob(blob, `${filename}.json`);
     return { success: true, message: 'JSONファイル (.json) を保存しました。' };
