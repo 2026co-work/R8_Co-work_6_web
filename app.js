@@ -216,17 +216,18 @@ function timetable() {
     </div>`;
 }
 function getMaxCellHeightForA4(padding) {
-  const fixedH = (padding * 2) + 78; // 上下余白 + ヘッダー(約46px) + thead(約32px)
+  const fixedH = (padding * 2) + 80; // 上下余白 + ヘッダー行(約48px) + thead(約32px)
   return Math.max(80, Math.floor((778 - fixedH) / 4));
 }
 function updateSizeModalScale() {
   const viewport = document.getElementById('size-overlay-viewport');
   const wrap = document.getElementById('size-paper-wrap');
   if (!viewport || !wrap) return;
-  const availW = Math.max(280, (viewport.clientWidth || 360) - 32);
-  const availH = Math.max(280, (viewport.clientHeight || 500) - 32);
-  const targetH = a4ModeEnabled ? 778 : Math.max(600, (document.getElementById('size-modal-paper')?.scrollHeight || 778));
-  const fitScale = Math.min(availW / 1100, availH / targetH, 1);
+  const availW = Math.max(280, (viewport.clientWidth || 360) - 48);
+  const availH = Math.max(280, (viewport.clientHeight || 500) - 48);
+  const targetW = 1100 + 32;
+  const targetH = (a4ModeEnabled ? 778 : Math.max(600, (document.getElementById('size-modal-paper')?.scrollHeight || 778))) + 32;
+  const fitScale = Math.min(availW / targetW, availH / targetH, 1);
   wrap.style.setProperty('--sheet-scale', String(fitScale.toFixed(3)));
 }
 function applyLiveSheetSize(sheet) {
@@ -238,6 +239,41 @@ function applyLiveSheetSize(sheet) {
   sheet.style.setProperty('--export-cell-h', `${cellH}px`);
   sheet.style.setProperty('--export-font-scale', String(scale));
   sheet.style.padding = `${pad}px`;
+}
+function syncSizeControlsUI() {
+  document.querySelectorAll('[data-size-mode]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sizeMode === exportSizeMode);
+  });
+  const padIn = document.getElementById('size-slider-padding');
+  const cellIn = document.getElementById('size-slider-cell');
+  const fontIn = document.getElementById('size-slider-font');
+  const a4Toggle = document.getElementById('size-toggle-a4');
+  if (a4Toggle) a4Toggle.checked = a4ModeEnabled;
+
+  if (a4ModeEnabled) {
+    const maxCellH = getMaxCellHeightForA4(exportSizeConfig.padding);
+    if (cellIn) cellIn.max = String(maxCellH);
+    if (exportSizeConfig.cellHeight > maxCellH) {
+      exportSizeConfig.cellHeight = maxCellH;
+    }
+  } else {
+    if (cellIn) cellIn.max = '240';
+  }
+
+  if (padIn) padIn.value = String(exportSizeConfig.padding);
+  if (cellIn) cellIn.value = String(exportSizeConfig.cellHeight);
+  if (fontIn) fontIn.value = String(exportSizeConfig.fontScale);
+  const padVal = document.getElementById('size-val-padding');
+  const cellVal = document.getElementById('size-val-cell');
+  const fontVal = document.getElementById('size-val-font');
+  if (padVal) padVal.textContent = `${exportSizeConfig.padding}px`;
+  if (cellVal) cellVal.textContent = `${exportSizeConfig.cellHeight}px`;
+  if (fontVal) fontVal.textContent = `${exportSizeConfig.fontScale}%`;
+  const paper = document.getElementById('size-modal-paper');
+  if (paper) paper.classList.toggle('a4-mode', a4ModeEnabled);
+  const sheet = document.querySelector('#size-modal-paper .export-sheet');
+  applyLiveSheetSize(sheet);
+  updateSizeModalScale();
 }
 function openSizeAdjustModal() {
   const modal = document.getElementById('export-size-modal');
@@ -276,7 +312,7 @@ function openSizeAdjustModal() {
   applyLiveSheetSize(clone);
   modal.hidden = false;
   document.body.classList.add('size-modal-open');
-  updateSizeModalScale();
+  syncSizeControlsUI();
 }
 function closeSizeAdjustModal() {
   const modal = document.getElementById('export-size-modal');
@@ -419,6 +455,7 @@ async function downloadCurrentTimetable(action = 'download') {
       selectedLessons: scheduleResult.selected || [],
       updated: SOURCE?.updated || '2026-09-24',
       sizeConfig: { ...exportSizeConfig },
+      a4Mode: a4ModeEnabled,
       theme: currentTheme,
       textOptions: { ...textExportOptions },
       includeEmpty: exportIncludeEmpty,
@@ -545,55 +582,40 @@ function render() {
       updateSizeModalScale();
     }
   });
-  const syncSizeControlsUI = () => {
-    document.querySelectorAll('[data-size-mode]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.sizeMode === exportSizeMode);
-    });
-    const padIn = document.getElementById('size-slider-padding');
-    const cellIn = document.getElementById('size-slider-cell');
-    const fontIn = document.getElementById('size-slider-font');
-    const a4Toggle = document.getElementById('size-toggle-a4');
-    if (a4Toggle) a4Toggle.checked = a4ModeEnabled;
-
-    if (a4ModeEnabled) {
-      const maxCellH = getMaxCellHeightForA4(exportSizeConfig.padding);
-      if (cellIn) cellIn.max = String(maxCellH);
-      if (exportSizeConfig.cellHeight > maxCellH) {
-        exportSizeConfig.cellHeight = maxCellH;
-      }
-    } else {
-      if (cellIn) cellIn.max = '240';
-    }
-
-    if (padIn) padIn.value = String(exportSizeConfig.padding);
-    if (cellIn) cellIn.value = String(exportSizeConfig.cellHeight);
-    if (fontIn) fontIn.value = String(exportSizeConfig.fontScale);
-    const padVal = document.getElementById('size-val-padding');
-    const cellVal = document.getElementById('size-val-cell');
-    const fontVal = document.getElementById('size-val-font');
-    if (padVal) padVal.textContent = `${exportSizeConfig.padding}px`;
-    if (cellVal) cellVal.textContent = `${exportSizeConfig.cellHeight}px`;
-    if (fontVal) fontVal.textContent = `${exportSizeConfig.fontScale}%`;
-    const paper = document.getElementById('size-modal-paper');
-    if (paper) paper.classList.toggle('a4-mode', a4ModeEnabled);
-    const sheet = document.querySelector('#size-modal-paper .export-sheet');
-    applyLiveSheetSize(sheet);
-    updateSizeModalScale();
-  };
   document.querySelectorAll('[data-size-mode]').forEach(btn => btn.addEventListener('click', () => {
     const mode = btn.dataset.sizeMode;
     exportSizeMode = mode;
-    if (EXPORT_MODES[mode]) exportSizeConfig = { ...EXPORT_MODES[mode] };
+    if (mode === 'a4fit') {
+      a4ModeEnabled = true;
+      const maxH = getMaxCellHeightForA4(EXPORT_MODES.a4fit.padding);
+      exportSizeConfig = { ...EXPORT_MODES.a4fit, cellHeight: Math.min(EXPORT_MODES.a4fit.cellHeight, maxH) };
+    } else if (mode === 'memo') {
+      if (a4ModeEnabled) {
+        const maxH = getMaxCellHeightForA4(EXPORT_MODES.memo.padding);
+        exportSizeConfig = { ...EXPORT_MODES.memo, cellHeight: maxH };
+      } else {
+        exportSizeConfig = { ...EXPORT_MODES.memo };
+      }
+    } else if (EXPORT_MODES[mode]) {
+      exportSizeConfig = { ...EXPORT_MODES[mode] };
+    }
     syncSizeControlsUI();
   }));
   document.getElementById('size-mode-reset')?.addEventListener('click', () => {
     exportSizeMode = 'web';
+    a4ModeEnabled = false;
     exportSizeConfig = { ...EXPORT_MODES.web };
     syncSizeControlsUI();
   });
   document.getElementById('size-slider-padding')?.addEventListener('input', e => {
     exportSizeConfig.padding = Number(e.target.value);
     exportSizeMode = 'custom';
+    if (a4ModeEnabled) {
+      const maxH = getMaxCellHeightForA4(exportSizeConfig.padding);
+      if (exportSizeConfig.cellHeight > maxH) {
+        exportSizeConfig.cellHeight = maxH;
+      }
+    }
     syncSizeControlsUI();
   });
   document.getElementById('size-slider-cell')?.addEventListener('input', e => {

@@ -33,3 +33,25 @@ test('copy action in text/json/csv uses clipboard and succeeds', async () => {
   assert.equal(res.success, true);
   assert.match(res.message, /クリップボードにコピー/);
 });
+
+test('A4 mode layout constraints avoid table stretching and bottom margin collapse', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../styles.css'), 'utf8');
+  assert.ok(
+    css.includes('.size-paper.a4-mode .real-timetable{height:auto!important}'),
+    'real-timetable in a4-mode must have height:auto to allow bottom margin whitespace'
+  );
+  assert.ok(
+    !css.includes('.size-paper.a4-mode .real-timetable{height:100%!important'),
+    'real-timetable in a4-mode must not force height:100%'
+  );
+
+  const appJs = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8');
+  assert.ok(
+    appJs.includes('getMaxCellHeightForA4'),
+    'app.js must provide getMaxCellHeightForA4 function'
+  );
+  assert.ok(
+    appJs.includes('a4Mode: a4ModeEnabled'),
+    'downloadCurrentTimetable must pass a4Mode option to exportTimetable'
+  );
+});

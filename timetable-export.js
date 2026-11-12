@@ -550,8 +550,10 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   prepareExportSnapshot(snapshot, options);
 
   // PNG画像出力 (html2canvas) ＋ PDF直接出力 (jsPDF)
+  const a4H = Math.round(1100 * 210 / 297); // 778px
+  const isA4 = Boolean(options.a4Mode);
   snapshot.inert = true;
-  snapshot.style.cssText = `position:fixed;left:0;top:0;width:1100px;max-width:none;background:${bgColor};color:${fgColor};z-index:-9999;pointer-events:none;border:0;border-radius:0;box-shadow:none;`;
+  snapshot.style.cssText = `position:fixed;left:0;top:0;width:1100px;max-width:none;${isA4 ? `height:${a4H}px;max-height:${a4H}px;box-sizing:border-box;overflow:hidden;` : ''}background:${bgColor};color:${fgColor};z-index:-9999;pointer-events:none;border:0;border-radius:0;box-shadow:none;`;
   applyExportSizeStyle(snapshot, options.sizeConfig);
   document.body.append(snapshot);
 
@@ -560,7 +562,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
     await document.fonts.ready;
     canvas = await html2canvas(snapshot, {
       backgroundColor: bgColor, scale: 3.5, logging: false,
-      windowWidth: 1200, windowHeight: Math.max(900, snapshot.scrollHeight + 60),
+      windowWidth: 1100, windowHeight: isA4 ? a4H : Math.max(600, snapshot.scrollHeight),
       scrollX: 0, scrollY: 0, useCORS: true,
     });
 
