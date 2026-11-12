@@ -38,12 +38,13 @@ const DEPARTMENT_NAMES = {
   A: '建築学科 (A)',
 };
 const EXPORT_MODES = {
-  web: { padding: 0, cellHeight: 140, fontScale: 100 },
-  a4fit: { padding: 0, cellHeight: 172, fontScale: 105 },
-  memo: { padding: 8, cellHeight: 220, fontScale: 95 },
+  web: { padding: 16, cellHeight: 140, fontScale: 100 },
+  a4fit: { padding: 16, cellHeight: 168, fontScale: 105 },
+  memo: { padding: 16, cellHeight: 220, fontScale: 95 },
 };
 let exportSizeMode = 'web';
 let exportSizeConfig = { ...EXPORT_MODES.web };
+let a4ModeEnabled = false;
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { actionLabel: '印刷・PDF保存', adjustLabel: 'レイアウト調整' },
   png: { actionLabel: 'PNG画像を保存', adjustLabel: 'レイアウト調整' },
@@ -145,18 +146,19 @@ function timetable() {
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
-          <div class="size-paper" id="size-modal-paper"></div>
+          <div class="size-paper ${a4ModeEnabled ? 'a4-mode' : ''}" id="size-modal-paper"></div>
         </div>
       </div>
       <div class="size-overlay-controls">
         <div class="size-preset-row">
           <div class="size-preset-group" role="group" aria-label="みため">
             <span class="size-preset-label">みため:</span>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web">Web表示のまま（余白なし）</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit">A4余白なし</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web">標準（余白あり）</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit">A4向け（余白あり）</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可（下部余白）</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
+            <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
           </div>
           <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
         </div>
@@ -169,27 +171,6 @@ function timetable() {
           <label class="size-slider-item">
             <span class="size-slider-name">マスの高さ</span>
             <input type="range" id="size-slider-cell" min="80" max="240" step="2" value="${exportSizeConfig.cellHeight}">
-<<<<<<< HEAD
-            <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
-          </label>
-          <label class="size-slider-item">
-            <span class="size-slider-name">文字の大きさ</span>
-            <input type="range" id="size-slider-font" min="80" max="130" step="1" value="${exportSizeConfig.fontScale}">
-            <span class="size-slider-val" id="size-val-font">${exportSizeConfig.fontScale}%</span>
-          </label>
-        </div>
-      </div>
-    </div>
-          <label class="size-slider-item">
-            <span class="size-slider-name">余白</span>
-            <input type="range" id="size-slider-padding" min="0" max="48" step="2" value="${exportSizeConfig.padding}">
-            <span class="size-slider-val" id="size-val-padding">${exportSizeConfig.padding}px</span>
-          </label>
-          <label class="size-slider-item">
-            <span class="size-slider-name">マスの高さ</span>
-            <input type="range" id="size-slider-cell" min="100" max="196" step="2" value="${exportSizeConfig.cellHeight}">
-=======
->>>>>>> main
             <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
           </label>
           <label class="size-slider-item">
@@ -223,6 +204,11 @@ function applyLiveSheetSize(sheet) {
   sheet.style.setProperty('--export-cell-h', `${cellH}px`);
   sheet.style.setProperty('--export-font-scale', String(scale));
   sheet.style.padding = `${pad}px`;
+  if (exportSizeMode === 'memo' || cellH >= 190) {
+    sheet.classList.add('memo-mode');
+  } else {
+    sheet.classList.remove('memo-mode');
+  }
 }
 function openSizeAdjustModal() {
   const modal = document.getElementById('export-size-modal');
@@ -235,6 +221,7 @@ function openSizeAdjustModal() {
   clone.classList.add('export-sheet');
   clone.setAttribute('data-theme', currentTheme);
   paper.setAttribute('data-theme', currentTheme);
+  paper.classList.toggle('a4-mode', a4ModeEnabled);
   clone.querySelector('.panel-head')?.remove();
   clone.querySelector('.timetable-source')?.remove();
   const headerRow = document.createElement('div');
@@ -250,6 +237,18 @@ function openSizeAdjustModal() {
     </div>
   `;
   clone.prepend(headerRow);
+
+  // 各授業セルの下部に手書きメモスペースを追加
+  clone.querySelectorAll('td.schedule-cell:not(.schedule-empty)').forEach(td => {
+    if (!td.querySelector('.lesson-memo-space')) {
+      const memo = document.createElement('div');
+      memo.className = 'lesson-memo-space';
+      memo.setAttribute('aria-hidden', 'true');
+      memo.textContent = '✎ メモ';
+      td.append(memo);
+    }
+  });
+
   const scroller = clone.querySelector('.table-scroll');
   if (scroller) scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
   const tbl = clone.querySelector('table');
@@ -456,6 +455,12 @@ function render() {
   document.getElementById('data-preview-action')?.addEventListener('click', () => {
     closeDataPreviewModal();
     downloadCurrentTimetable();
+  });
+  // A4枠トグル
+  document.getElementById('size-toggle-a4')?.addEventListener('change', e => {
+    a4ModeEnabled = e.target.checked;
+    const paper = document.getElementById('size-modal-paper');
+    if (paper) paper.classList.toggle('a4-mode', a4ModeEnabled);
   });
   // モーダル外部（背景オーバーレイ）クリックで閉じる
   document.getElementById('data-preview-modal')?.addEventListener('click', e => {
