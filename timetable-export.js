@@ -16,26 +16,105 @@ function downloadBlob(blob, filename) {
   document.body.append(link);
   link.click();
   link.remove();
-  // Safariなどでも取得前にURLを破棄しない。
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 const PERIOD_TIMES = [
-  { start: '090000', end: '103000', text: '9:00-10:30' },
-  { start: '104000', end: '121000', text: '10:40-12:10' },
-  { start: '130000', end: '143000', text: '13:00-14:30' },
-  { start: '144000', end: '161000', text: '14:40-16:10' }
+  { start: '090000', end: '103000', startTime: '09:00', endTime: '10:30' },
+  { start: '104000', end: '121000', startTime: '10:40', endTime: '12:10' },
+  { start: '130000', end: '143000', startTime: '13:00', endTime: '14:30' },
+  { start: '144000', end: '161000', startTime: '14:40', endTime: '16:10' }
 ];
 
 const DAYS_OF_WEEK = ['月', '火', '水', '木', '金'];
 
 /**
+ * CRC32計算（PNGチャンク用）
+ */
+const CRC_TABLE = new Uint32Array(256);
+for (let n = 0; n < 256; n++) {
+  let c = n;
+  for (let k = 0; k < 8; k++) {
+    c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+  }
+  CRC_TABLE[n] = c >>> 0;
+}
+
+function calculateCrc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
+ * PNGバイナリに tEXt メタデータチャンク（Title, Author, Creation Time）を注入
+ */
+export async function injectPngMetadata(blob, metadata = {}) {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  // PNGシグネチャの検証 (89 50 4E 47 0D 0A 1A 0A)
+  if (bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4E || bytes[3] !== 0x47) {
+    return blob; // PNGでなければそのまま返す
+  }
+
+  // IHDRチャンクの直後（バイト位置 33: 8バイトシグネチャ + 4長 + 4名前 + 13データ + 4CRC = 33）に挿入
+  const ihdrEndOffset = 33;
+  const chunksToAdd = [];
+
+  const textEntries = [
+    { key: 'Title', value: metadata.title || '明石高専 授業時間割' },
+    { key: 'Author', value: metadata.author || 'Akashi KOSEN 学生ページ(仮)' },
+    { key: 'Creation Time', value: metadata.creationTime || new Date().toISOString() },
+    { key: 'Description', value: metadata.description || '' }
+  ].filter(e => Boolean(e.value));
+
+  for (const entry of textEntries) {
+    const keyBytes = new TextEncoder().encode(entry.key);
+    const valBytes = new TextEncoder().encode(entry.value);
+    const dataLen = keyBytes.length + 1 + valBytes.length; // key + null + value
+
+    // チャンクバッファ: 4バイト長さ + 4バイト名前('tEXt') + データ + 4バイトCRC
+    const chunk = new Uint8Array(4 + 4 + dataLen + 4);
+    const view = new DataView(chunk.buffer);
+
+    view.setUint32(0, dataLen);
+    chunk[4] = 0x74; chunk[5] = 0x45; chunk[6] = 0x58; chunk[7] = 0x74; // 'tEXt'
+    chunk.set(keyBytes, 8);
+    chunk[8 + keyBytes.length] = 0; // null separator
+    chunk.set(valBytes, 8 + keyBytes.length + 1);
+
+    // CRCは名前 + データ
+    const crcData = chunk.subarray(4, 8 + dataLen);
+    const crc = calculateCrc32(crcData);
+    view.setUint32(8 + dataLen, crc);
+
+    chunksToAdd.push(chunk);
+  }
+
+  // 合体
+  const totalExtraLen = chunksToAdd.reduce((sum, c) => sum + c.length, 0);
+  const resultBytes = new Uint8Array(bytes.length + totalExtraLen);
+
+  resultBytes.set(bytes.subarray(0, ihdrEndOffset), 0);
+  let curOffset = ihdrEndOffset;
+  for (const chunk of chunksToAdd) {
+    resultBytes.set(chunk, curOffset);
+    curOffset += chunk.length;
+  }
+  resultBytes.set(bytes.subarray(ihdrEndOffset), curOffset);
+
+  return new Blob([resultBytes], { type: 'image/png' });
+}
+
+/**
  * iCalendar (.ics) 生成
- * GoogleカレンダーやiPhone等に毎週繰り返しの授業としてインポート可能
+ * GoogleカレンダーやiPhone等にインポート可能
+ * TRANSP:OPAQUE（予定あり / 忙しい）を明示
  */
 export function generateIcs(selectedLessons, studentLabel) {
-  // 基準週（月曜〜金曜）の日付: 2026年10月5日（月）〜 10月9日（金）
-  // 後期末: 2027年2月28日
   const baseDates = {
     1: '20261005', // 月
     2: '20261006', // 火
@@ -45,7 +124,6 @@ export function generateIcs(selectedLessons, studentLabel) {
   };
 
   const escapeIcs = text => (text || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-
   const events = [];
 
   for (const lesson of selectedLessons) {
@@ -63,7 +141,6 @@ export function generateIcs(selectedLessons, studentLabel) {
     const uid = `${dateStr}-${lesson.id || Math.random().toString(36).slice(2)}@akashi-kosen`;
     const summary = escapeIcs(lesson.subjectName);
     const location = escapeIcs(lesson.location || '');
-    const teacher = escapeIcs(lesson.teacher || '');
     const periodText = `${lesson.period}${span > 1 ? `〜${lesson.period + span - 1}` : ''}限`;
     const description = escapeIcs(`担当: ${lesson.teacher || '未定'}\n時限: ${periodText}\n対象: ${studentLabel}${lesson.notes ? `\n備考: ${lesson.notes}` : ''}`);
 
@@ -76,12 +153,13 @@ export function generateIcs(selectedLessons, studentLabel) {
       `DTSTART;TZID=Asia/Tokyo:${dateStr}T${startTime}`,
       `DTEND;TZID=Asia/Tokyo:${dateStr}T${endTime}`,
       'RRULE:FREQ=WEEKLY;UNTIL=20270228T145959Z',
+      'TRANSP:OPAQUE', // Googleカレンダー等の予定あり（忙しい）
       'STATUS:CONFIRMED',
       'END:VEVENT'
     ].filter(Boolean).join('\r\n'));
   }
 
-  const icsContent = [
+  return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Akashi KOSEN//Campus Portal Timetable//JA',
@@ -92,40 +170,43 @@ export function generateIcs(selectedLessons, studentLabel) {
     ...events,
     'END:VCALENDAR'
   ].join('\r\n');
-
-  return icsContent;
 }
 
 /**
- * CSV形式生成（Excel対応BOM付き）
+ * CSV形式生成（スクリプト処理・DBフレンドリー設計）
+ * 2コマ連続授業は「1時限 = 1行」として正規化展開し、どの時限でも即座に検索可能にする
  */
 export function generateCsv(selectedLessons, studentLabel) {
-  const headers = ['曜日', '開始時限', '終了時限', '時間', '科目名', '教室', '担当教員', 'コマ数', '備考'];
+  const headers = ['曜日', '時限', '開始時間', '終了時間', '科目名', '教室', '担当教員', '連続コマ', '備考'];
   const rows = [headers];
 
-  // 曜日・時限順にソート
   const sorted = [...selectedLessons].sort((a, b) => (a.dayOfWeek - b.dayOfWeek) || (a.period - b.period));
 
   for (const l of sorted) {
     const dayName = DAYS_OF_WEEK[l.dayOfWeek - 1] || `${l.dayOfWeek}`;
     const span = l.duration || 1;
-    const endPeriod = l.period + span - 1;
-    const timeRange = `${PERIOD_TIMES[l.period - 1]?.text.split('-')[0] || ''} - ${PERIOD_TIMES[endPeriod - 1]?.text.split('-')[1] || ''}`;
 
-    rows.push([
-      dayName,
-      `${l.period}限`,
-      `${endPeriod}限`,
-      timeRange,
-      `"${(l.subjectName || '').replace(/"/g, '""')}"`,
-      `"${(l.location || '').replace(/"/g, '""')}"`,
-      `"${(l.teacher || '').replace(/"/g, '""')}"`,
-      `${span}コマ`,
-      `"${(l.notes || '').replace(/"/g, '""')}"`
-    ]);
+    // 1コマごとに1行を出力して正規化（コンピュータ処理しやすくする）
+    for (let offset = 0; offset < span; offset++) {
+      const currentPeriod = l.period + offset;
+      const timeInfo = PERIOD_TIMES[currentPeriod - 1] || { startTime: '', endTime: '' };
+      const spanLabel = span > 1 ? `${span}コマ連続 (${offset + 1}/${span})` : '1コマ';
+
+      rows.push([
+        dayName,
+        `${currentPeriod}限`,
+        timeInfo.startTime,
+        timeInfo.endTime,
+        `"${(l.subjectName || '').replace(/"/g, '""')}"`,
+        `"${(l.location || '').replace(/"/g, '""')}"`,
+        `"${(l.teacher || '').replace(/"/g, '""')}"`,
+        `"${spanLabel}"`,
+        `"${(l.notes || '').replace(/"/g, '""')}"`
+      ]);
+    }
   }
 
-  // UTF-8 BOM (\uFEFF) を付与してExcel文字化けを防止
+  // UTF-8 BOM (\uFEFF)
   return '\uFEFF' + rows.map(r => r.join(',')).join('\r\n');
 }
 
@@ -154,10 +235,11 @@ export function generateText(selectedLessons, studentLabel) {
     for (const l of dayLessons) {
       const span = l.duration || 1;
       const pText = `${l.period}${span > 1 ? `〜${l.period + span - 1}` : ''}限`;
-      const timeText = `${PERIOD_TIMES[l.period - 1]?.text.split('-')[0] || ''}-${PERIOD_TIMES[l.period + span - 2]?.text.split('-')[1] || ''}`;
+      const startTime = PERIOD_TIMES[l.period - 1]?.startTime || '';
+      const endTime = PERIOD_TIMES[l.period + span - 2]?.endTime || '';
       const locText = l.location ? ` [${l.location}]` : '';
       const teacherText = l.teacher ? ` (${l.teacher})` : '';
-      lines.push(`  ${pText} (${timeText}) ${l.subjectName}${locText}${teacherText}`);
+      lines.push(`  ${pText} (${startTime}-${endTime}) ${l.subjectName}${locText}${teacherText}`);
     }
   }
 
@@ -172,7 +254,6 @@ export function generateText(selectedLessons, studentLabel) {
 export async function exportTimetable(snapshot, format, filename, extraData = {}) {
   const { selectedLessons = [], studentLabel = '' } = extraData;
 
-  // サポート対象外のフォーマットチェック
   const validFormats = ['pdf', 'png', 'ics', 'csv', 'json', 'text'];
   if (!validFormats.includes(format)) {
     throw new Error('PDFまたはPNG、カレンダー、CSV、テキスト、JSONを選択してください。');
@@ -215,7 +296,6 @@ export async function exportTimetable(snapshot, format, filename, extraData = {}
   // 4. テキスト (.txt & クリップボードコピー)
   if (format === 'text') {
     const textString = generateText(selectedLessons, studentLabel);
-    // クリップボードにコピー
     if (navigator?.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(textString);
@@ -227,7 +307,6 @@ export async function exportTimetable(snapshot, format, filename, extraData = {}
   }
 
   // 5. 画像・PDF (PNG / PDF)
-
   snapshot.querySelectorAll('[data-export-exclude]').forEach(node => node.remove());
   snapshot.removeAttribute('id');
   snapshot.classList.add('export-sheet');
@@ -254,8 +333,15 @@ export async function exportTimetable(snapshot, format, filename, extraData = {}
       scrollX: 0, scrollY: 0, useCORS: true,
     });
     if (format === 'png') {
-      const blob = await new Promise((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error('PNGを生成できませんでした。')), 'image/png'));
-      downloadBlob(blob, `${filename}.png`);
+      const rawBlob = await new Promise((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error('PNGを生成できませんでした。')), 'image/png'));
+      // PNGメタデータ（Author, Title, Creation Time）の注入
+      const metaBlob = await injectPngMetadata(rawBlob, {
+        title: filename,
+        author: 'Akashi KOSEN 学生ページ(仮)',
+        creationTime: new Date().toISOString(),
+        description: `対象: ${studentLabel}`
+      });
+      downloadBlob(metaBlob, `${filename}.png`);
     } else {
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       const bounds = fitOnPage(canvas.width, canvas.height);

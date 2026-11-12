@@ -17,7 +17,7 @@ const sampleLessons = [
     id: 'lesson-1',
     dayOfWeek: 1, // 月曜
     period: 1,
-    duration: 2,
+    duration: 2, // 2コマ連続
     subjectName: '機械工学実習ⅠB/工作実習ⅠB',
     location: '工場・情2・情3',
     teacher: '加藤・大森',
@@ -45,13 +45,14 @@ const sampleLessons = [
   }
 ];
 
-test('generateIcs generates valid RFC 5545 iCalendar content with recurrence', () => {
+test('generateIcs generates valid RFC 5545 iCalendar content with TRANSP:OPAQUE', () => {
   const generateIcs = vm.runInContext('generateIcs', context);
   const ics = generateIcs(sampleLessons, '1年 M学科 1組');
 
   assert.ok(ics.startsWith('BEGIN:VCALENDAR'), 'Starts with BEGIN:VCALENDAR');
   assert.ok(ics.includes('VERSION:2.0'), 'Contains VERSION:2.0');
   assert.ok(ics.includes('RRULE:FREQ=WEEKLY'), 'Contains weekly recurrence rule');
+  assert.ok(ics.includes('TRANSP:OPAQUE'), 'Explicitly sets TRANSP:OPAQUE for Google Calendar busy status');
   assert.ok(ics.includes('SUMMARY:機械工学実習ⅠB/工作実習ⅠB'), 'Contains lesson subject');
   assert.ok(ics.includes('LOCATION:工場・情2・情3'), 'Contains room location');
   assert.ok(ics.includes('DTSTART;TZID=Asia/Tokyo:20261005T090000'), 'Starts at 9:00 AM');
@@ -59,14 +60,17 @@ test('generateIcs generates valid RFC 5545 iCalendar content with recurrence', (
   assert.ok(ics.endsWith('END:VCALENDAR'), 'Ends with END:VCALENDAR');
 });
 
-test('generateCsv generates BOM-prefixed UTF-8 CSV with proper columns and escaping', () => {
+test('generateCsv normalizes 2-period classes into individual 1-period rows for script/DB processing', () => {
   const generateCsv = vm.runInContext('generateCsv', context);
   const csv = generateCsv(sampleLessons, '1年 M学科 1組');
 
   assert.ok(csv.startsWith('\uFEFF'), 'Includes UTF-8 BOM for Excel compatibility');
-  assert.ok(csv.includes('曜日,開始時限,終了時限,時間,科目名,教室,担当教員,コマ数,備考'));
-  assert.ok(csv.includes('月,1限,2限,9:00 - 12:10,"機械工学実習ⅠB/工作実習ⅠB","工場・情2・情3","加藤・大森",2コマ,""'));
-  assert.ok(csv.includes('金,3限,3限,13:00 - 14:30,"音楽-2","福研","(泉)",1コマ,"芸術選択科目"'));
+  assert.ok(csv.includes('曜日,時限,開始時間,終了時間,科目名,教室,担当教員,連続コマ,備考'));
+
+  // 2コマ連続の「機械工学実習ⅠB」が1限と2限の2行に展開されていること
+  assert.ok(csv.includes('月,1限,09:00,10:30,"機械工学実習ⅠB/工作実習ⅠB","工場・情2・情3","加藤・大森","2コマ連続 (1/2)",""'));
+  assert.ok(csv.includes('月,2限,10:40,12:10,"機械工学実習ⅠB/工作実習ⅠB","工場・情2・情3","加藤・大森","2コマ連続 (2/2)",""'));
+  assert.ok(csv.includes('金,3限,13:00,14:30,"音楽-2","福研","(泉)","1コマ","芸術選択科目"'));
 });
 
 test('generateText generates clean human-readable schedule lines', () => {
@@ -75,7 +79,7 @@ test('generateText generates clean human-readable schedule lines', () => {
 
   assert.ok(text.includes('■ 明石高専 時間割'));
   assert.ok(text.includes('【月曜日】'));
-  assert.ok(text.includes('1〜2限 (9:00-12:10) 機械工学実習ⅠB/工作実習ⅠB [工場・情2・情3] (加藤・大森)'));
+  assert.ok(text.includes('1〜2限 (09:00-12:10) 機械工学実習ⅠB/工作実習ⅠB [工場・情2・情3] (加藤・大森)'));
   assert.ok(text.includes('【火曜日】\n  （授業なし）'));
   assert.ok(text.includes('【金曜日】'));
   assert.ok(text.includes('3限 (13:00-14:30) 音楽-2 [福研] ((泉))'));
