@@ -50,7 +50,7 @@ let exportSizeConfig = { ...EXPORT_MODES.web };
 let a4ModeEnabled = false;
 let exportIncludeEmpty = false;
 const EXPORT_FORMAT_CONFIGS = {
-  pdf: { copyLabel: '📋 コピー', downloadLabel: '💾 PDFダウンロード', adjustLabel: 'レイアウト調整' },
+  pdf: { copyLabel: null, downloadLabel: '💾 PDFダウンロード', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '📋 画像をコピー', downloadLabel: '💾 PNG保存', adjustLabel: 'レイアウト調整' },
   text: { copyLabel: '📋 テキストをコピー', downloadLabel: '💾 テキスト保存', adjustLabel: 'プレビュー＆調整' },
   csv: { copyLabel: '📋 CSVをコピー', downloadLabel: '💾 CSVダウンロード', adjustLabel: '形式プレビュー' },
@@ -160,7 +160,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（コピー＆保存）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -177,6 +177,7 @@ function timetable() {
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
+            <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="テーマ切り替え">${currentTheme === 'dark' ? '☀️ ライト' : '🌙 ダーク'}</button>
           </div>
           <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
         </div>
@@ -475,7 +476,12 @@ function render() {
     currentExportFormat = fmt;
     const cfg = EXPORT_FORMAT_CONFIGS[fmt] || EXPORT_FORMAT_CONFIGS.pdf;
     if (copyBtn && !exportInProgress) {
-      copyBtn.textContent = cfg.copyLabel;
+      if (cfg.copyLabel) {
+        copyBtn.hidden = false;
+        copyBtn.textContent = cfg.copyLabel;
+      } else {
+        copyBtn.hidden = true;
+      }
     }
     if (downloadBtn && !exportInProgress) {
       downloadBtn.textContent = cfg.downloadLabel;
@@ -489,6 +495,9 @@ function render() {
   copyBtn?.addEventListener('click', () => downloadCurrentTimetable('copy'));
   downloadBtn?.addEventListener('click', () => downloadCurrentTimetable('download'));
   adjustBtn?.addEventListener('click', openExportAdjustModal);
+  document.getElementById('size-modal-theme-toggle')?.addEventListener('click', () => {
+    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+  });
   document.getElementById('export-size-close')?.addEventListener('click', closeSizeAdjustModal);
   document.getElementById('data-preview-close')?.addEventListener('click', closeDataPreviewModal);
   document.getElementById('data-preview-cancel')?.addEventListener('click', closeDataPreviewModal);
@@ -724,6 +733,12 @@ function updateThemeUI(theme) {
     const iconEl = (typeof btn.querySelector === 'function' ? btn.querySelector('.theme-icon') : null) || btn;
     iconEl.innerHTML = icon(isDark ? 'sun' : 'moon');
   }
+  const sizePaper = document.getElementById('size-modal-paper');
+  if (sizePaper) sizePaper.setAttribute('data-theme', theme);
+  const sizeSheet = document.querySelector('#size-modal-paper .export-sheet');
+  if (sizeSheet) sizeSheet.setAttribute('data-theme', theme);
+  const modalThemeBtn = document.getElementById('size-modal-theme-toggle');
+  if (modalThemeBtn) modalThemeBtn.textContent = theme === 'dark' ? '☀️ ライト' : '🌙 ダーク';
 }
 function setTheme(theme) {
   currentTheme = theme;
