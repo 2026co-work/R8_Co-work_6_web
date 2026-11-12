@@ -381,7 +381,7 @@ function generateTimetable(data, selection) {
     throw new Error('1・2年生はクラスを選択してください。');
   }
   if (grade >= 4 && department === 'E' && !['ED', 'EJ'].includes(course)) {
-    throw new Error('4・5年生のE学科はED・EJを選択してください。');
+    throw new Error('4・5年生のE科はED・EJを選択してください。');
   }
   if (!['regular', 'international'].includes(studentType)) throw new Error('留学生の区分を選択してください。');
   if (grade === 1 && !['music', 'art'].includes(arts)) throw new Error('音楽・美術を選択してください。');

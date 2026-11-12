@@ -76,10 +76,10 @@
   </header>
   <form id="selection-form">
     <label for="grade">学年<select id="grade" name="grade" required><option value="1">1年</option><option value="2">2年</option><option value="3">3年</option><option value="4">4年</option><option value="5">5年</option></select></label>
-    <label for="department">学科<select id="department" name="department" required><option value="M">M学科</option><option value="E">E学科</option><option value="C">C学科</option><option value="A">A学科</option></select></label>
+    <label for="department">学科<select id="department" name="department" required><option value="M">M科</option><option value="E">E科</option><option value="C">C科</option><option value="A">A科</option></select></label>
     <label for="class-group">クラス<span id="class-state">1・2年生は必須</span><select id="class-group" name="classGroup" required aria-describedby="class-state"><option value="1">1組</option><option value="2">2組</option><option value="3">3組</option><option value="4">4組</option></select></label>
     <label for="student-type" id="student-field">留学生の区分<select id="student-type" name="studentType" required aria-describedby="student-help"><option value="regular">留学生ではない</option><option value="international">留学生</option></select></label>
-    <label for="course" id="course-field">E学科のコース<span id="course-help">4・5年のE学科で選択</span><select id="course" name="course" disabled aria-describedby="course-help"><option value="">選択してください</option><option value="EJ">情報コース（EJ）</option><option value="ED">電気電子コース（ED）</option></select></label>
+    <label for="course" id="course-field">E科のコース<span id="course-help">4・5年のE科で選択</span><select id="course" name="course" disabled aria-describedby="course-help"><option value="">選択してください</option><option value="EJ">情報コース（EJ）</option><option value="ED">電気電子コース（ED）</option></select></label>
     <label for="arts" id="arts-field">芸術選択<span>1年生</span><select id="arts" name="arts"><option value="music">音楽</option><option value="art">美術</option></select></label>
     <button type="submit">時間割を生成</button>
   </form>
@@ -478,7 +478,7 @@ function generateTimetable(data, selection) {
     throw new Error('1・2年生はクラスを選択してください。');
   }
   if (grade >= 4 && department === 'E' && !['ED', 'EJ'].includes(course)) {
-    throw new Error('4・5年生のE学科はED・EJを選択してください。');
+    throw new Error('4・5年生のE科はED・EJを選択してください。');
   }
   if (!['regular', 'international'].includes(studentType)) throw new Error('留学生の区分を選択してください。');
   if (grade === 1 && !['music', 'art'].includes(arts)) throw new Error('音楽・美術を選択してください。');
@@ -525,7 +525,7 @@ function updateClassInput() {
   const needsCourse = grade >= 4 && departmentSelect.value === 'E';
   courseSelect.disabled = !needsCourse;
   courseSelect.required = needsCourse;
-  document.getElementById('course-help').textContent = needsCourse ? '必須：所属コースを選択' : '4・5年のE学科で選択';
+  document.getElementById('course-help').textContent = needsCourse ? '必須：所属コースを選択' : '4・5年のE科で選択';
   document.getElementById('arts-field').hidden = grade !== 1;
   artsSelect.disabled = grade !== 1;
   artsSelect.required = grade === 1;
@@ -537,7 +537,7 @@ function updateClassInput() {
   document.getElementById('class-state').textContent = needsClass ? '1・2年生は必須' : '3〜5年生は選択不要';
   document.getElementById('selection-hint').textContent = needsClass
     ? '1・2年生は「クラスの一般科目」と「学科の専門科目」を組み合わせます。'
-    : '3年は通常課程・留学生、4・5年のE学科はED・EJの区分も原本に合わせて選択してください。';
+    : '3年は通常課程・留学生、4・5年のE科はED・EJの区分も原本に合わせて選択してください。';
 }
 
 function createLesson(lesson) {
@@ -563,7 +563,7 @@ function renderTimetable() {
   try {
     const selection = { grade: Number(gradeSelect.value), department: departmentSelect.value, classGroup: classSelect.value, course: courseSelect.value, studentType: studentSelect.value, arts: artsSelect.value };
     const { selected, grid, conflicts } = generateTimetable(LESSONS, selection);
-    const groupLabel = selection.grade >= 4 && selection.department === 'E' ? `E学科 ${COURSE_LABELS[selection.course]}` : `${selection.department}学科`;
+    const groupLabel = selection.grade >= 4 && selection.department === 'E' ? `E科 ${COURSE_LABELS[selection.course]}` : `${selection.department}科`;
     const extraLabel = (selection.grade <= 2 ? `・${selection.classGroup}組${selection.grade === 1 ? `・${selection.arts === 'music' ? '音楽' : '美術'}` : ''}` : '') + (selection.studentType === 'international' ? `・留学生${selection.grade === 3 ? '' : '（共通時間割）'}` : selection.grade === 3 ? '・通常課程' : '');
     const title = `${selection.grade}年 ${groupLabel}${extraLabel}の時間割`;
     document.getElementById('result-title').textContent = title;

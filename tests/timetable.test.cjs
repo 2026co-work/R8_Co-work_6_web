@@ -225,7 +225,7 @@ test('UI requires a named ED/EJ course and never leaves an old timetable after a
   change({ department: 'M' });
   assert.equal(elements.course.disabled, true);
   assert.equal(elements.course.required, false);
-  assert.match(elements['result-title'].textContent, /M学科/);
+  assert.match(elements['result-title'].textContent, /M科/);
 });
 
 test('UI changes to international student rows immediately and explains shared schedules in other grades', () => {

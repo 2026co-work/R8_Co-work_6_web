@@ -362,18 +362,18 @@ export function generateJson(selectedLessons, studentLabel, updated = '2026-09-2
  */
 export function formatStudentShortBadge(label) {
   if (!label) return '';
-  const highMatch = label.match(/([45])年\s*([MECA])(?:学科)?(?:・(?:電気電子コース\((ED)\)|情報コース\((EJ)\)))?/);
+  const highMatch = label.match(/([45])年\s*([MECA])(?:学科|科)?(?:・(?:電気電子コース\((ED)\)|情報コース\((EJ)\)))?/);
   if (highMatch) {
     const grade = highMatch[1];
     const course = highMatch[3] || highMatch[4];
     if (course) return `${grade}${course}`;
     return `${grade}${highMatch[2]}`;
   }
-  const midMatch = label.match(/3年\s*([MECA])(?:学科)?(?:・(留学生))?/);
+  const midMatch = label.match(/3年\s*([MECA])(?:学科|科)?(?:・(留学生))?/);
   if (midMatch) {
     return `3${midMatch[1]}${midMatch[2] ? '-留' : ''}`;
   }
-  const lowMatch = label.match(/([12])年\s*([MECA])(?:学科)?・(\d)組/);
+  const lowMatch = label.match(/([12])年\s*([MECA])(?:学科|科)?・(\d)組/);
   if (lowMatch) {
     return `${lowMatch[1]}-${lowMatch[3]}-${lowMatch[2]}`;
   }

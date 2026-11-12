@@ -32,10 +32,10 @@ const SELECTION_VALUES = { grade: [1,2,3,4,5], department: DEPARTMENTS, classGro
 let cookieSaved = false;
 let exportInProgress = false;
 const DEPARTMENT_NAMES = {
-  M: '機械工学科 (M)',
-  E: '電気情報工学科 (E)',
-  C: '都市システム工学科 (C)',
-  A: '建築学科 (A)',
+  M: 'M科',
+  E: 'E科',
+  C: 'C科',
+  A: 'A科',
 };
 const EXPORT_MODES = {
   web: { padding: 16, cellHeight: 140, fontScale: 100 },
@@ -95,7 +95,7 @@ function home() {
 }
 function studentLabel() {
   const s = studentSelection;
-  return `${s.grade}年 ${s.department}学科${s.grade <= 2 ? `・${s.classGroup}組` : ''}${s.grade >= 4 && s.department === 'E' ? `・${COURSE_LABELS[s.course] || 'コース未選択'}` : ''}${s.studentType === 'international' ? '・留学生' : ''}${s.grade === 1 ? `・${s.arts === 'art' ? '美術' : '音楽'}` : ''}`;
+  return `${s.grade}年 ${s.department}科${s.grade <= 2 ? `・${s.classGroup}組` : ''}${s.grade >= 4 && s.department === 'E' ? `・${COURSE_LABELS[s.course] || 'コース未選択'}` : ''}${s.studentType === 'international' ? '・留学生' : ''}${s.grade === 1 ? `・${s.arts === 'art' ? '美術' : '音楽'}` : ''}`;
 }
 function studentShortLabel() {
   const s = studentSelection;
@@ -118,7 +118,7 @@ function timetable() {
     field('学科','department',DEPARTMENTS.map(d=>[d, DEPARTMENT_NAMES[d] || `${d}学科`])) +
     field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),s.grade>=3) +
     field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']]) +
-    field('E学科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],!needsCourse) +
+    field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],!needsCourse) +
     (s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
   const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の後期時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
     const cell = day[p];
