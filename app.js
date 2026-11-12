@@ -197,6 +197,20 @@ function timetable() {
       </div>
     </div>`;
 }
+function getMaxCellHeightForA4(padding) {
+  const fixedH = (padding * 2) + 78; // 上下余白 + ヘッダー(約46px) + thead(約32px)
+  return Math.max(80, Math.floor((778 - fixedH) / 4));
+}
+function updateSizeModalScale() {
+  const viewport = document.getElementById('size-overlay-viewport');
+  const wrap = document.getElementById('size-paper-wrap');
+  if (!viewport || !wrap) return;
+  const availW = Math.max(280, (viewport.clientWidth || 360) - 32);
+  const availH = Math.max(280, (viewport.clientHeight || 500) - 32);
+  const targetH = a4ModeEnabled ? 778 : Math.max(600, (document.getElementById('size-modal-paper')?.scrollHeight || 778));
+  const fitScale = Math.min(availW / 1100, availH / targetH, 1);
+  wrap.style.setProperty('--sheet-scale', String(fitScale.toFixed(3)));
+}
 function applyLiveSheetSize(sheet) {
   if (!sheet) return;
   const pad = exportSizeConfig.padding;
@@ -244,13 +258,7 @@ function openSizeAdjustModal() {
   applyLiveSheetSize(clone);
   modal.hidden = false;
   document.body.classList.add('size-modal-open');
-  const viewport = document.getElementById('size-overlay-viewport');
-  const wrap = document.getElementById('size-paper-wrap');
-  if (viewport && wrap) {
-    const availW = Math.max(280, (viewport.clientWidth || 360) - 24);
-    const fitScale = Math.min(1, availW / 1100);
-    wrap.style.setProperty('--sheet-scale', String(fitScale));
-  }
+  updateSizeModalScale();
 }
 function closeSizeAdjustModal() {
   const modal = document.getElementById('export-size-modal');
@@ -482,8 +490,13 @@ function render() {
   // A4枠トグル
   document.getElementById('size-toggle-a4')?.addEventListener('change', e => {
     a4ModeEnabled = e.target.checked;
-    const paper = document.getElementById('size-modal-paper');
-    if (paper) paper.classList.toggle('a4-mode', a4ModeEnabled);
+    if (a4ModeEnabled) {
+      const maxH = getMaxCellHeightForA4(exportSizeConfig.padding);
+      if (exportSizeConfig.cellHeight > maxH) {
+        exportSizeConfig.cellHeight = maxH;
+      }
+    }
+    syncSizeControlsUI();
   });
   // モーダル外部（背景オーバーレイ）クリックで閉じる
   document.getElementById('data-preview-modal')?.addEventListener('click', e => {
@@ -501,6 +514,11 @@ function render() {
       closeSizeAdjustModal();
     }
   });
+  window.addEventListener('resize', () => {
+    if (!document.getElementById('export-size-modal')?.hidden) {
+      updateSizeModalScale();
+    }
+  });
   const syncSizeControlsUI = () => {
     document.querySelectorAll('[data-size-mode]').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.sizeMode === exportSizeMode);
@@ -508,6 +526,19 @@ function render() {
     const padIn = document.getElementById('size-slider-padding');
     const cellIn = document.getElementById('size-slider-cell');
     const fontIn = document.getElementById('size-slider-font');
+    const a4Toggle = document.getElementById('size-toggle-a4');
+    if (a4Toggle) a4Toggle.checked = a4ModeEnabled;
+
+    if (a4ModeEnabled) {
+      const maxCellH = getMaxCellHeightForA4(exportSizeConfig.padding);
+      if (cellIn) cellIn.max = String(maxCellH);
+      if (exportSizeConfig.cellHeight > maxCellH) {
+        exportSizeConfig.cellHeight = maxCellH;
+      }
+    } else {
+      if (cellIn) cellIn.max = '240';
+    }
+
     if (padIn) padIn.value = String(exportSizeConfig.padding);
     if (cellIn) cellIn.value = String(exportSizeConfig.cellHeight);
     if (fontIn) fontIn.value = String(exportSizeConfig.fontScale);
@@ -517,8 +548,11 @@ function render() {
     if (padVal) padVal.textContent = `${exportSizeConfig.padding}px`;
     if (cellVal) cellVal.textContent = `${exportSizeConfig.cellHeight}px`;
     if (fontVal) fontVal.textContent = `${exportSizeConfig.fontScale}%`;
+    const paper = document.getElementById('size-modal-paper');
+    if (paper) paper.classList.toggle('a4-mode', a4ModeEnabled);
     const sheet = document.querySelector('#size-modal-paper .export-sheet');
     applyLiveSheetSize(sheet);
+    updateSizeModalScale();
   };
   document.querySelectorAll('[data-size-mode]').forEach(btn => btn.addEventListener('click', () => {
     const mode = btn.dataset.sizeMode;
@@ -531,24 +565,26 @@ function render() {
     exportSizeConfig = { ...EXPORT_MODES.web };
     syncSizeControlsUI();
   });
-  document.getElementById('export-size-modal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget || e.target.id === 'size-overlay-viewport' || e.target.id === 'size-paper-wrap') {
-      closeSizeAdjustModal();
+  document.getElementById('size-slider-padding')?.addEventListener('input', e => {
+    exportSizeConfig.padding = Number(e.target.value);
+    exportSizeMode = 'custom';
+    syncSizeControlsUI();
+  });
+  document.getElementById('size-slider-cell')?.addEventListener('input', e => {
+    let val = Number(e.target.value);
+    if (a4ModeEnabled) {
+      const maxH = getMaxCellHeightForA4(exportSizeConfig.padding);
+      val = Math.min(val, maxH);
     }
+    exportSizeConfig.cellHeight = val;
+    exportSizeMode = 'custom';
+    syncSizeControlsUI();
   });
-  window.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeSizeAdjustModal();
+  document.getElementById('size-slider-font')?.addEventListener('input', e => {
+    exportSizeConfig.fontScale = Number(e.target.value);
+    exportSizeMode = 'custom';
+    syncSizeControlsUI();
   });
-  const bindSizeSlider = (id, key) => {
-    document.getElementById(id)?.addEventListener('input', e => {
-      exportSizeConfig[key] = Number(e.target.value);
-      exportSizeMode = 'custom';
-      syncSizeControlsUI();
-    });
-  };
-  bindSizeSlider('size-slider-padding', 'padding');
-  bindSizeSlider('size-slider-cell', 'cellHeight');
-  bindSizeSlider('size-slider-font', 'fontScale');
   document.getElementById('confirm-filter-btn')?.addEventListener('click', () => {
     filterOpen = false;
     saveSelectionCookie();
