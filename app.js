@@ -169,6 +169,7 @@ function timetable() {
           <label class="size-slider-item">
             <span class="size-slider-name">マスの高さ</span>
             <input type="range" id="size-slider-cell" min="80" max="240" step="2" value="${exportSizeConfig.cellHeight}">
+<<<<<<< HEAD
             <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
           </label>
           <label class="size-slider-item">
@@ -187,6 +188,8 @@ function timetable() {
           <label class="size-slider-item">
             <span class="size-slider-name">マスの高さ</span>
             <input type="range" id="size-slider-cell" min="100" max="196" step="2" value="${exportSizeConfig.cellHeight}">
+=======
+>>>>>>> main
             <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
           </label>
           <label class="size-slider-item">
@@ -499,6 +502,14 @@ function render() {
     exportSizeMode = 'web';
     exportSizeConfig = { ...EXPORT_MODES.web };
     syncSizeControlsUI();
+  });
+  document.getElementById('export-size-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget || e.target.id === 'size-overlay-viewport' || e.target.id === 'size-paper-wrap') {
+      closeSizeAdjustModal();
+    }
+  });
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeSizeAdjustModal();
   });
   const bindSizeSlider = (id, key) => {
     document.getElementById(id)?.addEventListener('input', e => {

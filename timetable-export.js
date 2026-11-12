@@ -309,7 +309,6 @@ export function prepareExportSnapshot(snapshot, options = {}) {
     fullSpan.textContent = label;
     headH2.append(fullSpan);
   }
-
   const headerRow = document.createElement('div');
   headerRow.className = 'export-header-row';
   headerRow.innerHTML = `
