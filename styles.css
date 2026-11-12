@@ -31,6 +31,40 @@
 .topbar .breadcrumb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.topbar-right{flex-shrink:0}
 
 .export-controls{display:flex;align-items:flex-end;gap:14px;border-top:1px solid var(--line);margin-top:20px;padding-top:20px;flex-wrap:wrap}.export-controls .field{min-width:160px}.export-controls .button{min-height:45px}.export-controls button:disabled{opacity:.55;cursor:wait}.export-status{font-size:11px;color:var(--muted);margin:10px 0 0}.export-brand{font-size:15px;color:var(--wine);font-weight:700;margin:0 0 18px}.export-sheet .panel-head h2{font-size:18px}.export-sheet .real-timetable{min-width:0}.export-sheet .real-timetable .lesson-card strong{font-size:13px}.export-sheet .real-timetable td{height:130px}.export-sheet .panel-head{flex-wrap:wrap}
+
+/* エクスポート（PDF/PNG）時はテーマ設定に関わらず常にライトモードの配色を強制 */
+.export-sheet,
+[data-theme="dark"] .export-sheet{background:#ffffff!important;color:#252b39!important}
+.export-sheet .panel-head h2,
+[data-theme="dark"] .export-sheet .panel-head h2{color:#252b39!important}
+.export-sheet .export-brand,
+[data-theme="dark"] .export-sheet .export-brand{color:#79182b!important}
+.export-sheet thead th,
+[data-theme="dark"] .export-sheet thead th{background:#f8f1f3!important;color:#79182b!important}
+.export-sheet tbody th,
+[data-theme="dark"] .export-sheet tbody th{background:#ffffff!important;color:#79182b!important}
+.export-sheet tbody th small,
+[data-theme="dark"] .export-sheet tbody th small{color:#7c8290!important}
+.export-sheet td,
+[data-theme="dark"] .export-sheet td{border-left:1px solid #e7e7ea!important;background:#ffffff!important}
+.export-sheet .lesson-card,
+[data-theme="dark"] .export-sheet .lesson-card{background:#fcf9fa!important;border-left:3px solid #c38a96!important;color:#252b39!important}
+.export-sheet .lesson-card strong,
+[data-theme="dark"] .export-sheet .lesson-card strong{color:#252b39!important}
+.export-sheet .lesson-card small,
+[data-theme="dark"] .export-sheet .lesson-card small{color:#7c8290!important}
+.export-sheet .lesson-location,
+[data-theme="dark"] .export-sheet .lesson-location{color:#75535d!important}
+.export-sheet .schedule-empty,
+[data-theme="dark"] .export-sheet .schedule-empty{background:#fdfdfd!important;color:#afb0b7!important}
+.export-sheet .badge,
+[data-theme="dark"] .export-sheet .badge{background:#f2f8f3!important;color:#327458!important;border-color:#cce3d5!important}
+.export-sheet .badge.gray,
+[data-theme="dark"] .export-sheet .badge.gray{background:#f4f4f6!important;color:#828692!important;border-color:#e6e6eb!important}
+.export-sheet .timetable-source,
+[data-theme="dark"] .export-sheet .timetable-source{color:#7c8290!important}
+.export-sheet .timetable-source a,
+[data-theme="dark"] .export-sheet .timetable-source a{color:#79182b!important}
 @media(max-width:480px){.export-controls .field,.export-controls .button{width:100%}}
 
 .advanced-notice{margin:16px 0 0;padding:13px 16px;border-radius:8px;background:#f8f1f3;color:var(--wine);font-size:13px;font-weight:500}.selection-status{font-size:11px;color:var(--red);margin:0 0 12px}
