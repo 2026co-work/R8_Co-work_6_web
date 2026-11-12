@@ -31,6 +31,40 @@
 .topbar .breadcrumb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.topbar-right{flex-shrink:0}
 
 .export-controls{display:flex;align-items:flex-end;gap:14px;border-top:1px solid var(--line);margin-top:20px;padding-top:20px;flex-wrap:wrap}.export-controls .field{min-width:160px}.export-controls .button{min-height:45px}.export-controls button:disabled{opacity:.55;cursor:wait}.export-status{font-size:11px;color:var(--muted);margin:10px 0 0}.export-brand{font-size:15px;color:var(--wine);font-weight:700;margin:0 0 18px}.export-sheet .panel-head h2{font-size:18px}.export-sheet .real-timetable{min-width:0}.export-sheet .real-timetable .lesson-card strong{font-size:13px}.export-sheet .real-timetable td{height:130px}.export-sheet .panel-head{flex-wrap:wrap}
+
+/* エクスポート（PDF/PNG）時はテーマ設定に関わらず常にライトモードの配色を強制 */
+.export-sheet,
+[data-theme="dark"] .export-sheet{background:#ffffff!important;color:#252b39!important}
+.export-sheet .panel-head h2,
+[data-theme="dark"] .export-sheet .panel-head h2{color:#252b39!important}
+.export-sheet .export-brand,
+[data-theme="dark"] .export-sheet .export-brand{color:#79182b!important}
+.export-sheet thead th,
+[data-theme="dark"] .export-sheet thead th{background:#f8f1f3!important;color:#79182b!important}
+.export-sheet tbody th,
+[data-theme="dark"] .export-sheet tbody th{background:#ffffff!important;color:#79182b!important}
+.export-sheet tbody th small,
+[data-theme="dark"] .export-sheet tbody th small{color:#7c8290!important}
+.export-sheet td,
+[data-theme="dark"] .export-sheet td{border-left:1px solid #e7e7ea!important;background:#ffffff!important}
+.export-sheet .lesson-card,
+[data-theme="dark"] .export-sheet .lesson-card{background:#fcf9fa!important;border-left:3px solid #c38a96!important;color:#252b39!important}
+.export-sheet .lesson-card strong,
+[data-theme="dark"] .export-sheet .lesson-card strong{color:#252b39!important}
+.export-sheet .lesson-card small,
+[data-theme="dark"] .export-sheet .lesson-card small{color:#7c8290!important}
+.export-sheet .lesson-location,
+[data-theme="dark"] .export-sheet .lesson-location{color:#75535d!important}
+.export-sheet .schedule-empty,
+[data-theme="dark"] .export-sheet .schedule-empty{background:#fdfdfd!important;color:#afb0b7!important}
+.export-sheet .badge,
+[data-theme="dark"] .export-sheet .badge{background:#f2f8f3!important;color:#327458!important;border-color:#cce3d5!important}
+.export-sheet .badge.gray,
+[data-theme="dark"] .export-sheet .badge.gray{background:#f4f4f6!important;color:#828692!important;border-color:#e6e6eb!important}
+.export-sheet .timetable-source,
+[data-theme="dark"] .export-sheet .timetable-source{color:#7c8290!important}
+.export-sheet .timetable-source a,
+[data-theme="dark"] .export-sheet .timetable-source a{color:#79182b!important}
 @media(max-width:480px){.export-controls .field,.export-controls .button{width:100%}}
 
 .advanced-notice{margin:16px 0 0;padding:13px 16px;border-radius:8px;background:#f8f1f3;color:var(--wine);font-size:13px;font-weight:500}.selection-status{font-size:11px;color:var(--red);margin:0 0 12px}
@@ -47,3 +81,114 @@ details.timetable-controls[open] .filter-summary{margin-bottom:19px;border-botto
 .filter-actions{display:flex;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
 .confirm-btn{background:var(--wine);color:white;font-weight:600;padding:10px 20px;border-radius:8px;font-size:13px}
 .confirm-btn:hover{background:var(--wine-dark)}
+
+/* テーマ切り替えボタン */
+.theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--ink);padding:0;transition:background .2s,border-color .2s;cursor:pointer}
+.theme-toggle:hover{background:#ffffff15;border-color:var(--wine)}
+.theme-toggle svg{width:16px;height:16px}
+
+/* ダークモードスタイル */
+[data-theme="dark"]{
+  --wine:#a32e44;
+  --wine-dark:#852234;
+  --ink:#e4e6eb;
+  --muted:#9ba1af;
+  --line:#2c3240;
+  --bg:#12151d;
+  background:var(--bg);
+  color:var(--ink);
+}
+[data-theme="dark"] .panel,
+[data-theme="dark"] details.timetable-controls,
+[data-theme="dark"] .stat,
+[data-theme="dark"] .notice,
+[data-theme="dark"] .help-strip,
+[data-theme="dark"] .button.secondary{
+  background:#1a1e29;
+  border-color:var(--line);
+}
+[data-theme="dark"] .topbar{
+  background:#12151de0;
+  border-color:var(--line);
+}
+[data-theme="dark"] .breadcrumb strong{
+  color:#f1f3f7;
+}
+[data-theme="dark"] .date-block strong{
+  color:#f1f3f7;
+}
+[data-theme="dark"] .field input,
+[data-theme="dark"] .field select{
+  background:#141722;
+  border-color:#323b4e;
+  color:#e4e6eb;
+}
+[data-theme="dark"] .student-filters select:disabled{
+  background:#1d222e;
+  color:#5d667a;
+}
+[data-theme="dark"] .real-timetable thead th{
+  background:#26181f;
+  color:#f2a7b6;
+}
+[data-theme="dark"] .real-timetable tbody th{
+  color:#f2a7b6;
+}
+[data-theme="dark"] .real-timetable td{
+  border-left-color:var(--line);
+}
+[data-theme="dark"] .real-timetable .lesson-card{
+  background:#231b23;
+  border-left-color:#a33b50;
+  color:#f1f3f7;
+}
+[data-theme="dark"] .real-timetable .lesson-location{
+  color:#d49fa8;
+}
+[data-theme="dark"] .real-timetable .schedule-empty{
+  background:#151822;
+  color:#606a7f;
+}
+[data-theme="dark"] .badge.gray{
+  background:#202533;
+  color:#9da4b6;
+  border-color:#2f364a;
+}
+[data-theme="dark"] .badge{
+  background:#15261d;
+  color:#6ee7b7;
+  border-color:#1e3a2b;
+}
+[data-theme="dark"] .badge.red{
+  background:#2d1719;
+  color:#fca5a5;
+  border-color:#4a2024;
+}
+[data-theme="dark"] .demo-pill{
+  border-color:#353d4e;
+  color:#b4a390;
+}
+[data-theme="dark"] .class-row{
+  border-top-color:var(--line);
+}
+[data-theme="dark"] .change-row{
+  border-bottom-color:var(--line);
+}
+[data-theme="dark"] .info-note{
+  background:#231e18;
+  color:#d4af88;
+}
+[data-theme="dark"] .advanced-notice{
+  background:#25161c;
+  color:#f0a3b2;
+}
+[data-theme="dark"] footer{
+  color:#6b7280;
+}
+[data-theme="dark"] .theme-toggle{
+  border-color:#353d4e;
+  color:#e4e6eb;
+}
+[data-theme="dark"] .theme-toggle:hover{
+  background:#202533;
+}

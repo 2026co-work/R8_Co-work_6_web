@@ -25,9 +25,10 @@ export async function exportTimetable(snapshot, format, filename) {
   snapshot.querySelectorAll('[data-export-exclude]').forEach(node => node.remove());
   snapshot.removeAttribute('id');
   snapshot.classList.add('export-sheet');
+  snapshot.setAttribute('data-theme', 'light');
   snapshot.setAttribute('aria-hidden', 'true');
   snapshot.inert = true;
-  snapshot.style.cssText = 'position:fixed;left:0;top:0;width:1100px;max-width:none;padding:28px;background:#fff;z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;';
+  snapshot.style.cssText = 'position:fixed;left:0;top:0;width:1100px;max-width:none;padding:28px;background:#fff;color:#252b39;z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;';
   const title = document.createElement('p');
   title.className = 'export-brand';
   title.textContent = 'Akashi KOSEN 学生ページ(仮) ｜ 令和8年度 後期時間割';
