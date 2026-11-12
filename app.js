@@ -88,12 +88,13 @@ function saveSelectionCookie() {
   } catch { cookieSaved = false; }
   return cookieSaved;
 }
-function heading(title,subtitle,action='') {
-  return `<div class="page-heading"><div><h1>${title}</h1><p>${subtitle}</p></div>${action}</div>`;
+function heading(title,subtitle='',action='') {
+  return `<div class="page-heading"><div><h1>${title}</h1>${subtitle ? `<p>${subtitle}</p>` : ''}</div>${action}</div>`;
 }
 const link = (href,label) => `<a class="text-link" href="${href}">${label}${icon('arrow')}</a>`;
 function home() {
-  return `${heading('ホーム','学校生活を、もっとスムーズに。',`<div class="date-block"><strong>${longDate(today)}</strong><small>キャンパスポータル</small></div>`)}
+  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="moon"></span></button><span class="demo-pill"><i></i>ベータ版</span><div class="date-block"><strong>${longDate(today)}</strong><small>キャンパスポータル</small></div></div>`;
+  return `${heading('ホーム','学校生活を、もっとスムーズに。',actions)}
     <section class="panel development-card"><span class="icon-box rose">${icon('school')}</span><h2>現在開発中</h2><p>ホームページの機能は、ただいま準備中です。<br>時間割は、メニューからご利用いただけます。</p><a class="button" href="#timetable">${icon('calendar')}時間割を見る</a></section>`;
 }
 function studentLabel() {
@@ -142,7 +143,7 @@ function timetable() {
     const span = cell.length===1 && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id)) ? (cell[0].duration||1) : 1;
     return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>`;
-  return `${heading('時間割','学年・学科・履修区分に合わせて、あなたの1週間を確認。')}
+  return `${heading('時間割','',`<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="moon"></span></button><span class="demo-pill"><i></i>ベータ版</span></div>`)}
     <details class="panel timetable-controls" id="filter-details" ${filterOpen ? 'open' : ''}>
       <summary class="panel-head filter-summary">
         <h2>${icon('calendar')}表示する時間割</h2>
@@ -732,12 +733,12 @@ function setTheme(theme) {
 }
 function setupTheme() {
   updateThemeUI(currentTheme);
-  const btn = document.getElementById('theme-toggle');
-  if (btn) {
-    btn.addEventListener('click', () => {
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('#theme-toggle');
+    if (btn) {
       setTheme(currentTheme === 'dark' ? 'light' : 'dark');
-    });
-  }
+    }
+  });
 }
 function setupMobileHeaderScroll() {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
