@@ -31,12 +31,19 @@ const COOKIE_NAME = 'campus-student-v1';
 const SELECTION_VALUES = { grade: [1,2,3,4,5], department: DEPARTMENTS, classGroup: ['1','2','3','4'], studentType: ['regular','international'], course: ['','ED','EJ'], arts: ['music','art'] };
 let cookieSaved = false;
 let exportInProgress = false;
-const EXPORT_MODES = {
-  nomargin: { padding: 10, cellHeight: 172, fontScale: 105 },
-  memo: { padding: 36, cellHeight: 118, fontScale: 95 },
+const DEPARTMENT_NAMES = {
+  M: '機械工学科 (M)',
+  E: '電気情報工学科 (E)',
+  C: '都市システム工学科 (C)',
+  A: '建築学科 (A)',
 };
-let exportSizeMode = 'nomargin';
-let exportSizeConfig = { ...EXPORT_MODES.nomargin };
+const EXPORT_MODES = {
+  web: { padding: 0, cellHeight: 140, fontScale: 100 },
+  a4fit: { padding: 0, cellHeight: 172, fontScale: 105 },
+  memo: { padding: 8, cellHeight: 220, fontScale: 95 },
+};
+let exportSizeMode = 'web';
+let exportSizeConfig = { ...EXPORT_MODES.web };
 function sanitizeSelection(value) {
   const result = { ...DEFAULT_SELECTION };
   if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
@@ -92,11 +99,12 @@ function selectedSchedule() {
 function timetable() {
   const s = studentSelection;
   const { selected, grid, error } = selectedSchedule();
+  const totalPeriods = selected.reduce((sum, l) => sum + (l.duration || 1), 0);
   const options = (values, current) => values.map(([value,label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
   const field = (label, key, values, disabled = false) => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select></label>`;
   const needsCourse = s.grade >= 4 && s.department === 'E';
   const controls = field('学年','grade',[1,2,3,4,5].map(n=>[n,`${n}年`])) +
-    field('学科','department',DEPARTMENTS.map(d=>[d,`${d}学科`])) +
+    field('学科','department',DEPARTMENTS.map(d=>[d, DEPARTMENT_NAMES[d] || `${d}学科`])) +
     field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),s.grade>=3) +
     field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']]) +
     field('E学科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],!needsCourse) +
@@ -124,7 +132,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${selected.length}授業</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-config-bar" data-export-exclude><button class="button secondary" id="export-size-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>サイズ調整</button><span class="size-mode-Summary" id="export-size-summary">みため: ${exportSizeMode === 'nomargin' ? '余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf">PDF（A4横）</option><option value="png">PNG（画像）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':'時間割をダウンロード'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude>${error?'選択条件を設定するとダウンロードできます。':'選択中の時間割全体を保存します。'}</p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-config-bar" data-export-exclude><button class="button secondary" id="export-size-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>サイズ調整</button><span class="size-mode-Summary" id="export-size-summary">みため: ${exportSizeMode === 'web' ? 'Web表示のまま（余白なし）' : exportSizeMode === 'a4fit' ? 'A4余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf">PDF（A4横）</option><option value="png">PNG（画像）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':'時間割をダウンロード'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude>${error?'選択条件を設定するとダウンロードできます。':'選択中の時間割全体を保存します。'}</p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -135,7 +143,8 @@ function timetable() {
         <div class="size-preset-row">
           <div class="size-preset-group" role="group" aria-label="みため">
             <span class="size-preset-label">みため:</span>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'nomargin' ? 'active' : ''}" data-size-mode="nomargin">余白なし</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web">Web表示のまま（余白なし）</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit">A4余白なし</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
@@ -150,7 +159,7 @@ function timetable() {
           </label>
           <label class="size-slider-item">
             <span class="size-slider-name">マスの高さ</span>
-            <input type="range" id="size-slider-cell" min="100" max="196" step="2" value="${exportSizeConfig.cellHeight}">
+            <input type="range" id="size-slider-cell" min="80" max="240" step="2" value="${exportSizeConfig.cellHeight}">
             <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
           </label>
           <label class="size-slider-item">
@@ -185,10 +194,19 @@ function openSizeAdjustModal() {
   paper.setAttribute('data-theme', currentTheme);
   clone.querySelector('.panel-head')?.remove();
   clone.querySelector('.timetable-source')?.remove();
-  const title = document.createElement('h1');
-  title.className = 'export-title';
-  title.textContent = `明石高専後期時間割 ${studentLabel()} Co+work6班 ＜時間割PDF参照日時: ${SOURCE?.updated || '2026-09-24'}＞`;
-  clone.prepend(title);
+  const headerRow = document.createElement('div');
+  headerRow.className = 'export-header-row';
+  headerRow.innerHTML = `
+    <div class="export-header-main">
+      <h1 class="export-title">明石高専 後期時間割</h1>
+      <span class="export-badge-tag">${escapeHTML(studentLabel())}</span>
+      <span class="export-team-tag">Co+work 6班</span>
+    </div>
+    <div class="export-header-sub">
+      <small class="export-pdf-date">PDF参照: ${escapeHTML(SOURCE?.updated || '2026-09-24')}</small>
+    </div>
+  `;
+  clone.prepend(headerRow);
   const scroller = clone.querySelector('.table-scroll');
   if (scroller) scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
   const tbl = clone.querySelector('table');
@@ -212,7 +230,7 @@ function closeSizeAdjustModal() {
   document.body.classList.remove('size-modal-open');
   const summary = document.getElementById('export-size-summary');
   if (summary) {
-    summary.textContent = `みため: ${exportSizeMode === 'nomargin' ? '余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}`;
+    summary.textContent = `みため: ${exportSizeMode === 'web' ? 'Web表示のまま（余白なし）' : exportSizeMode === 'a4fit' ? 'A4余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}`;
   }
   const panel = document.getElementById('timetable-sheet');
   if (panel) applyLiveSheetSize(panel);
@@ -294,9 +312,17 @@ function render() {
     syncSizeControlsUI();
   }));
   document.getElementById('size-mode-reset')?.addEventListener('click', () => {
-    exportSizeMode = 'nomargin';
-    exportSizeConfig = { ...EXPORT_MODES.nomargin };
+    exportSizeMode = 'web';
+    exportSizeConfig = { ...EXPORT_MODES.web };
     syncSizeControlsUI();
+  });
+  document.getElementById('export-size-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget || e.target.id === 'size-overlay-viewport' || e.target.id === 'size-paper-wrap') {
+      closeSizeAdjustModal();
+    }
+  });
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeSizeAdjustModal();
   });
   const bindSizeSlider = (id, key) => {
     document.getElementById(id)?.addEventListener('input', e => {

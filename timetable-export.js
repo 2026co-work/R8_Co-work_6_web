@@ -33,10 +33,19 @@ export function prepareExportSnapshot(snapshot, options = {}) {
   snapshot.querySelector('.panel-head')?.remove();
   snapshot.querySelector('.timetable-source')?.remove();
 
-  const title = document.createElement('h1');
-  title.className = 'export-title';
-  title.textContent = `明石高専後期時間割 ${label} Co+work6班 ＜時間割PDF参照日時: ${updated}＞`;
-  snapshot.prepend(title);
+  const headerRow = document.createElement('div');
+  headerRow.className = 'export-header-row';
+  headerRow.innerHTML = `
+    <div class="export-header-main">
+      <h1 class="export-title">明石高専 後期時間割</h1>
+      <span class="export-badge-tag">${label}</span>
+      <span class="export-team-tag">Co+work 6班</span>
+    </div>
+    <div class="export-header-sub">
+      <small class="export-pdf-date">PDF参照: ${updated}</small>
+    </div>
+  `;
+  snapshot.prepend(headerRow);
 
   const scroller = snapshot.querySelector('.table-scroll');
   if (scroller) {

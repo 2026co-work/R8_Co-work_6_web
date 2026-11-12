@@ -34,7 +34,24 @@
 .export-config-bar .button.secondary{background:#f8f1f3;color:var(--wine);border:1px solid #ecc9d1;min-height:42px;padding:0 18px;font-weight:600}
 .export-config-bar .button.secondary:hover{background:#f1e2e6}
 .size-mode-Summary{font-size:12px;color:var(--muted);font-weight:500}
-.export-controls{display:flex;align-items:flex-end;gap:14px;margin-top:14px;flex-wrap:wrap}.export-controls .field{min-width:160px}.export-controls .button{min-height:45px}.export-controls button:disabled{opacity:.55;cursor:wait}.export-status{font-size:11px;color:var(--muted);margin:10px 0 0}.export-brand{font-size:15px;color:var(--wine);font-weight:700;margin:0 0 18px}.export-sheet .panel-head h2{font-size:18px}.export-sheet .export-title{font-size:calc(16px * var(--export-font-scale,1.05));font-weight:700;color:var(--wine);margin:0 0 12px;line-height:1.35;letter-spacing:-0.01em}.export-sheet .real-timetable{min-width:0}.export-sheet .real-timetable th{font-size:calc(12.5px * var(--export-font-scale,1.05))}.export-sheet .real-timetable .lesson-card strong{font-size:calc(13px * var(--export-font-scale,1.05))}.export-sheet .real-timetable .lesson-card small{font-size:calc(11px * var(--export-font-scale,1.05))}.export-sheet .real-timetable td{height:var(--export-cell-h,172px)}.export-sheet .real-timetable td[rowspan="2"]{height:calc(var(--export-cell-h,172px) * 2)}.export-sheet .real-timetable td[rowspan="3"]{height:calc(var(--export-cell-h,172px) * 3)}.export-sheet .panel-head{flex-wrap:wrap}
+.export-controls{display:flex;align-items:flex-end;gap:14px;margin-top:14px;flex-wrap:wrap}.export-controls .field{min-width:160px}.export-controls .button{min-height:45px}.export-controls button:disabled{opacity:.55;cursor:wait}.export-status{font-size:11px;color:var(--muted);margin:10px 0 0}.export-brand{font-size:15px;color:var(--wine);font-weight:700;margin:0 0 18px}.export-sheet .panel-head h2{font-size:18px}.export-sheet .export-header-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 14px;padding-bottom:10px;border-bottom:1.5px solid var(--line)}
+.export-sheet .export-header-main{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.export-sheet .export-title{font-size:calc(18px * var(--export-font-scale,1.05));font-weight:800;color:var(--wine);margin:0;line-height:1.2;letter-spacing:-0.01em}
+.export-sheet .export-badge-tag{font-size:calc(13px * var(--export-font-scale,1.05));font-weight:700;color:var(--ink);background:rgba(121,24,43,0.08);padding:3px 9px;border-radius:5px}
+.export-sheet .export-team-tag{font-size:calc(12px * var(--export-font-scale,1.05));color:var(--muted);font-weight:600}
+.export-sheet .export-header-sub{text-align:right;flex-shrink:0}
+.export-sheet .export-pdf-date{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+[data-theme="dark"] .export-sheet .export-badge-tag{background:rgba(244,168,184,0.15);color:#f4a8b8}
+[data-theme="dark"] .export-sheet .export-header-row{border-bottom-color:#2a3040}
+.export-sheet .real-timetable{min-width:0}
+.export-sheet .real-timetable th{font-size:calc(12.5px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable .lesson-card{display:flex;flex-direction:column;gap:2px;justify-content:flex-start;height:100%}
+.export-sheet .real-timetable .lesson-card strong{font-size:calc(13px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable .lesson-card small{font-size:calc(11px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable td{height:var(--export-cell-h,172px);vertical-align:top;padding:8px 6px}
+.export-sheet .real-timetable td[rowspan="2"]{height:calc(var(--export-cell-h,172px) * 2)}
+.export-sheet .real-timetable td[rowspan="3"]{height:calc(var(--export-cell-h,172px) * 3)}
+.export-sheet .panel-head{flex-wrap:wrap}
 
 /* エクスポートシートは表示版のカラーテーマ（ライト/ダーク）と完全一致させる */
 .export-sheet[data-theme="light"]{background:#ffffff;color:#252b39}
