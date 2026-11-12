@@ -257,7 +257,8 @@ function render() {
   const route=location.hash.slice(1).split('?')[0] || 'home';
   const names={home:'ホーム',timetable:'時間割'};
   const page=Object.hasOwn(names,route)?route:'home';
-  document.getElementById('breadcrumb').textContent=names[page];
+  const breadcrumbEl=document.getElementById('breadcrumb');
+  if(breadcrumbEl) breadcrumbEl.textContent=names[page];
   document.title=`${names[page]} — Campus`;
   document.querySelectorAll('[data-page]').forEach(a=>{
     a.classList.toggle('active',a.dataset.page===page);
