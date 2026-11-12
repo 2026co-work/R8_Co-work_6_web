@@ -51,6 +51,10 @@ test('A4 mode layout constraints avoid table stretching and bottom margin collap
     'app.js must provide getMaxCellHeightForA4 function'
   );
   assert.ok(
+    appJs.includes('getPresetConfig'),
+    'app.js must provide getPresetConfig function to restore preset defaults'
+  );
+  assert.ok(
     appJs.includes('a4Mode: a4ModeEnabled'),
     'downloadCurrentTimetable must pass a4Mode option to exportTimetable'
   );

@@ -219,6 +219,23 @@ function getMaxCellHeightForA4(padding) {
   const fixedH = (padding * 2) + 80; // 上下余白 + ヘッダー行(約48px) + thead(約32px)
   return Math.max(80, Math.floor((778 - fixedH) / 4));
 }
+function getPresetConfig(mode, isA4) {
+  if (mode === 'memo') {
+    if (isA4) {
+      const maxH = getMaxCellHeightForA4(EXPORT_MODES.memo.padding);
+      return { ...EXPORT_MODES.memo, cellHeight: maxH };
+    }
+    return { ...EXPORT_MODES.memo };
+  }
+  if (mode === 'a4fit') {
+    const maxH = getMaxCellHeightForA4(EXPORT_MODES.a4fit.padding);
+    return { ...EXPORT_MODES.a4fit, cellHeight: Math.min(EXPORT_MODES.a4fit.cellHeight, maxH) };
+  }
+  if (mode === 'web') {
+    return { ...EXPORT_MODES.web };
+  }
+  return null;
+}
 function updateSizeModalScale() {
   const viewport = document.getElementById('size-overlay-viewport');
   const wrap = document.getElementById('size-paper-wrap');
@@ -553,7 +570,13 @@ function render() {
   // A4枠トグル
   document.getElementById('size-toggle-a4')?.addEventListener('change', e => {
     a4ModeEnabled = e.target.checked;
-    if (a4ModeEnabled) {
+    if (exportSizeMode === 'a4fit' && !a4ModeEnabled) {
+      exportSizeMode = 'web';
+    }
+    const preset = getPresetConfig(exportSizeMode, a4ModeEnabled);
+    if (preset) {
+      exportSizeConfig = { ...preset };
+    } else if (a4ModeEnabled) {
       const maxH = getMaxCellHeightForA4(exportSizeConfig.padding);
       if (exportSizeConfig.cellHeight > maxH) {
         exportSizeConfig.cellHeight = maxH;
@@ -587,17 +610,10 @@ function render() {
     exportSizeMode = mode;
     if (mode === 'a4fit') {
       a4ModeEnabled = true;
-      const maxH = getMaxCellHeightForA4(EXPORT_MODES.a4fit.padding);
-      exportSizeConfig = { ...EXPORT_MODES.a4fit, cellHeight: Math.min(EXPORT_MODES.a4fit.cellHeight, maxH) };
-    } else if (mode === 'memo') {
-      if (a4ModeEnabled) {
-        const maxH = getMaxCellHeightForA4(EXPORT_MODES.memo.padding);
-        exportSizeConfig = { ...EXPORT_MODES.memo, cellHeight: maxH };
-      } else {
-        exportSizeConfig = { ...EXPORT_MODES.memo };
-      }
-    } else if (EXPORT_MODES[mode]) {
-      exportSizeConfig = { ...EXPORT_MODES[mode] };
+    }
+    const preset = getPresetConfig(mode, a4ModeEnabled);
+    if (preset) {
+      exportSizeConfig = { ...preset };
     }
     syncSizeControlsUI();
   }));
