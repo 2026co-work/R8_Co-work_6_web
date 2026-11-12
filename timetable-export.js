@@ -203,7 +203,8 @@ export function generateCsv(selectedLessons, studentLabel) {
 /**
  * テキスト形式生成
  */
-export function generateText(selectedLessons, studentLabel) {
+export function generateText(selectedLessons, studentLabel, options = {}) {
+  const { includeLocation = true, includeTeacher = true } = options;
   const lines = [
     `■ 明石高専 時間割（令和8年度後期）`,
     `対象: ${studentLabel}`,
@@ -227,8 +228,8 @@ export function generateText(selectedLessons, studentLabel) {
       const pText = `${l.period}${span > 1 ? `〜${l.period + span - 1}` : ''}限`;
       const startTime = PERIOD_TIMES[l.period - 1]?.startTime || '';
       const endTime = PERIOD_TIMES[l.period + span - 2]?.endTime || '';
-      const locText = l.location ? ` [${l.location}]` : '';
-      const teacherText = l.teacher ? ` (${l.teacher})` : '';
+      const locText = includeLocation && l.location ? ` [${l.location}]` : '';
+      const teacherText = includeTeacher && l.teacher ? ` (${l.teacher})` : '';
       lines.push(`  ${pText} (${startTime}-${endTime}) ${l.subjectName}${locText}${teacherText}`);
     }
   }
@@ -236,6 +237,23 @@ export function generateText(selectedLessons, studentLabel) {
   lines.push('\n----------------------------------------');
   lines.push('出典: 明石高専 Webページ (https://www.akashi.ac.jp/life/lesson.html)');
   return lines.join('\n');
+}
+
+/**
+ * JSON形式生成
+ */
+export function generateJson(selectedLessons, studentLabel) {
+  const exportData = {
+    meta: {
+      title: '明石高専 授業時間割',
+      term: '令和8年度後期',
+      student: studentLabel,
+      exportedAt: new Date().toISOString(),
+      totalLessons: selectedLessons.length
+    },
+    lessons: selectedLessons
+  };
+  return JSON.stringify(exportData, null, 2);
 }
 
 /**
@@ -344,17 +362,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 3. JSON (.json)
   if (format === 'json') {
-    const exportData = {
-      meta: {
-        title: '明石高専 授業時間割',
-        term: '令和8年度後期',
-        student: studentLabel,
-        exportedAt: new Date().toISOString(),
-        totalLessons: selectedLessons.length
-      },
-      lessons: selectedLessons
-    };
-    const jsonString = JSON.stringify(exportData, null, 2);
+    const jsonString = generateJson(selectedLessons, studentLabel);
     const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
     downloadBlob(blob, `${filename}.json`);
     return { success: true, message: 'JSONファイル (.json) を保存しました。' };
@@ -362,7 +370,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 4. テキスト (.txt & クリップボードコピー)
   if (format === 'text') {
-    const textString = generateText(selectedLessons, studentLabel);
+    const textString = generateText(selectedLessons, studentLabel, options.textOptions);
     if (navigator?.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(textString);
