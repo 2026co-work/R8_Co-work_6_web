@@ -16,6 +16,8 @@ const icons = {
   document:'M6 3h9l4 4v14H5V3Zm8 0v5h5M8 12h8m-8 4h6',
   briefcase:'M8 7V3h8v4M3 7h18v14H3ZM8 7v14m8-14v14',
   plus:'M12 5v14M5 12h14',
+  moon:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z',
+  sun:'M12 3v2m0 14v2M3 12h2m14 0h2m-3.5-6.5-1.4 1.4M6.9 17.1l-1.4 1.4m13-1.4-1.4-1.4M6.9 6.9 5.5 5.5M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z',
 };
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[name] || icons.info}"/></svg>`;
 document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));
@@ -207,4 +209,53 @@ function setupNavigation() {
 }
 const closeNavigation=setupNavigation();
 window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});});
+
+const THEME_COOKIE = 'campus-theme';
+function getInitialTheme() {
+  try {
+    const entry = document.cookie.split(';').map(s=>s.trim()).find(s=>s.startsWith(`${THEME_COOKIE}=`));
+    if (entry) {
+      const val = decodeURIComponent(entry.slice(THEME_COOKIE.length+1));
+      if (val === 'dark' || val === 'light') return val;
+    }
+  } catch {}
+  return (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+}
+let currentTheme = getInitialTheme();
+function updateThemeUI(theme) {
+  if (typeof document === 'undefined') return;
+  if (document.documentElement) {
+    if (theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  }
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    const isDark = theme === 'dark';
+    btn.setAttribute('aria-label', isDark ? 'ライトモードに切り替える' : 'ダークモードに切り替える');
+    btn.title = isDark ? 'ライトモードに切り替える' : 'ダークモードに切り替える';
+    const iconEl = (typeof btn.querySelector === 'function' ? btn.querySelector('.theme-icon') : null) || btn;
+    iconEl.innerHTML = icon(isDark ? 'sun' : 'moon');
+  }
+}
+function setTheme(theme) {
+  currentTheme = theme;
+  updateThemeUI(theme);
+  try {
+    const path = location.pathname.slice(0,location.pathname.lastIndexOf('/')+1) || '/';
+    document.cookie = `${THEME_COOKIE}=${encodeURIComponent(theme)}; Path=${path}; Max-Age=31536000; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
+  } catch {}
+}
+function setupTheme() {
+  updateThemeUI(currentTheme);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    });
+  }
+}
+setupTheme();
 render();

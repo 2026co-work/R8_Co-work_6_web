@@ -7,6 +7,15 @@
   <meta name="description" content="あなたの学年・学科に合わせた時間割を確認できるキャンパスポータル。">
   <title>Campus — キャンパスポータル</title>
   <link rel="stylesheet" href="./styles.css">
+  <script>
+    (function() {
+      try {
+        var m = document.cookie.match(/(?:^|; )campus-theme=([^;]*)/);
+        var t = m ? decodeURIComponent(m[1]) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
   <script type="module" src="./app.js"></script>
 </head>
 <body>
@@ -21,7 +30,7 @@
   </aside>
   <button id="menu-overlay" class="menu-overlay" aria-label="メニューを閉じる" tabindex="-1" hidden></button>
   <div class="workspace">
-    <header class="topbar"><button id="menu-toggle" class="menu-toggle" type="button" aria-label="メニューを開く" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div class="breadcrumb">キャンパスポータル <span>/</span> <strong id="breadcrumb">ホーム</strong></div><div class="topbar-right"><span class="demo-pill"><i></i>ベータ版</span></div></header>
+    <header class="topbar"><button id="menu-toggle" class="menu-toggle" type="button" aria-label="メニューを開く" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div class="breadcrumb">キャンパスポータル <span>/</span> <strong id="breadcrumb">ホーム</strong></div><div class="topbar-right"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="moon"></span></button><span class="demo-pill"><i></i>ベータ版</span></div></header>
     <main id="main" tabindex="-1"></main>
     <footer>Co+work 6班 <span>令和8年度後期の時間割</span></footer>
   </div>
