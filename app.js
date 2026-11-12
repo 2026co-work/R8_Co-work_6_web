@@ -46,11 +46,11 @@ let exportSizeMode = 'web';
 let exportSizeConfig = { ...EXPORT_MODES.web };
 let a4ModeEnabled = false;
 const EXPORT_FORMAT_CONFIGS = {
-  pdf: { actionLabel: '印刷・PDF保存', adjustLabel: 'レイアウト調整' },
-  png: { actionLabel: 'PNG画像を保存', adjustLabel: 'レイアウト調整' },
-  text: { actionLabel: 'コピー＆保存', adjustLabel: 'プレビュー＆調整' },
-  csv: { actionLabel: 'CSVをダウンロード', adjustLabel: '形式プレビュー' },
-  json: { actionLabel: 'JSONをダウンロード', adjustLabel: 'データプレビュー' },
+  pdf: { copyLabel: '印刷画面を開く', downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
+  png: { copyLabel: '📋 画像をコピー', downloadLabel: '💾 PNG保存', adjustLabel: 'レイアウト調整' },
+  text: { copyLabel: '📋 テキストをコピー', downloadLabel: '💾 テキスト保存', adjustLabel: 'プレビュー＆調整' },
+  csv: { copyLabel: '📋 CSVをコピー', downloadLabel: '💾 CSVダウンロード', adjustLabel: '形式プレビュー' },
+  json: { copyLabel: '📋 JSONをコピー', downloadLabel: '💾 JSONダウンロード', adjustLabel: 'データプレビュー' },
 };
 let currentExportFormat = 'pdf';
 let textExportOptions = { includeLocation: true, includeTeacher: true };
@@ -142,7 +142,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（コピー＆保存）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.actionLabel||'ダウンロード')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（コピー＆保存）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -190,7 +190,8 @@ function timetable() {
         <div class="data-preview-body" id="data-preview-body"></div>
         <div class="data-preview-foot">
           <button type="button" class="button secondary" id="data-preview-cancel">閉じる</button>
-          <button type="button" class="button" id="data-preview-action">保存する</button>
+          <button type="button" class="button export-copy-btn" id="data-preview-copy">📋 クリップボードにコピー</button>
+          <button type="button" class="button" id="data-preview-action">💾 ファイルを保存</button>
         </div>
       </div>
     </div>`;
@@ -365,7 +366,7 @@ function closeDataPreviewModal() {
   if (modal) modal.hidden = true;
   document.body.classList.remove('size-modal-open');
 }
-async function downloadCurrentTimetable() {
+async function downloadCurrentTimetable(action = 'download') {
   if (exportInProgress || selectedSchedule().error) return;
   const panel = document.getElementById('timetable-sheet');
   if (!panel) return;
@@ -373,16 +374,21 @@ async function downloadCurrentTimetable() {
   const snapshot = panel.cloneNode(true);
   const format = document.getElementById('export-format')?.value || currentExportFormat;
   const filename = `R8後期時間割-${studentShortLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
-  const button = document.getElementById('export-download');
+  const downloadBtn = document.getElementById('export-download');
+  const copyBtn = document.getElementById('export-copy');
   const status = document.getElementById('export-status');
   exportInProgress = true;
-  if (button) {
-    button.disabled = true;
-    button.textContent = '作成中…';
+  if (downloadBtn) {
+    downloadBtn.disabled = true;
+    if (action === 'download') downloadBtn.textContent = '作成中…';
+  }
+  if (copyBtn) {
+    copyBtn.disabled = true;
+    if (action === 'copy') copyBtn.textContent = 'コピー中…';
   }
   if (status) {
     status.hidden = false;
-    status.textContent = `${format.toUpperCase()}を作成しています…`;
+    status.textContent = action === 'copy' ? 'クリップボードにコピーしています…' : `${format.toUpperCase()}を作成しています…`;
   }
   try {
     const { exportTimetable } = await import('./timetable-export.js');
@@ -394,25 +400,33 @@ async function downloadCurrentTimetable() {
       sizeConfig: { ...exportSizeConfig },
       theme: currentTheme,
       textOptions: { ...textExportOptions },
+      action: action
     });
     if (status) {
       status.hidden = false;
-      status.textContent = result?.message || (format === 'pdf'
-        ? '印刷・PDF保存画面を開きました。「PDFに保存」またはプリンターを選択してください。'
-        : 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。');
+      status.textContent = result?.message || (action === 'copy'
+        ? 'クリップボードにコピーしました！'
+        : (format === 'pdf'
+          ? '印刷・PDF保存画面を開きました。「PDFに保存」またはプリンターを選択してください。'
+          : 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。'));
     }
   } catch (error) {
     console.error('Timetable export failed', error);
     if (status) {
       status.hidden = false;
-      status.textContent = 'ファイルを作成できませんでした。通信状態を確認して、もう一度お試しください。';
+      status.textContent = '処理を完了できませんでした。通信状態を確認して、もう一度お試しください。';
     }
   } finally {
     exportInProgress = false;
-    const current = document.getElementById('export-download');
-    if (current) {
-      current.disabled = Boolean(selectedSchedule().error);
-      current.textContent = EXPORT_FORMAT_CONFIGS[currentExportFormat]?.actionLabel || 'ダウンロード';
+    const currentDL = document.getElementById('export-download');
+    const currentCopy = document.getElementById('export-copy');
+    if (currentDL) {
+      currentDL.disabled = Boolean(selectedSchedule().error);
+      currentDL.textContent = EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel || '💾 保存';
+    }
+    if (currentCopy) {
+      currentCopy.disabled = Boolean(selectedSchedule().error);
+      currentCopy.textContent = EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel || '📋 コピー';
     }
     const select = document.getElementById('export-format');
     if (select) select.disabled = Boolean(selectedSchedule().error);
@@ -431,6 +445,7 @@ function render() {
   });
   document.getElementById('main').innerHTML=page==='home'?home():timetable();
   const formatSelect = document.getElementById('export-format');
+  const copyBtn = document.getElementById('export-copy');
   const downloadBtn = document.getElementById('export-download');
   const adjustBtn = document.getElementById('export-adjust-open');
 
@@ -438,8 +453,11 @@ function render() {
     const fmt = formatSelect?.value || currentExportFormat;
     currentExportFormat = fmt;
     const cfg = EXPORT_FORMAT_CONFIGS[fmt] || EXPORT_FORMAT_CONFIGS.pdf;
+    if (copyBtn && !exportInProgress) {
+      copyBtn.textContent = cfg.copyLabel;
+    }
     if (downloadBtn && !exportInProgress) {
-      downloadBtn.textContent = cfg.actionLabel;
+      downloadBtn.textContent = cfg.downloadLabel;
     }
     if (adjustBtn) {
       adjustBtn.textContent = cfg.adjustLabel;
@@ -447,14 +465,18 @@ function render() {
   };
 
   formatSelect?.addEventListener('change', syncExportFormatUI);
-  downloadBtn?.addEventListener('click', downloadCurrentTimetable);
+  copyBtn?.addEventListener('click', () => downloadCurrentTimetable('copy'));
+  downloadBtn?.addEventListener('click', () => downloadCurrentTimetable('download'));
   adjustBtn?.addEventListener('click', openExportAdjustModal);
   document.getElementById('export-size-close')?.addEventListener('click', closeSizeAdjustModal);
   document.getElementById('data-preview-close')?.addEventListener('click', closeDataPreviewModal);
   document.getElementById('data-preview-cancel')?.addEventListener('click', closeDataPreviewModal);
+  document.getElementById('data-preview-copy')?.addEventListener('click', () => {
+    downloadCurrentTimetable('copy');
+  });
   document.getElementById('data-preview-action')?.addEventListener('click', () => {
     closeDataPreviewModal();
-    downloadCurrentTimetable();
+    downloadCurrentTimetable('download');
   });
   // A4枠トグル
   document.getElementById('size-toggle-a4')?.addEventListener('change', e => {

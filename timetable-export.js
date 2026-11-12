@@ -352,11 +352,17 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
     throw new Error('PDFまたはPNG、カレンダー、CSV、テキスト、JSONを選択してください。');
   }
 
-  const { selectedLessons = [], studentLabel = '' } = options;
+  const { selectedLessons = [], studentLabel = '', action = 'download' } = options;
 
   // 1. iCalendar (.ics)
   if (format === 'ics') {
     const icsString = generateIcs(selectedLessons, studentLabel);
+    if (action === 'copy') {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(icsString);
+        return { success: true, message: 'カレンダーテキストをクリップボードにコピーしました。' };
+      }
+    }
     const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
     downloadBlob(blob, `${filename}.ics`);
     return { success: true, message: 'カレンダーファイル (.ics) を保存しました。' };
@@ -365,6 +371,12 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   // 2. CSV (.csv)
   if (format === 'csv') {
     const csvString = generateCsv(selectedLessons, studentLabel);
+    if (action === 'copy') {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(csvString);
+        return { success: true, message: 'CSVをクリップボードにコピーしました。' };
+      }
+    }
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8' });
     downloadBlob(blob, `${filename}.csv`);
     return { success: true, message: 'CSVファイル (.csv) を保存しました。' };
@@ -373,6 +385,12 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   // 3. JSON (.json)
   if (format === 'json') {
     const jsonString = generateJson(selectedLessons, studentLabel, options.updated);
+    if (action === 'copy') {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(jsonString);
+        return { success: true, message: 'JSONデータをクリップボードにコピーしました。' };
+      }
+    }
     const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
     downloadBlob(blob, `${filename}.json`);
     return { success: true, message: 'JSONファイル (.json) を保存しました。' };
@@ -381,14 +399,15 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   // 4. テキスト (.txt & クリップボードコピー)
   if (format === 'text') {
     const textString = generateText(selectedLessons, studentLabel, options.textOptions);
-    if (navigator?.clipboard?.writeText) {
-      try {
+    if (action === 'copy') {
+      if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(textString);
-      } catch {}
+        return { success: true, message: 'テキストをクリップボードにコピーしました！' };
+      }
     }
     const blob = new Blob([textString], { type: 'text/plain;charset=utf-8' });
     downloadBlob(blob, `${filename}.txt`);
-    return { success: true, message: 'テキストを保存＆クリップボードにコピーしました！' };
+    return { success: true, message: 'テキストファイルを保存しました。' };
   }
 
   // 5. 画像・PDF (PNG / PDF)
@@ -442,7 +461,22 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
         creationTime: new Date().toISOString(),
         description: `対象: ${studentLabel}`
       });
+
+      if (action === 'copy') {
+        if (typeof ClipboardItem !== 'undefined' && navigator?.clipboard?.write) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': metaBlob })
+            ]);
+            return { success: true, message: '画像をクリップボードにコピーしました！' };
+          } catch (e) {
+            console.warn('Image clipboard copy failed, falling back to download', e);
+          }
+        }
+      }
+
       downloadBlob(metaBlob, `${filename}.png`);
+      return { success: true, message: 'PNG画像を保存しました。' };
     } else {
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       if (isDark) {
@@ -454,12 +488,11 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bounds.x, bounds.y, bounds.width, bounds.height, undefined, 'FAST');
       pdf.setProperties({ title: filename, creator: '明石高専 Co+work6班' });
       downloadBlob(pdf.output('blob'), `${filename}.pdf`);
+      return { success: true, message: 'PDFを保存しました。' };
     }
-
+  } finally {
     canvas.width = 0;
     canvas.height = 0;
-    return { success: true, message: `${format.toUpperCase()}を保存しました。` };
-  } finally {
     snapshot.remove();
   }
 }
