@@ -347,10 +347,11 @@ async function openDataPreviewModal(format) {
           <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
         </div>
         <div class="data-schema-doc">
-          <div class="schema-doc-title">データ構造</div>
+          <div class="schema-doc-title">データ構造（配列形式）</div>
+          <p style="margin:0 0 8px;font-size:11px;color:var(--muted);">※各授業を独立したイベントとして扱うことで、カレンダー連携やプログラムでの集計・検索が容易な設計です。</p>
           <ul class="schema-doc-list">
-            <li><code>meta</code>: タイトル、学期、対象所属、元データ参照日時(sourceUpdated)、合計コマ数(totalPeriods)、科目数(totalSubjects)</li>
-            <li><code>lessons[ ]</code>: 授業リスト</li>
+            <li><code>meta</code>: 学期、対象所属、元データ更新日(sourceUpdated)、合計コマ数(totalPeriods)、科目数</li>
+            <li><code>lessons[ ]</code>: 授業イベントの配列</li>
             <li><code>dayOfWeek</code>: 曜日（1:月〜5:金）</li>
             <li><code>period</code> / <code>duration</code>: 開始時限 / コマ数</li>
             <li><code>subjectName</code>: 科目名</li>
