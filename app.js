@@ -181,7 +181,7 @@ function timetable() {
           </div>
           <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
         </div>
-        <div class="size-sliders" id="export-size-sliders" ${exportSizeMode === 'custom' ? '' : 'hidden'}>
+        <div class="size-sliders">
           <label class="size-slider-item">
             <span class="size-slider-name">余白</span>
             <input type="range" id="size-slider-padding" min="0" max="48" step="2" value="${exportSizeConfig.padding}">
@@ -549,8 +549,6 @@ function render() {
     document.querySelectorAll('[data-size-mode]').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.sizeMode === exportSizeMode);
     });
-    const slidersEl = document.getElementById('export-size-sliders');
-    if (slidersEl) slidersEl.hidden = exportSizeMode !== 'custom';
     const padIn = document.getElementById('size-slider-padding');
     const cellIn = document.getElementById('size-slider-cell');
     const fontIn = document.getElementById('size-slider-font');
