@@ -34,7 +34,7 @@ function app({cookie='',mobile=false,blocked=false,pathname='/campus/',protocol=
     location:{hash:'#home',pathname,protocol},
     window:{listeners:{},matchMedia:()=>media,addEventListener(name,fn){this.listeners[name]=fn;},scrollTo(){}},
   });
-  vm.runInContext(read('timetable-data.js').replace(/^export .*$/m,'')+'\n'+read('app.js').replace(/^import .*;\n/,''),context);
+  vm.runInContext(read('timetable-data.js').replace(/^export .*$/m,'')+'\n'+read('app.js').replace(/^import .*;\r?\n/,''),context);
   return {run:code=>vm.runInContext(code,context),elements,document,media,cookie:()=>jar,attributes:()=>lastCookie};
 }
 

@@ -48,6 +48,7 @@ function readSelectionCookie() {
   } catch { return { ...DEFAULT_SELECTION }; }
 }
 let studentSelection = readSelectionCookie();
+let filterOpen = !cookieSaved;
 function saveSelectionCookie() {
   try {
     // GitHub Pagesのリポジトリ配下に限定。HTTPSではSecureも付与する。
@@ -93,7 +94,24 @@ function timetable() {
     return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>`;
   return `${heading('時間割','学年・学科・履修区分に合わせて、あなたの1週間を確認。')}
-    <section class="panel timetable-controls"><div class="panel-head"><h2>${icon('calendar')}表示する時間割</h2><span class="badge gray">令和8年度 後期</span></div><div class="filters student-filters">${controls}</div><p class="selection-status" role="status" hidden></p><p class="hint">選択すると自動で更新します。${s.grade<=2?'一般科目はクラス、専門科目は学科で組み合わせます。':''}${s.grade===3?'留学生は原本の留学生用の行を表示します。':'この学年は留学生別の行がないため共通時間割を表示します。'}</p><p class="advanced-notice">専攻科の時間割はもう少しお待ちください！！</p></section>
+    <details class="panel timetable-controls" id="filter-details" ${filterOpen ? 'open' : ''}>
+      <summary class="panel-head filter-summary">
+        <h2>${icon('calendar')}表示する時間割</h2>
+        <div class="filter-summary-info">
+          <span class="badge current-badge">${escapeHTML(studentLabel())}</span>
+          <span class="filter-toggle-label">${filterOpen ? '閉じる ▲' : '変更する ▼'}</span>
+        </div>
+      </summary>
+      <div class="filter-body">
+        <div class="filters student-filters">${controls}</div>
+        <p class="selection-status" role="status" hidden></p>
+        <p class="hint">選択すると自動で更新します。${s.grade<=2?'一般科目はクラス、専門科目は学科で組み合わせます。':''}${s.grade===3?'留学生は原本の留学生用の行を表示します。':'この学年は留学生別の行がないため共通時間割を表示します。'}</p>
+        <p class="advanced-notice">専攻科の時間割はもう少しお待ちください！！</p>
+        <div class="filter-actions">
+          <button type="button" class="button confirm-btn" id="confirm-filter-btn">${icon('check')}決定して閉じる</button>
+        </div>
+      </div>
+    </details>
     <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge">${selected.length}授業</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<p class="timetable-source">出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a><br>個別の休講・変更は学校の案内で確認してください。</p><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf">PDF（A4横）</option><option value="png">PNG（画像）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':'時間割をダウンロード'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude>${error?'選択条件を設定するとダウンロードできます。':'選択中の時間割全体を保存します。'}</p></section>`;
 }
 async function downloadCurrentTimetable() {
@@ -137,11 +155,23 @@ function render() {
   });
   document.getElementById('main').innerHTML=page==='home'?home():timetable();
   document.getElementById('export-download')?.addEventListener('click',downloadCurrentTimetable);
+  document.getElementById('confirm-filter-btn')?.addEventListener('click', () => {
+    filterOpen = false;
+    saveSelectionCookie();
+    render();
+    document.getElementById('timetable-sheet')?.scrollIntoView({ behavior: 'smooth' });
+  });
+  document.getElementById('filter-details')?.addEventListener('toggle', e => {
+    filterOpen = Boolean(e.target.open);
+    const label = document.querySelector('.filter-toggle-label');
+    if (label) label.textContent = filterOpen ? '閉じる ▲' : '変更する ▼';
+  });
   document.querySelectorAll('[data-student]').forEach(select=>select.addEventListener('change',e=>{
     const key=e.target.dataset.student;
     const value=key==='grade'?Number(e.target.value):e.target.value;
     if(!SELECTION_VALUES[key]?.includes(value)) return;
     studentSelection[key]=value;
+    filterOpen=true;
     const saved=saveSelectionCookie();
     const id=e.target.id;
     render();

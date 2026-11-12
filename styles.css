@@ -34,3 +34,16 @@
 @media(max-width:480px){.export-controls .field,.export-controls .button{width:100%}}
 
 .advanced-notice{margin:16px 0 0;padding:13px 16px;border-radius:8px;background:#f8f1f3;color:var(--wine);font-size:13px;font-weight:500}.selection-status{font-size:11px;color:var(--red);margin:0 0 12px}
+
+/* 条件選択 details / summary スタイル */
+details.timetable-controls{border:1px solid var(--line);border-radius:var(--radius);padding:20px 23px;background:white;margin-bottom:22px;transition:box-shadow .2s}
+details.timetable-controls[open]{box-shadow:0 3px 12px rgba(0,0,0,0.04)}
+.filter-summary{list-style:none;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0}
+.filter-summary::-webkit-details-marker{display:none}
+details.timetable-controls[open] .filter-summary{margin-bottom:19px;border-bottom:1px solid var(--line);padding-bottom:15px}
+.filter-summary-info{display:flex;align-items:center;gap:10px}
+.filter-summary-info .current-badge{font-size:12px;padding:4px 10px;font-weight:600;background:#fbf1f3;color:var(--wine);border-color:#ecc9d1}
+.filter-toggle-label{font-size:12px;color:var(--wine);font-weight:600;white-space:nowrap}
+.filter-actions{display:flex;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.confirm-btn{background:var(--wine);color:white;font-weight:600;padding:10px 20px;border-radius:8px;font-size:13px}
+.confirm-btn:hover{background:var(--wine-dark)}
