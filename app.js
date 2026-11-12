@@ -241,7 +241,9 @@ async function downloadCurrentTimetable() {
       sizeConfig: { ...exportSizeConfig },
       theme: currentTheme,
     });
-    status.textContent = 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。';
+    status.textContent = format === 'pdf'
+      ? '印刷・PDF保存画面を開きました。「PDFに保存」またはプリンターを選択してください。'
+      : 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。';
   } catch (error) {
     console.error('Timetable export failed', error);
     status.textContent = 'ファイルを作成できませんでした。通信状態を確認して、もう一度お試しください。';

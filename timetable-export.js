@@ -64,6 +64,29 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   const bgColor = isDark ? '#171b26' : '#ffffff';
   const fgColor = isDark ? '#e8eaf0' : '#252b39';
   prepareExportSnapshot(snapshot, options);
+
+  if (format === 'pdf' && typeof window !== 'undefined' && typeof window.print === 'function') {
+    snapshot.classList.add('print-target-sheet');
+    snapshot.removeAttribute('aria-hidden');
+    snapshot.style.cssText = `width:100%;max-width:none;background:${bgColor};color:${fgColor};border:0;border-radius:0;box-shadow:none;`;
+    applyExportSizeStyle(snapshot, options.sizeConfig);
+    const prevTitle = document.title;
+    document.title = filename;
+    document.body.classList.add('printing-timetable');
+    document.body.setAttribute('data-print-theme', isDark ? 'dark' : 'light');
+    document.body.append(snapshot);
+    try {
+      await document.fonts.ready;
+      window.print();
+    } finally {
+      snapshot.remove();
+      document.body.classList.remove('printing-timetable');
+      document.body.removeAttribute('data-print-theme');
+      document.title = prevTitle;
+    }
+    return;
+  }
+
   snapshot.inert = true;
   snapshot.style.cssText = `position:fixed;left:0;top:0;width:1100px;max-width:none;background:${bgColor};color:${fgColor};z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;`;
   applyExportSizeStyle(snapshot, options.sizeConfig);
