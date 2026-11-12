@@ -7,7 +7,7 @@
 
 /* 実時間割：既存ポータルのカード・色・文字サイズに合わせる */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-.timetable-controls{margin-bottom:22px}.student-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:14px}.student-filters .field{min-width:0}.student-filters select:disabled{background:#f3f2f1;color:#939199;cursor:not-allowed}.timetable-controls .hint{margin-bottom:0}.real-timetable{table-layout:fixed;min-width:850px}.real-timetable thead th{background:#f8f1f3;color:var(--wine);font-weight:600;text-align:center}.real-timetable thead th:first-child{width:76px}.real-timetable tbody th{font-size:12px;font-weight:600;color:var(--wine);vertical-align:top;padding-top:23px}.real-timetable tbody th small{display:block;font-size:10px;line-height:1.7;font-weight:400;margin-top:7px;color:var(--muted)}.real-timetable td{border-left:1px solid var(--line);vertical-align:middle;height:130px;padding:13px}.real-timetable .lesson-card{border-left:3px solid #c38a96;background:#fcf9fa;border-radius:4px;padding:12px 10px;overflow-wrap:anywhere}.real-timetable .lesson-card strong{font-size:12px;line-height:1.7}.real-timetable .lesson-card small{font-size:10px;line-height:1.7}.real-timetable .lesson-location{display:flex;gap:4px;align-items:center;color:#75535d}.lesson-location svg{width:12px;height:12px}.real-timetable .schedule-empty{text-align:center;color:#afb0b7;font-size:11px;background:#fdfdfd}.real-timetable .lesson-card+.lesson-card{margin-top:10px}.timetable-source{margin:18px 0 0;font-size:10px;line-height:1.9;color:var(--muted)}.timetable-source a{color:var(--wine);text-decoration:underline;text-underline-offset:3px}.timetable-panel>.panel-head{flex-wrap:wrap}.timetable-panel h2{font-size:14px}
+.timetable-controls{margin-bottom:22px}.student-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:14px}.student-filters .field{min-width:0}.student-filters select:disabled{background:#f3f2f1;color:#939199;cursor:not-allowed}.timetable-controls .hint{margin-bottom:0}.real-timetable{table-layout:fixed;min-width:850px}.real-timetable thead th{background:#f8f1f3;color:var(--wine);font-weight:600;text-align:center}.real-timetable thead th:first-child{width:76px}.real-timetable tbody th{font-size:12px;font-weight:600;color:var(--wine);vertical-align:top;padding-top:20px;text-align:center}.real-timetable tbody th small{display:block;font-size:10px;line-height:1.6;font-weight:400;margin-top:6px;color:var(--muted)}.real-timetable td{border-left:1px solid var(--line);vertical-align:top;height:130px;padding:12px 11px}.real-timetable td.schedule-cell:not(.schedule-empty){background:#fcf9fa}.real-timetable .schedule-empty{text-align:center;color:#afb0b7;font-size:11px;background:#ffffff;vertical-align:middle}.real-timetable .lesson-card{background:transparent;border:none;border-radius:0;padding:0;overflow-wrap:anywhere}.real-timetable .lesson-card strong{display:block;font-size:12px;font-weight:700;line-height:1.55;color:var(--ink)}.real-timetable .lesson-card small{display:block;font-size:10px;line-height:1.6;color:var(--muted);margin-top:2px}.real-timetable .lesson-location{display:flex;gap:4px;align-items:center;color:var(--wine);font-size:10px;font-weight:500;margin-top:2px}.lesson-location svg{width:12px;height:12px}.real-timetable .lesson-card+.lesson-card{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}.timetable-source{margin:18px 0 0;font-size:10px;line-height:1.9;color:var(--muted)}.timetable-source a{color:var(--wine);text-decoration:underline;text-underline-offset:3px}.timetable-panel>.panel-head{flex-wrap:wrap}.timetable-panel h2{font-size:14px}
 @media(max-width:1100px){.student-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.student-filters{grid-template-columns:1fr}.timetable-panel{padding:15px}}
 
@@ -130,10 +130,14 @@ details.timetable-controls[open] .filter-summary{margin-bottom:19px;border-botto
   border-left-color:var(--line);
   border-bottom-color:var(--line);
 }
+[data-theme="dark"] .real-timetable td.schedule-cell:not(.schedule-empty),
+.export-sheet[data-theme="dark"] .real-timetable td.schedule-cell:not(.schedule-empty){
+  background:#221d27;
+}
 [data-theme="dark"] .real-timetable .lesson-card,
 .export-sheet[data-theme="dark"] .real-timetable .lesson-card{
-  background:#221d27;
-  border-left-color:#c44563;
+  background:transparent;
+  border:none;
   color:#f3f4f8;
 }
 [data-theme="dark"] .real-timetable .lesson-card strong,
@@ -146,11 +150,15 @@ details.timetable-controls[open] .filter-summary{margin-bottom:19px;border-botto
 }
 [data-theme="dark"] .real-timetable .lesson-location,
 .export-sheet[data-theme="dark"] .real-timetable .lesson-location{
-  color:#e2a5b2;
+  color:#f4a8b8;
+}
+[data-theme="dark"] .real-timetable .lesson-card+.lesson-card,
+.export-sheet[data-theme="dark"] .real-timetable .lesson-card+.lesson-card{
+  border-top-color:var(--line);
 }
 [data-theme="dark"] .real-timetable .schedule-empty,
 .export-sheet[data-theme="dark"] .real-timetable .schedule-empty{
-  background:#141822;
+  background:#171b26;
   color:#646e82;
 }
 [data-theme="dark"] .badge.gray,
