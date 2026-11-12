@@ -20,24 +20,49 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-export async function exportTimetable(snapshot, format, filename) {
-  if (!['pdf', 'png'].includes(format)) throw new Error('PDFまたはPNGを選択してください。');
+export function prepareExportSnapshot(snapshot, options = {}) {
   snapshot.querySelectorAll('[data-export-exclude]').forEach(node => node.remove());
   snapshot.removeAttribute('id');
   snapshot.classList.add('export-sheet');
   snapshot.setAttribute('data-theme', 'light');
   snapshot.setAttribute('aria-hidden', 'true');
-  snapshot.inert = true;
-  snapshot.style.cssText = 'position:fixed;left:0;top:0;width:1100px;max-width:none;padding:28px;background:#fff;color:#252b39;z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;';
-  const title = document.createElement('p');
-  title.className = 'export-brand';
-  title.textContent = 'Akashi KOSEN 学生ページ(仮) ｜ 令和8年度 後期時間割';
+
+  const label = options.studentLabel || snapshot.querySelector('.panel-head h2')?.textContent?.trim() || '';
+  const updated = options.updated || '2026-09-24';
+  snapshot.querySelector('.panel-head')?.remove();
+  snapshot.querySelector('.timetable-source')?.remove();
+
+  const title = document.createElement('h1');
+  title.className = 'export-title';
+  title.textContent = `明石高専後期時間割 ${label} Co+work6班 ＜時間割PDF参照日時: ${updated}＞`;
   snapshot.prepend(title);
+
   const scroller = snapshot.querySelector('.table-scroll');
-  scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
-  scroller.scrollLeft = 0;
+  if (scroller) {
+    scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
+    scroller.scrollLeft = 0;
+  }
   const table = snapshot.querySelector('table');
-  table.style.width = '100%';
+  if (table) table.style.width = '100%';
+  return snapshot;
+}
+
+export function applyExportSizeStyle(sheet, config = {}) {
+  const pad = config.padding ?? 10;
+  const cellH = config.cellHeight ?? 172;
+  const scale = (config.fontScale ?? 105) / 100;
+  sheet.style.setProperty('--export-pad', `${pad}px`);
+  sheet.style.setProperty('--export-cell-h', `${cellH}px`);
+  sheet.style.setProperty('--export-font-scale', String(scale));
+  sheet.style.padding = `${pad}px`;
+}
+
+export async function exportTimetable(snapshot, format, filename, options = {}) {
+  if (!['pdf', 'png'].includes(format)) throw new Error('PDFまたはPNGを選択してください。');
+  prepareExportSnapshot(snapshot, options);
+  snapshot.inert = true;
+  snapshot.style.cssText = 'position:fixed;left:0;top:0;width:1100px;max-width:none;background:#fff;color:#252b39;z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;';
+  applyExportSizeStyle(snapshot, options.sizeConfig);
   document.body.append(snapshot);
   try {
     // 日本語フォントを描画する準備が整ってから画像化する。
@@ -52,9 +77,10 @@ export async function exportTimetable(snapshot, format, filename) {
       downloadBlob(blob, `${filename}.png`);
     } else {
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
-      const bounds = fitOnPage(canvas.width, canvas.height);
+      const pdfMargin = options.sizeConfig ? Math.max(4, Math.round(options.sizeConfig.padding * 0.35)) : 5;
+      const bounds = fitOnPage(canvas.width, canvas.height, 297, 210, pdfMargin);
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bounds.x, bounds.y, bounds.width, bounds.height, undefined, 'FAST');
-      pdf.setProperties({ title: filename, creator: 'Akashi KOSEN 学生ページ(仮)' });
+      pdf.setProperties({ title: filename, creator: '明石高専 Co+work6班' });
       downloadBlob(pdf.output('blob'), `${filename}.pdf`);
     }
     canvas.width = 0;

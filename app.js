@@ -31,6 +31,12 @@ const COOKIE_NAME = 'campus-student-v1';
 const SELECTION_VALUES = { grade: [1,2,3,4,5], department: DEPARTMENTS, classGroup: ['1','2','3','4'], studentType: ['regular','international'], course: ['','ED','EJ'], arts: ['music','art'] };
 let cookieSaved = false;
 let exportInProgress = false;
+const EXPORT_MODES = {
+  nomargin: { padding: 10, cellHeight: 172, fontScale: 105 },
+  memo: { padding: 36, cellHeight: 118, fontScale: 95 },
+};
+let exportSizeMode = 'nomargin';
+let exportSizeConfig = { ...EXPORT_MODES.nomargin };
 function sanitizeSelection(value) {
   const result = { ...DEFAULT_SELECTION };
   if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
@@ -114,7 +120,95 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge">${selected.length}授業</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<p class="timetable-source">出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a><br>個別の休講・変更は学校の案内で確認してください。</p><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf">PDF（A4横）</option><option value="png">PNG（画像）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':'時間割をダウンロード'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude>${error?'選択条件を設定するとダウンロードできます。':'選択中の時間割全体を保存します。'}</p></section>`;
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${selected.length}授業</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<p class="timetable-source" data-export-exclude>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a><br>個別の休講・変更は学校の案内で確認してください。</p><div class="export-config-bar" data-export-exclude><button class="button secondary" id="export-size-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>サイズ調整</button><span class="size-mode-Summary" id="export-size-summary">みため: ${exportSizeMode === 'nomargin' ? '余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf">PDF（A4横）</option><option value="png">PNG（画像）</option></select></label><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':'時間割をダウンロード'}</button></div><p id="export-status" class="export-status" role="status" data-export-exclude>${error?'選択条件を設定するとダウンロードできます。':'選択中の時間割全体を保存します。'}</p></section>
+    <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
+      <div class="size-overlay-viewport" id="size-overlay-viewport">
+        <div class="size-paper-wrap" id="size-paper-wrap">
+          <div class="size-paper" id="size-modal-paper"></div>
+        </div>
+      </div>
+      <div class="size-overlay-controls">
+        <div class="size-preset-row">
+          <div class="size-preset-group" role="group" aria-label="みため">
+            <span class="size-preset-label">みため:</span>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'nomargin' ? 'active' : ''}" data-size-mode="nomargin">余白なし</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
+            <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
+          </div>
+          <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
+        </div>
+        <div class="size-sliders">
+          <label class="size-slider-item">
+            <span class="size-slider-name">余白</span>
+            <input type="range" id="size-slider-padding" min="0" max="48" step="2" value="${exportSizeConfig.padding}">
+            <span class="size-slider-val" id="size-val-padding">${exportSizeConfig.padding}px</span>
+          </label>
+          <label class="size-slider-item">
+            <span class="size-slider-name">マスの高さ</span>
+            <input type="range" id="size-slider-cell" min="100" max="196" step="2" value="${exportSizeConfig.cellHeight}">
+            <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
+          </label>
+          <label class="size-slider-item">
+            <span class="size-slider-name">文字の大きさ</span>
+            <input type="range" id="size-slider-font" min="80" max="130" step="1" value="${exportSizeConfig.fontScale}">
+            <span class="size-slider-val" id="size-val-font">${exportSizeConfig.fontScale}%</span>
+          </label>
+        </div>
+      </div>
+    </div>`;
+}
+function applyLiveSheetSize(sheet) {
+  if (!sheet) return;
+  const pad = exportSizeConfig.padding;
+  const cellH = exportSizeConfig.cellHeight;
+  const scale = exportSizeConfig.fontScale / 100;
+  sheet.style.setProperty('--export-pad', `${pad}px`);
+  sheet.style.setProperty('--export-cell-h', `${cellH}px`);
+  sheet.style.setProperty('--export-font-scale', String(scale));
+  sheet.style.padding = `${pad}px`;
+}
+function openSizeAdjustModal() {
+  const modal = document.getElementById('export-size-modal');
+  const paper = document.getElementById('size-modal-paper');
+  const panel = document.getElementById('timetable-sheet');
+  if (!modal || !paper || !panel) return;
+  const clone = panel.cloneNode(true);
+  clone.querySelectorAll('[data-export-exclude]').forEach(n => n.remove());
+  clone.removeAttribute('id');
+  clone.classList.add('export-sheet');
+  clone.setAttribute('data-theme', 'light');
+  clone.querySelector('.panel-head')?.remove();
+  clone.querySelector('.timetable-source')?.remove();
+  const title = document.createElement('h1');
+  title.className = 'export-title';
+  title.textContent = `明石高専後期時間割 ${studentLabel()} Co+work6班 ＜時間割PDF参照日時: ${SOURCE?.updated || '2026-09-24'}＞`;
+  clone.prepend(title);
+  const scroller = clone.querySelector('.table-scroll');
+  if (scroller) scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
+  const tbl = clone.querySelector('table');
+  if (tbl) tbl.style.width = '100%';
+  paper.innerHTML = '';
+  paper.append(clone);
+  applyLiveSheetSize(clone);
+  modal.hidden = false;
+  document.body.classList.add('size-modal-open');
+  const viewport = document.getElementById('size-overlay-viewport');
+  const wrap = document.getElementById('size-paper-wrap');
+  if (viewport && wrap) {
+    const availW = Math.max(280, (viewport.clientWidth || 360) - 24);
+    const fitScale = Math.min(1, availW / 1100);
+    wrap.style.setProperty('--sheet-scale', String(fitScale));
+  }
+}
+function closeSizeAdjustModal() {
+  const modal = document.getElementById('export-size-modal');
+  if (modal) modal.hidden = true;
+  document.body.classList.remove('size-modal-open');
+  const summary = document.getElementById('export-size-summary');
+  if (summary) {
+    summary.textContent = `みため: ${exportSizeMode === 'nomargin' ? '余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}`;
+  }
 }
 async function downloadCurrentTimetable() {
   if (exportInProgress || selectedSchedule().error) return;
@@ -132,7 +226,11 @@ async function downloadCurrentTimetable() {
   status.textContent = `${format.toUpperCase()}を作成しています…`;
   try {
     const { exportTimetable } = await import('./timetable-export.js');
-    await exportTimetable(snapshot, format, filename);
+    await exportTimetable(snapshot, format, filename, {
+      studentLabel: studentLabel(),
+      updated: SOURCE?.updated || '2026-09-24',
+      sizeConfig: { ...exportSizeConfig },
+    });
     status.textContent = 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。';
   } catch (error) {
     console.error('Timetable export failed', error);
@@ -157,6 +255,48 @@ function render() {
   });
   document.getElementById('main').innerHTML=page==='home'?home():timetable();
   document.getElementById('export-download')?.addEventListener('click',downloadCurrentTimetable);
+  document.getElementById('export-size-open')?.addEventListener('click',openSizeAdjustModal);
+  document.getElementById('export-size-close')?.addEventListener('click',closeSizeAdjustModal);
+  const syncSizeControlsUI = () => {
+    document.querySelectorAll('[data-size-mode]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.sizeMode === exportSizeMode);
+    });
+    const padIn = document.getElementById('size-slider-padding');
+    const cellIn = document.getElementById('size-slider-cell');
+    const fontIn = document.getElementById('size-slider-font');
+    if (padIn) padIn.value = String(exportSizeConfig.padding);
+    if (cellIn) cellIn.value = String(exportSizeConfig.cellHeight);
+    if (fontIn) fontIn.value = String(exportSizeConfig.fontScale);
+    const padVal = document.getElementById('size-val-padding');
+    const cellVal = document.getElementById('size-val-cell');
+    const fontVal = document.getElementById('size-val-font');
+    if (padVal) padVal.textContent = `${exportSizeConfig.padding}px`;
+    if (cellVal) cellVal.textContent = `${exportSizeConfig.cellHeight}px`;
+    if (fontVal) fontVal.textContent = `${exportSizeConfig.fontScale}%`;
+    const sheet = document.querySelector('#size-modal-paper .export-sheet');
+    applyLiveSheetSize(sheet);
+  };
+  document.querySelectorAll('[data-size-mode]').forEach(btn => btn.addEventListener('click', () => {
+    const mode = btn.dataset.sizeMode;
+    exportSizeMode = mode;
+    if (EXPORT_MODES[mode]) exportSizeConfig = { ...EXPORT_MODES[mode] };
+    syncSizeControlsUI();
+  }));
+  document.getElementById('size-mode-reset')?.addEventListener('click', () => {
+    exportSizeMode = 'nomargin';
+    exportSizeConfig = { ...EXPORT_MODES.nomargin };
+    syncSizeControlsUI();
+  });
+  const bindSizeSlider = (id, key) => {
+    document.getElementById(id)?.addEventListener('input', e => {
+      exportSizeConfig[key] = Number(e.target.value);
+      exportSizeMode = 'custom';
+      syncSizeControlsUI();
+    });
+  };
+  bindSizeSlider('size-slider-padding', 'padding');
+  bindSizeSlider('size-slider-cell', 'cellHeight');
+  bindSizeSlider('size-slider-font', 'fontScale');
   document.getElementById('confirm-filter-btn')?.addEventListener('click', () => {
     filterOpen = false;
     saveSelectionCookie();
