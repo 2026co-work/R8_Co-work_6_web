@@ -389,7 +389,7 @@ function setupNavigation() {
   return ()=>setOpen(false,false);
 }
 const closeNavigation=setupNavigation();
-window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});});
+window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});document.querySelector?.('.topbar')?.classList?.remove('topbar-hidden');});
 
 const THEME_COOKIE = 'campus-theme';
 function getInitialTheme() {
@@ -438,5 +438,32 @@ function setupTheme() {
     });
   }
 }
+function setupMobileHeaderScroll() {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  let lastY = 0;
+  let ticking = false;
+  const raf = typeof window.requestAnimationFrame === 'function'
+    ? window.requestAnimationFrame
+    : (cb) => setTimeout(cb, 0);
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      raf(() => {
+        const topbar = typeof document.querySelector === 'function' ? document.querySelector('.topbar') : null;
+        const currentY = typeof window.scrollY === 'number' ? window.scrollY : (typeof window.pageYOffset === 'number' ? window.pageYOffset : 0);
+        if (topbar && typeof window.innerWidth === 'number' && window.innerWidth <= 760 && !document.body?.classList?.contains('menu-open')) {
+          if (currentY > lastY && currentY > 50) {
+            topbar.classList?.add('topbar-hidden');
+          } else if (currentY < lastY || currentY <= 20) {
+            topbar.classList?.remove('topbar-hidden');
+          }
+        }
+        lastY = Math.max(0, currentY);
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+}
+setupMobileHeaderScroll();
 setupTheme();
 render();
