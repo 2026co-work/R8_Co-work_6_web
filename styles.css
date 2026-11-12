@@ -56,9 +56,6 @@
 .export-sheet .real-timetable td{height:var(--export-cell-h,172px);vertical-align:top;padding:8px 8px 14px;box-sizing:border-box}
 .export-sheet .real-timetable td[rowspan="2"]{height:calc(var(--export-cell-h,172px) * 2)}
 .export-sheet .real-timetable td[rowspan="3"]{height:calc(var(--export-cell-h,172px) * 3)}
-.export-sheet .lesson-memo-space{display:none;margin-top:auto;border-top:1px dashed rgba(121,24,43,0.22);padding-top:4px;font-size:10px;color:var(--muted);min-height:26px}
-.export-sheet.memo-mode .lesson-memo-space{display:block}
-[data-theme="dark"] .export-sheet .lesson-memo-space{border-top-color:rgba(244,168,184,0.25)}
 .export-sheet .panel-head{flex-wrap:wrap}
 
 /* エクスポートシートは表示版のカラーテーマ（ライト/ダーク）と完全一致させる */

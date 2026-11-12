@@ -154,9 +154,9 @@ function timetable() {
         <div class="size-preset-row">
           <div class="size-preset-group" role="group" aria-label="みため">
             <span class="size-preset-label">みため:</span>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web">標準（余白あり）</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit">A4向け（余白あり）</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可（下部余白）</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web">標準</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit">A4向け</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
@@ -206,11 +206,6 @@ function applyLiveSheetSize(sheet) {
   sheet.style.setProperty('--export-cell-h', `${cellH}px`);
   sheet.style.setProperty('--export-font-scale', String(scale));
   sheet.style.padding = `${pad}px`;
-  if (exportSizeMode === 'memo' || cellH >= 190) {
-    sheet.classList.add('memo-mode');
-  } else {
-    sheet.classList.remove('memo-mode');
-  }
 }
 function openSizeAdjustModal() {
   const modal = document.getElementById('export-size-modal');
@@ -239,17 +234,6 @@ function openSizeAdjustModal() {
     </div>
   `;
   clone.prepend(headerRow);
-
-  // 各授業セルの下部に手書きメモスペースを追加
-  clone.querySelectorAll('td.schedule-cell:not(.schedule-empty)').forEach(td => {
-    if (!td.querySelector('.lesson-memo-space')) {
-      const memo = document.createElement('div');
-      memo.className = 'lesson-memo-space';
-      memo.setAttribute('aria-hidden', 'true');
-      memo.textContent = '✎ メモ';
-      td.append(memo);
-    }
-  });
 
   const scroller = clone.querySelector('.table-scroll');
   if (scroller) scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
