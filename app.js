@@ -119,7 +119,6 @@ function timetable() {
       <div class="filter-body">
         <div class="filters student-filters">${controls}</div>
         <p class="selection-status" role="status" hidden></p>
-        <p class="hint">選択すると自動で更新します。${s.grade<=2?'一般科目はクラス、専門科目は学科で組み合わせます。':''}${s.grade===3?'留学生は原本の留学生用の行を表示します。':'この学年は留学生別の行がないため共通時間割を表示します。'}</p>
         <div class="filter-actions">
           <button type="button" class="button confirm-btn" id="confirm-filter-btn">${icon('check')}決定</button>
         </div>
