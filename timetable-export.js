@@ -21,10 +21,11 @@ function downloadBlob(blob, filename) {
 }
 
 export function prepareExportSnapshot(snapshot, options = {}) {
+  const isDark = (options.theme || (typeof document !== 'undefined' && document.documentElement?.getAttribute('data-theme'))) === 'dark';
   snapshot.querySelectorAll('[data-export-exclude]').forEach(node => node.remove());
   snapshot.removeAttribute('id');
   snapshot.classList.add('export-sheet');
-  snapshot.setAttribute('data-theme', 'light');
+  snapshot.setAttribute('data-theme', isDark ? 'dark' : 'light');
   snapshot.setAttribute('aria-hidden', 'true');
 
   const label = options.studentLabel || snapshot.querySelector('.panel-head h2')?.textContent?.trim() || '';
@@ -59,16 +60,19 @@ export function applyExportSizeStyle(sheet, config = {}) {
 
 export async function exportTimetable(snapshot, format, filename, options = {}) {
   if (!['pdf', 'png'].includes(format)) throw new Error('PDFまたはPNGを選択してください。');
+  const isDark = (options.theme || (typeof document !== 'undefined' && document.documentElement?.getAttribute('data-theme'))) === 'dark';
+  const bgColor = isDark ? '#171b26' : '#ffffff';
+  const fgColor = isDark ? '#e8eaf0' : '#252b39';
   prepareExportSnapshot(snapshot, options);
   snapshot.inert = true;
-  snapshot.style.cssText = 'position:fixed;left:0;top:0;width:1100px;max-width:none;background:#fff;color:#252b39;z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;';
+  snapshot.style.cssText = `position:fixed;left:0;top:0;width:1100px;max-width:none;background:${bgColor};color:${fgColor};z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;`;
   applyExportSizeStyle(snapshot, options.sizeConfig);
   document.body.append(snapshot);
   try {
     // 日本語フォントを描画する準備が整ってから画像化する。
     await document.fonts.ready;
     const canvas = await html2canvas(snapshot, {
-      backgroundColor: '#ffffff', scale: 2, logging: false,
+      backgroundColor: bgColor, scale: 3.5, logging: false,
       windowWidth: 1200, windowHeight: Math.max(900, snapshot.scrollHeight + 60),
       scrollX: 0, scrollY: 0, useCORS: true,
     });
@@ -77,6 +81,10 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
       downloadBlob(blob, `${filename}.png`);
     } else {
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+      if (isDark) {
+        pdf.setFillColor(23, 27, 38);
+        pdf.rect(0, 0, 297, 210, 'F');
+      }
       const pdfMargin = options.sizeConfig ? Math.max(4, Math.round(options.sizeConfig.padding * 0.35)) : 5;
       const bounds = fitOnPage(canvas.width, canvas.height, 297, 210, pdfMargin);
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bounds.x, bounds.y, bounds.width, bounds.height, undefined, 'FAST');
