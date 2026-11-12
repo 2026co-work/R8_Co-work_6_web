@@ -84,3 +84,27 @@ test('generateText generates clean human-readable schedule lines', () => {
   assert.ok(text.includes('【金曜日】'));
   assert.ok(text.includes('3限 (13:00-14:30) 音楽-2 [福研] ((泉))'));
 });
+
+test('generateCsv, generateText, and generateJson handle includeEmpty option properly', () => {
+  const generateCsv = vm.runInContext('generateCsv', context);
+  const generateText = vm.runInContext('generateText', context);
+  const generateJson = vm.runInContext('generateJson', context);
+
+  // CSV with empty periods
+  const csvWithEmpty = generateCsv(sampleLessons, '1年 M学科 1組', { includeEmpty: true });
+  assert.ok(csvWithEmpty.includes('月,4限,14:40,16:10,"（空き）"'), 'CSV includes empty period 4 on Monday');
+  assert.ok(csvWithEmpty.includes('火,1限,09:00,10:30,"（空き）"'), 'CSV includes empty period 1 on Tuesday');
+
+  // Text with empty periods
+  const textWithEmpty = generateText(sampleLessons, '1年 M学科 1組', { includeEmpty: true });
+  assert.ok(textWithEmpty.includes('4限 (14:40-16:10) （空き）'), 'Text includes empty 4th period');
+  assert.ok(textWithEmpty.includes('1限 (09:00-10:30) （空き）'), 'Text includes empty 1st period on Tuesday');
+
+  // JSON with empty periods
+  const jsonWithEmptyStr = generateJson(sampleLessons, '1年 M学科 1組', '2026-09-24', { includeEmpty: true });
+  const jsonWithEmpty = JSON.parse(jsonWithEmptyStr);
+  const mondayP4 = jsonWithEmpty.lessons.find(l => l.dayOfWeek === 1 && l.period === 4);
+  assert.ok(mondayP4, 'Monday period 4 exists in JSON');
+  assert.equal(mondayP4.empty, true, 'Marked as empty');
+  assert.equal(mondayP4.subjectName, '（空き）');
+});

@@ -167,33 +167,79 @@ export function generateIcs(selectedLessons, studentLabel) {
 
 /**
  * CSV形式生成（1時限=1行の正規化展開）
+ * options.includeEmpty が true の場合、空きコマも出力
  */
-export function generateCsv(selectedLessons, studentLabel) {
+export function generateCsv(selectedLessons, studentLabel, options = {}) {
+  const { includeEmpty = false } = options;
   const headers = ['曜日', '時限', '開始時間', '終了時間', '科目名', '教室', '担当教員', '連続コマ', '備考'];
   const rows = [headers];
 
   const sorted = [...selectedLessons].sort((a, b) => (a.dayOfWeek - b.dayOfWeek) || (a.period - b.period));
 
-  for (const l of sorted) {
-    const dayName = DAYS_OF_WEEK[l.dayOfWeek - 1] || `${l.dayOfWeek}`;
-    const span = l.duration || 1;
+  if (!includeEmpty) {
+    for (const l of sorted) {
+      const dayName = DAYS_OF_WEEK[l.dayOfWeek - 1] || `${l.dayOfWeek}`;
+      const span = l.duration || 1;
 
-    for (let offset = 0; offset < span; offset++) {
-      const currentPeriod = l.period + offset;
-      const timeInfo = PERIOD_TIMES[currentPeriod - 1] || { startTime: '', endTime: '' };
-      const spanLabel = span > 1 ? `${span}コマ連続 (${offset + 1}/${span})` : '1コマ';
+      for (let offset = 0; offset < span; offset++) {
+        const currentPeriod = l.period + offset;
+        const timeInfo = PERIOD_TIMES[currentPeriod - 1] || { startTime: '', endTime: '' };
+        const spanLabel = span > 1 ? `${span}コマ連続 (${offset + 1}/${span})` : '1コマ';
 
-      rows.push([
-        dayName,
-        `${currentPeriod}限`,
-        timeInfo.startTime,
-        timeInfo.endTime,
-        `"${(l.subjectName || '').replace(/"/g, '""')}"`,
-        `"${(l.location || '').replace(/"/g, '""')}"`,
-        `"${(l.teacher || '').replace(/"/g, '""')}"`,
-        `"${spanLabel}"`,
-        `"${(l.notes || '').replace(/"/g, '""')}"`
-      ]);
+        rows.push([
+          dayName,
+          `${currentPeriod}限`,
+          timeInfo.startTime,
+          timeInfo.endTime,
+          `"${(l.subjectName || '').replace(/"/g, '""')}"`,
+          `"${(l.location || '').replace(/"/g, '""')}"`,
+          `"${(l.teacher || '').replace(/"/g, '""')}"`,
+          `"${spanLabel}"`,
+          `"${(l.notes || '').replace(/"/g, '""')}"`
+        ]);
+      }
+    }
+  } else {
+    // 空きコマを含めて月〜金、1〜4限を網羅
+    for (let d = 1; d <= 5; d++) {
+      const dayName = DAYS_OF_WEEK[d - 1];
+      const dayLessons = sorted.filter(l => l.dayOfWeek === d);
+
+      let p = 1;
+      while (p <= 4) {
+        const lesson = dayLessons.find(l => l.period <= p && p < l.period + (l.duration || 1));
+        const timeInfo = PERIOD_TIMES[p - 1] || { startTime: '', endTime: '' };
+
+        if (lesson) {
+          const span = lesson.duration || 1;
+          const offset = p - lesson.period;
+          const spanLabel = span > 1 ? `${span}コマ連続 (${offset + 1}/${span})` : '1コマ';
+          rows.push([
+            dayName,
+            `${p}限`,
+            timeInfo.startTime,
+            timeInfo.endTime,
+            `"${(lesson.subjectName || '').replace(/"/g, '""')}"`,
+            `"${(lesson.location || '').replace(/"/g, '""')}"`,
+            `"${(lesson.teacher || '').replace(/"/g, '""')}"`,
+            `"${spanLabel}"`,
+            `"${(lesson.notes || '').replace(/"/g, '""')}"`
+          ]);
+        } else {
+          rows.push([
+            dayName,
+            `${p}限`,
+            timeInfo.startTime,
+            timeInfo.endTime,
+            `"（空き）"`,
+            `""`,
+            `""`,
+            `"1コマ"`,
+            `""`
+          ]);
+        }
+        p++;
+      }
     }
   }
 
@@ -204,7 +250,7 @@ export function generateCsv(selectedLessons, studentLabel) {
  * テキスト形式生成
  */
 export function generateText(selectedLessons, studentLabel, options = {}) {
-  const { includeLocation = true, includeTeacher = true } = options;
+  const { includeLocation = true, includeTeacher = true, includeEmpty = false } = options;
   const lines = [
     `■ 明石高専 時間割（令和8年度後期）`,
     `対象: ${studentLabel}`,
@@ -219,18 +265,47 @@ export function generateText(selectedLessons, studentLabel, options = {}) {
 
     lines.push(`\n【${dayName}曜日】`);
     if (dayLessons.length === 0) {
-      lines.push('  （授業なし）');
+      if (includeEmpty) {
+        for (let p = 1; p <= 4; p++) {
+          const time = PERIOD_TIMES[p - 1] || { startTime: '', endTime: '' };
+          lines.push(`  ${p}限 (${time.startTime}-${time.endTime}) （空き）`);
+        }
+      } else {
+        lines.push('  （授業なし）');
+      }
       continue;
     }
 
-    for (const l of dayLessons) {
-      const span = l.duration || 1;
-      const pText = `${l.period}${span > 1 ? `〜${l.period + span - 1}` : ''}限`;
-      const startTime = PERIOD_TIMES[l.period - 1]?.startTime || '';
-      const endTime = PERIOD_TIMES[l.period + span - 2]?.endTime || '';
-      const locText = includeLocation && l.location ? ` [${l.location}]` : '';
-      const teacherText = includeTeacher && l.teacher ? ` (${l.teacher})` : '';
-      lines.push(`  ${pText} (${startTime}-${endTime}) ${l.subjectName}${locText}${teacherText}`);
+    if (!includeEmpty) {
+      for (const l of dayLessons) {
+        const span = l.duration || 1;
+        const pText = `${l.period}${span > 1 ? `〜${l.period + span - 1}` : ''}限`;
+        const startTime = PERIOD_TIMES[l.period - 1]?.startTime || '';
+        const endTime = PERIOD_TIMES[l.period + span - 2]?.endTime || '';
+        const locText = includeLocation && l.location ? ` [${l.location}]` : '';
+        const teacherText = includeTeacher && l.teacher ? ` (${l.teacher})` : '';
+        lines.push(`  ${pText} (${startTime}-${endTime}) ${l.subjectName}${locText}${teacherText}`);
+      }
+    } else {
+      let p = 1;
+      while (p <= 4) {
+        const lesson = dayLessons.find(l => l.period <= p && p < l.period + (l.duration || 1));
+        const time = PERIOD_TIMES[p - 1] || { startTime: '', endTime: '' };
+        if (lesson) {
+          if (lesson.period === p) {
+            const span = lesson.duration || 1;
+            const pText = `${lesson.period}${span > 1 ? `〜${lesson.period + span - 1}` : ''}限`;
+            const startTime = PERIOD_TIMES[lesson.period - 1]?.startTime || '';
+            const endTime = PERIOD_TIMES[lesson.period + span - 2]?.endTime || '';
+            const locText = includeLocation && lesson.location ? ` [${lesson.location}]` : '';
+            const teacherText = includeTeacher && lesson.teacher ? ` (${lesson.teacher})` : '';
+            lines.push(`  ${pText} (${startTime}-${endTime}) ${lesson.subjectName}${locText}${teacherText}`);
+          }
+        } else {
+          lines.push(`  ${p}限 (${time.startTime}-${time.endTime}) （空き）`);
+        }
+        p++;
+      }
     }
   }
 
@@ -241,9 +316,33 @@ export function generateText(selectedLessons, studentLabel, options = {}) {
 
 /**
  * JSON形式生成
+ * options.includeEmpty が true の場合、空きコマ情報も含める
  */
-export function generateJson(selectedLessons, studentLabel, updated = '2026-09-24') {
+export function generateJson(selectedLessons, studentLabel, updated = '2026-09-24', options = {}) {
+  const { includeEmpty = false } = options;
   const totalPeriods = selectedLessons.reduce((sum, l) => sum + (l.duration || 1), 0);
+
+  let outputLessons = selectedLessons;
+  if (includeEmpty) {
+    const list = [...selectedLessons];
+    for (let d = 1; d <= 5; d++) {
+      for (let p = 1; p <= 4; p++) {
+        const exists = list.some(l => l.dayOfWeek === d && l.period <= p && p < l.period + (l.duration || 1));
+        if (!exists) {
+          list.push({
+            id: `empty-d${d}-p${p}`,
+            dayOfWeek: d,
+            period: p,
+            duration: 1,
+            subjectName: '（空き）',
+            empty: true
+          });
+        }
+      }
+    }
+    outputLessons = list.sort((a, b) => (a.dayOfWeek - b.dayOfWeek) || (a.period - b.period));
+  }
+
   const exportData = {
     meta: {
       title: '明石高専 授業時間割',
@@ -253,7 +352,7 @@ export function generateJson(selectedLessons, studentLabel, updated = '2026-09-2
       totalPeriods: totalPeriods,
       totalSubjects: selectedLessons.length
     },
-    lessons: selectedLessons
+    lessons: outputLessons
   };
   return JSON.stringify(exportData, null, 2);
 }
@@ -352,7 +451,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
     throw new Error('PDFまたはPNG、カレンダー、CSV、テキスト、JSONを選択してください。');
   }
 
-  const { selectedLessons = [], studentLabel = '', action = 'download' } = options;
+  const { selectedLessons = [], studentLabel = '', action = 'download', includeEmpty = false } = options;
 
   // 1. iCalendar (.ics)
   if (format === 'ics') {
@@ -370,7 +469,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 2. CSV (.csv)
   if (format === 'csv') {
-    const csvString = generateCsv(selectedLessons, studentLabel);
+    const csvString = generateCsv(selectedLessons, studentLabel, { includeEmpty });
     if (action === 'copy') {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(csvString);
@@ -384,7 +483,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 3. JSON (.json)
   if (format === 'json') {
-    const jsonString = generateJson(selectedLessons, studentLabel, options.updated);
+    const jsonString = generateJson(selectedLessons, studentLabel, options.updated, { includeEmpty });
     if (action === 'copy') {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(jsonString);
@@ -398,7 +497,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 4. テキスト (.txt & クリップボードコピー)
   if (format === 'text') {
-    const textString = generateText(selectedLessons, studentLabel, options.textOptions);
+    const textString = generateText(selectedLessons, studentLabel, { ...options.textOptions, includeEmpty });
     if (action === 'copy') {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(textString);

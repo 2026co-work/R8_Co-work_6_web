@@ -45,6 +45,7 @@ const EXPORT_MODES = {
 let exportSizeMode = 'web';
 let exportSizeConfig = { ...EXPORT_MODES.web };
 let a4ModeEnabled = false;
+let exportIncludeEmpty = false;
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { copyLabel: '印刷画面を開く', downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '📋 画像をコピー', downloadLabel: '💾 PNG保存', adjustLabel: 'レイアウト調整' },
@@ -285,8 +286,9 @@ async function openDataPreviewModal(format) {
   const modal = document.getElementById('data-preview-modal');
   const title = document.getElementById('data-preview-title');
   const body = document.getElementById('data-preview-body');
+  const copyBtn = document.getElementById('data-preview-copy');
   const actionBtn = document.getElementById('data-preview-action');
-  if (!modal || !title || !body || !actionBtn) return;
+  if (!modal || !title || !body || !copyBtn || !actionBtn) return;
 
   const scheduleResult = selectedSchedule();
   const lessons = scheduleResult.selected || [];
@@ -294,70 +296,78 @@ async function openDataPreviewModal(format) {
 
   const { generateCsv, generateText, generateJson } = await import('./timetable-export.js');
 
-  if (format === 'text') {
-    title.textContent = 'テキスト出力のプレビュー＆設定';
-    actionBtn.textContent = 'コピー＆保存';
-    const renderTextPreview = () => {
-      const txt = generateText(lessons, label, textExportOptions);
+  const updatePreview = () => {
+    if (format === 'text') {
+      title.textContent = 'テキスト出力のプレビュー＆設定';
+      copyBtn.textContent = '📋 テキストをコピー';
+      actionBtn.textContent = '💾 テキスト保存';
+      const txt = generateText(lessons, label, { ...textExportOptions, includeEmpty: exportIncludeEmpty });
       body.innerHTML = `
         <div class="data-preview-options">
           <label><input type="checkbox" id="text-opt-location" ${textExportOptions.includeLocation ? 'checked' : ''}> 教室名を含める</label>
           <label><input type="checkbox" id="text-opt-teacher" ${textExportOptions.includeTeacher ? 'checked' : ''}> 担当教員を含める</label>
+          <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
         </div>
         <pre class="preview-code-block">${escapeHTML(txt)}</pre>
-        <p class="data-preview-note">※ 「コピー＆保存」でクリップボードにコピーされ、テキストファイルとしても保存されます。</p>
       `;
       document.getElementById('text-opt-location')?.addEventListener('change', e => {
         textExportOptions.includeLocation = e.target.checked;
-        renderTextPreview();
+        updatePreview();
       });
       document.getElementById('text-opt-teacher')?.addEventListener('change', e => {
         textExportOptions.includeTeacher = e.target.checked;
-        renderTextPreview();
+        updatePreview();
       });
-    };
-    renderTextPreview();
-  } else if (format === 'csv') {
-    title.textContent = 'CSV形式プレビュー';
-    actionBtn.textContent = 'CSVをダウンロード';
-    const csv = generateCsv(lessons, label);
-    body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-        <p class="data-preview-note" style="margin:0;">1コマを1行に正規化したCSVです（BOM付きUTF-8）。</p>
-        <button type="button" class="button secondary" id="csv-copy-btn" style="min-height:30px;padding:0 12px;font-size:12px;">📋 クリップボードにコピー</button>
-      </div>
-      <pre class="preview-code-block">${escapeHTML(csv)}</pre>
-    `;
-    document.getElementById('csv-copy-btn')?.addEventListener('click', async (e) => {
-      try {
-        await navigator.clipboard.writeText(csv);
-        e.target.textContent = '✓ コピーしました！';
-        setTimeout(() => { if (e.target) e.target.textContent = '📋 クリップボードにコピー'; }, 2000);
-      } catch (err) {
-        console.error('Copy failed', err);
-      }
-    });
-  } else if (format === 'json') {
-    title.textContent = 'JSONデータプレビュー';
-    actionBtn.textContent = 'JSONをダウンロード';
-    const json = generateJson(lessons, label, SOURCE?.updated || '2026-09-24');
-    body.innerHTML = `
-      <div class="data-schema-doc">
-        <div class="schema-doc-title">データ構造</div>
-        <ul class="schema-doc-list">
-          <li><code>meta</code>: タイトル、学期、対象所属、元データ参照日時(sourceUpdated)、合計コマ数(totalPeriods)、科目数(totalSubjects)</li>
-          <li><code>lessons[ ]</code>: 授業リスト</li>
-          <li><code>dayOfWeek</code>: 曜日（1:月〜5:金）</li>
-          <li><code>period</code> / <code>duration</code>: 開始時限 / コマ数</li>
-          <li><code>subjectName</code>: 科目名</li>
-          <li><code>location</code> / <code>teacher</code>: 教室 / 担当教員</li>
-          <li><code>notes</code>: 備考</li>
-        </ul>
-      </div>
-      <pre class="preview-code-block">${escapeHTML(json)}</pre>
-    `;
-  }
+      document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
+        exportIncludeEmpty = e.target.checked;
+        updatePreview();
+      });
+    } else if (format === 'csv') {
+      title.textContent = 'CSV形式プレビュー';
+      copyBtn.textContent = '📋 CSVをコピー';
+      actionBtn.textContent = '💾 CSVダウンロード';
+      const csv = generateCsv(lessons, label, { includeEmpty: exportIncludeEmpty });
+      body.innerHTML = `
+        <div class="data-preview-options">
+          <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
+        </div>
+        <pre class="preview-code-block">${escapeHTML(csv)}</pre>
+      `;
+      document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
+        exportIncludeEmpty = e.target.checked;
+        updatePreview();
+      });
+    } else if (format === 'json') {
+      title.textContent = 'JSONデータプレビュー';
+      copyBtn.textContent = '📋 JSONをコピー';
+      actionBtn.textContent = '💾 JSONダウンロード';
+      const json = generateJson(lessons, label, SOURCE?.updated || '2026-09-24', { includeEmpty: exportIncludeEmpty });
+      body.innerHTML = `
+        <div class="data-preview-options" style="margin-bottom:8px;">
+          <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
+        </div>
+        <div class="data-schema-doc">
+          <div class="schema-doc-title">データ構造</div>
+          <ul class="schema-doc-list">
+            <li><code>meta</code>: タイトル、学期、対象所属、元データ参照日時(sourceUpdated)、合計コマ数(totalPeriods)、科目数(totalSubjects)</li>
+            <li><code>lessons[ ]</code>: 授業リスト</li>
+            <li><code>dayOfWeek</code>: 曜日（1:月〜5:金）</li>
+            <li><code>period</code> / <code>duration</code>: 開始時限 / コマ数</li>
+            <li><code>subjectName</code>: 科目名</li>
+            <li><code>location</code> / <code>teacher</code>: 教室 / 担当教員</li>
+            <li><code>notes</code>: 備考</li>
+          </ul>
+        </div>
+        <pre class="preview-code-block" style="margin-top:10px;">${escapeHTML(json)}</pre>
+      `;
+      document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
+        exportIncludeEmpty = e.target.checked;
+        updatePreview();
+      });
+    }
+  };
 
+  updatePreview();
   modal.hidden = false;
   document.body.classList.add('size-modal-open');
 }
@@ -400,6 +410,7 @@ async function downloadCurrentTimetable(action = 'download') {
       sizeConfig: { ...exportSizeConfig },
       theme: currentTheme,
       textOptions: { ...textExportOptions },
+      includeEmpty: exportIncludeEmpty,
       action: action
     });
     if (status) {
