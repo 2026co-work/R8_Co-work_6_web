@@ -19,3 +19,17 @@ test('invalid export formats and canvas sizes fail before trying to download',as
   assert.throws(()=>vm.runInContext('fitOnPage(0,100)',context),/画像サイズ/);
   await assert.rejects(vm.runInContext("exportTimetable({},'zip','test')",context),/PDFまたはPNG/);
 });
+
+test('copy action in PDF rejects and does not download', async () => {
+  await assert.rejects(
+    vm.runInContext("exportTimetable({ remove: () => {} }, 'pdf', 'test', { action: 'copy' })", context),
+    /PDFのクリップボードコピーには対応していません/
+  );
+});
+
+test('copy action in text/json/csv uses clipboard and succeeds', async () => {
+  context.navigator = { clipboard: { writeText: async () => {} } };
+  const res = await vm.runInContext("exportTimetable({}, 'text', 'test', { action: 'copy', selectedLessons: [] })", context);
+  assert.equal(res.success, true);
+  assert.match(res.message, /クリップボードにコピー/);
+});

@@ -446,6 +446,36 @@ export function applyExportSizeStyle(sheet, config = {}) {
   sheet.style.padding = `${pad}px`;
 }
 
+async function copyTextToClipboard(text) {
+  if (navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      console.warn('navigator.clipboard.writeText failed', e);
+    }
+  }
+  if (typeof document !== 'undefined') {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    ta.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      const ok = document.execCommand('copy');
+      ta.remove();
+      if (ok) return true;
+    } catch {
+      ta.remove();
+    }
+  }
+  return false;
+}
+
 /**
  * 総合エクスポート処理
  */
@@ -461,10 +491,9 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   if (format === 'ics') {
     const icsString = generateIcs(selectedLessons, studentLabel);
     if (action === 'copy') {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(icsString);
-        return { success: true, message: 'カレンダーテキストをクリップボードにコピーしました。' };
-      }
+      const ok = await copyTextToClipboard(icsString);
+      if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
+      return { success: true, message: 'カレンダーテキストをクリップボードにコピーしました。' };
     }
     const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
     downloadBlob(blob, `${filename}.ics`);
@@ -475,10 +504,9 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   if (format === 'csv') {
     const csvString = generateCsv(selectedLessons, studentLabel, { includeEmpty });
     if (action === 'copy') {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(csvString);
-        return { success: true, message: 'CSVをクリップボードにコピーしました。' };
-      }
+      const ok = await copyTextToClipboard(csvString);
+      if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
+      return { success: true, message: 'CSVをクリップボードにコピーしました。' };
     }
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8' });
     downloadBlob(blob, `${filename}.csv`);
@@ -489,10 +517,9 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   if (format === 'json') {
     const jsonString = generateJson(selectedLessons, studentLabel, options.updated, { includeEmpty });
     if (action === 'copy') {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(jsonString);
-        return { success: true, message: 'JSONデータをクリップボードにコピーしました。' };
-      }
+      const ok = await copyTextToClipboard(jsonString);
+      if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
+      return { success: true, message: 'JSONデータをクリップボードにコピーしました。' };
     }
     const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
     downloadBlob(blob, `${filename}.json`);
@@ -503,10 +530,9 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   if (format === 'text') {
     const textString = generateText(selectedLessons, studentLabel, { ...options.textOptions, includeEmpty });
     if (action === 'copy') {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(textString);
-        return { success: true, message: 'テキストをクリップボードにコピーしました！' };
-      }
+      const ok = await copyTextToClipboard(textString);
+      if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
+      return { success: true, message: 'テキストをクリップボードにコピーしました！' };
     }
     const blob = new Blob([textString], { type: 'text/plain;charset=utf-8' });
     downloadBlob(blob, `${filename}.txt`);
@@ -514,6 +540,10 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   }
 
   // 5. 画像・PDF (PNG / PDF)
+  if (format === 'pdf' && action === 'copy') {
+    throw new Error('PDFのクリップボードコピーには対応していません。「PDFダウンロード」をご利用ください。');
+  }
+
   const isDark = (options.theme || (typeof document !== 'undefined' && document.documentElement?.getAttribute('data-theme'))) === 'dark';
   const bgColor = isDark ? '#171b26' : '#ffffff';
   const fgColor = isDark ? '#e8eaf0' : '#252b39';
@@ -521,13 +551,14 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // PNG画像出力 (html2canvas) ＋ PDF直接出力 (jsPDF)
   snapshot.inert = true;
-  snapshot.style.cssText = `position:fixed;left:0;top:0;width:1100px;max-width:none;background:${bgColor};color:${fgColor};z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;`;
+  snapshot.style.cssText = `position:fixed;left:0;top:0;width:1100px;max-width:none;background:${bgColor};color:${fgColor};z-index:-9999;pointer-events:none;border:0;border-radius:0;box-shadow:none;`;
   applyExportSizeStyle(snapshot, options.sizeConfig);
   document.body.append(snapshot);
 
+  let canvas = null;
   try {
     await document.fonts.ready;
-    const canvas = await html2canvas(snapshot, {
+    canvas = await html2canvas(snapshot, {
       backgroundColor: bgColor, scale: 3.5, logging: false,
       windowWidth: 1200, windowHeight: Math.max(900, snapshot.scrollHeight + 60),
       scrollX: 0, scrollY: 0, useCORS: true,
@@ -550,14 +581,19 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
             ]);
             return { success: true, message: '画像をクリップボードにコピーしました！' };
           } catch (e) {
-            console.warn('Image clipboard copy failed, falling back to download', e);
+            console.warn('Image clipboard copy failed', e);
+            throw new Error('画像のクリップボードへのコピーに失敗しました。');
           }
         }
+        throw new Error('お使いの環境は画像のクリップボードコピーに対応していません。');
       }
 
       downloadBlob(metaBlob, `${filename}.png`);
       return { success: true, message: 'PNG画像を保存しました。' };
     } else {
+      if (action === 'copy') {
+        throw new Error('PDFのクリップボードコピーには対応していません。「PDFダウンロード」をご利用ください。');
+      }
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       if (isDark) {
         pdf.setFillColor(23, 27, 38);
@@ -571,8 +607,10 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
       return { success: true, message: 'PDFを保存しました。' };
     }
   } finally {
-    canvas.width = 0;
-    canvas.height = 0;
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
     snapshot.remove();
   }
 }
