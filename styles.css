@@ -42,7 +42,7 @@
 .export-sheet[data-theme="dark"] .export-title{color:#f4a8b8}
 @media(max-width:480px){.export-controls .field,.export-controls .button{width:100%}}
 
-.advanced-notice{margin:16px 0 0;padding:13px 16px;border-radius:8px;background:#f8f1f3;color:var(--wine);font-size:13px;font-weight:500}.selection-status{font-size:11px;color:var(--red);margin:0 0 12px}
+.selection-status{font-size:11px;color:var(--red);margin:0 0 12px}
 
 /* 条件選択 details / summary スタイル */
 details.timetable-controls{border:1px solid var(--line);border-radius:var(--radius);padding:20px 23px;background:white;margin-bottom:22px;transition:box-shadow .2s}
@@ -192,10 +192,6 @@ details.timetable-controls[open] .filter-summary{margin-bottom:19px;border-botto
 [data-theme="dark"] .info-note{
   background:#231e18;
   color:#d4af88;
-}
-[data-theme="dark"] .advanced-notice{
-  background:#25161c;
-  color:#f0a3b2;
 }
 [data-theme="dark"] footer{
   color:#6b7280;
