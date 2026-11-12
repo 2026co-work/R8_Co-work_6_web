@@ -304,6 +304,10 @@ body.size-modal-open{overflow:hidden}
 .export-copy-btn:hover{background:#f8f9fa;border-color:var(--wine)}
 [data-theme="dark"] .export-copy-btn{background:#232838;border-color:#343c52;color:#d8dce6}
 [data-theme="dark"] .export-copy-btn:hover{background:#2b3246;border-color:#f4a8b8}
+.raw-dataset-row{margin:16px 0 4px;text-align:right}
+.raw-dataset-btn{background:none;border:none;padding:0;color:var(--muted);font-size:11px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:color .15s}
+.raw-dataset-btn:hover{color:var(--wine)}
+[data-theme="dark"] .raw-dataset-btn:hover{color:#f4a8b8}
 
 /* ベクター印刷 / PDF出力（A方式：@media print） */
 .print-target-sheet{position:fixed;left:-9999px;top:0;width:1100px}

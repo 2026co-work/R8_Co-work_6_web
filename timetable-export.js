@@ -595,3 +595,24 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
     snapshot.remove();
   }
 }
+
+/**
+ * 全学科・全学年の時間割原本データ（JSON）のエクスポート
+ */
+export function exportAllLessonsJson(lessons, sourceInfo = {}) {
+  const exportData = {
+    meta: {
+      title: '明石高専 令和8年度後期 全時間割原本データ',
+      sourceUrl: sourceInfo.url || 'https://www.akashi.ac.jp/life/lesson.html',
+      sourceUpdated: sourceInfo.updated || '2026-09-24',
+      totalLessons: lessons.length,
+      exportedAt: new Date().toISOString(),
+      note: '明石高専の全学年・全学科（機械・電気情報・都市システム・建築）の時間割原本データセットです。'
+    },
+    lessons: lessons
+  };
+  const jsonString = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+  downloadBlob(blob, `明石高専_令和8年度後期_全時間割データ.json`);
+  return { success: true, message: '全時間割データ（JSON）をダウンロードしました。' };
+}
