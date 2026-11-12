@@ -1,4 +1,4 @@
-import { DAYS, TIMES, DEPARTMENTS, COURSE_LABELS, SOURCE, LESSONS, generateTimetable } from './timetable-data.js';
+import { DAYS, TIMES, DEPARTMENTS, COURSE_LABELS, ADVANCED_DEPARTMENTS, ADVANCED_COURSE_LABELS, SOURCE, LESSONS, generateTimetable } from './timetable-data.js';
 
 const icons = {
   home:'M3 10 12 3l9 7v11h-6v-7H9v7H3Z',
@@ -28,7 +28,8 @@ const longDate = date => new Intl.DateTimeFormat('ja-JP', {dateStyle:'full',time
 const periods = [['09:00','10:30'],['10:40','12:10'],['13:00','14:30'],['14:40','16:10']];
 const DEFAULT_SELECTION = { grade: 1, department: 'M', classGroup: '1', studentType: 'regular', course: '', arts: 'music' };
 const COOKIE_NAME = 'campus-student-v1';
-const SELECTION_VALUES = { grade: [1,2,3,4,5], department: DEPARTMENTS, classGroup: ['1','2','3','4'], studentType: ['regular','international'], course: ['','ED','EJ'], arts: ['music','art'] };
+const ALL_DEPARTMENTS = [...DEPARTMENTS, ...ADVANCED_DEPARTMENTS];
+const SELECTION_VALUES = { grade: [1,2,3,4,5,6,7], department: ALL_DEPARTMENTS, classGroup: ['1','2','3','4'], studentType: ['regular','international'], course: ['','ED','EJ'], arts: ['music','art'] };
 let cookieSaved = false;
 let exportInProgress = false;
 const DEPARTMENT_NAMES = {
@@ -36,6 +37,8 @@ const DEPARTMENT_NAMES = {
   E: 'E科',
   C: 'C科',
   A: 'A科',
+  ME: '機械・電子システム工学専攻 (ME)',
+  AC: '建築・都市システム工学専攻 (AC)',
 };
 const EXPORT_MODES = {
   web: { padding: 16, cellHeight: 140, fontScale: 100 },
@@ -95,10 +98,14 @@ function home() {
 }
 function studentLabel() {
   const s = studentSelection;
+  if (s.grade >= 6) {
+    return `専攻科${s.grade - 5}年 ${ADVANCED_COURSE_LABELS[s.department] || s.department}`;
+  }
   return `${s.grade}年 ${s.department}科${s.grade <= 2 ? `・${s.classGroup}組` : ''}${s.grade >= 4 && s.department === 'E' ? `・${COURSE_LABELS[s.course] || 'コース未選択'}` : ''}${s.studentType === 'international' ? '・留学生' : ''}${s.grade === 1 ? `・${s.arts === 'art' ? '美術' : '音楽'}` : ''}`;
 }
 function studentShortLabel() {
   const s = studentSelection;
+  if (s.grade >= 6) return `専${s.grade - 5}${s.department}`;
   if (s.grade <= 2) return `${s.grade}-${s.classGroup}-${s.department}`;
   if (s.grade >= 4 && s.department === 'E') return `${s.grade}${s.course || 'E'}`;
   return `${s.grade}${s.department}`;
@@ -109,17 +116,26 @@ function selectedSchedule() {
 }
 function timetable() {
   const s = studentSelection;
+  const isAdvanced = s.grade >= 6;
   const { selected, grid, error } = selectedSchedule();
   const totalPeriods = selected.reduce((sum, l) => sum + (l.duration || 1), 0);
   const options = (values, current) => values.map(([value,label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
   const field = (label, key, values, disabled = false) => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select></label>`;
-  const needsCourse = s.grade >= 4 && s.department === 'E';
-  const controls = field('学年','grade',[1,2,3,4,5].map(n=>[n,`${n}年`])) +
-    field('学科','department',DEPARTMENTS.map(d=>[d, DEPARTMENT_NAMES[d] || `${d}学科`])) +
-    field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),s.grade>=3) +
-    field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']]) +
-    field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],!needsCourse) +
-    (s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
+  const needsCourse = !isAdvanced && s.grade >= 4 && s.department === 'E';
+  const gradeOptions = [
+    [1,'1年'], [2,'2年'], [3,'3年'], [4,'4年'], [5,'5年'],
+    [6,'専攻科1年 (専1)'], [7,'専攻科2年 (専2)']
+  ];
+  const deptOptions = isAdvanced
+    ? ADVANCED_DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || d])
+    : DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || `${d}科`]);
+
+  const controls = field('学年','grade',gradeOptions) +
+    field(isAdvanced ? '専攻' : '学科','department',deptOptions) +
+    field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),isAdvanced || s.grade>=3) +
+    field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']],isAdvanced) +
+    field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],isAdvanced || !needsCourse) +
+    (!isAdvanced && s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
   const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の後期時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
     const cell = day[p];
     if(cell.length===1 && cell[0].period-1<p && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id))) return '';
@@ -601,6 +617,14 @@ function render() {
     const value=key==='grade'?Number(e.target.value):e.target.value;
     if(!SELECTION_VALUES[key]?.includes(value)) return;
     studentSelection[key]=value;
+    if (key === 'grade') {
+      const isAdvanced = value >= 6;
+      if (isAdvanced && !ADVANCED_DEPARTMENTS.includes(studentSelection.department)) {
+        studentSelection.department = 'ME';
+      } else if (!isAdvanced && !DEPARTMENTS.includes(studentSelection.department)) {
+        studentSelection.department = 'M';
+      }
+    }
     filterOpen=true;
     const saved=saveSelectionCookie();
     const id=e.target.id;

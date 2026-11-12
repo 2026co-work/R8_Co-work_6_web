@@ -362,6 +362,10 @@ export function generateJson(selectedLessons, studentLabel, updated = '2026-09-2
  */
 export function formatStudentShortBadge(label) {
   if (!label) return '';
+  const acMatch = label.match(/専攻科([12])年\s*.*?(ME|AC)/);
+  if (acMatch) {
+    return `専${acMatch[1]}${acMatch[2]}`;
+  }
   const highMatch = label.match(/([45])年\s*([MECA])(?:学科|科)?(?:・(?:電気電子コース\((ED)\)|情報コース\((EJ)\)))?/);
   if (highMatch) {
     const grade = highMatch[1];

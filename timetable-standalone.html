@@ -449,7 +449,7 @@ function sourceTargets(cell) {
   return targets;
 }
 
-const LESSONS = SOURCE_CELLS.flatMap(cell => {
+const UNDERGRAD_LESSONS = SOURCE_CELLS.flatMap(cell => {
   // 音楽・美術は原本で1・2組、3・4組を縦結合した選択授業。両方を必修扱いしない。
   const artParts = cell.text.includes('音楽-2') && cell.text.includes('美術-2')
     ? [{ text: cell.text.split('美術-2')[0].trim(), arts: 'music' }, { text: `美術-2${cell.text.split('美術-2')[1]}`.trim(), arts: 'art' }]
@@ -469,19 +469,81 @@ const LESSONS = SOURCE_CELLS.flatMap(cell => {
   })));
 });
 
+// 専攻科（専1: 6, 専2: 7）の授業データ
+const AC_LESSONS_DEF = [
+  // 専攻科1年 ME (grade: 6, targetGroup: 'ME')
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 1, period: 2, duration: 1, subjectName: '専攻科特別講義', location: '専講', teacher: '松塚・野村・渡部・平石' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 1, period: 3, duration: 1, subjectName: '技術者倫理', location: '専講', teacher: '黒杭' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 1, period: 4, duration: 1, subjectName: '工学基礎研究', location: '', teacher: 'ME担当教員' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 2, period: 1, duration: 1, subjectName: '電気回路特論', location: '専講', teacher: '細川' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 2, period: 2, duration: 1, subjectName: '伝熱工学特論', location: 'テクノ', teacher: '國峰' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 2, period: 3, duration: 1, subjectName: '地球物理', location: '専講', teacher: '(横山)' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 2, period: 4, duration: 1, subjectName: 'エネルギー工学Ⅰ', location: '情4・専講', teacher: 'マウンイェ' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 3, period: 1, duration: 1, subjectName: '創発ゼミナール', location: '情基', teacher: '野村・渡部' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 4, period: 1, duration: 1, subjectName: '情報応用特論', location: '情4', teacher: '牟田神東' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 4, period: 2, duration: 1, subjectName: '電磁気学特論', location: 'テクノ', teacher: '周山' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 5, period: 1, duration: 1, subjectName: 'トライボロジー', location: 'テクノ', teacher: '加藤' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 5, period: 2, duration: 1, subjectName: '工学基礎研究', location: '', teacher: 'ME担当教員' },
+  { grade: 6, targetType: 'department', targetGroup: 'ME', dayOfWeek: 5, period: 3, duration: 1, subjectName: '材料力学特論', location: 'テクノ', teacher: '森下' },
+
+  // 専攻科1年 AC (grade: 6, targetGroup: 'AC')
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 1, period: 1, duration: 1, subjectName: '構造システムⅠ', location: '演1', teacher: 'ラ・角野' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 1, period: 2, duration: 1, subjectName: '専攻科特別講義', location: '', teacher: 'マウンイェ' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 1, period: 4, duration: 1, subjectName: '工学基礎研究', location: '', teacher: 'AC担当教員' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 2, period: 1, duration: 1, subjectName: '建設マネージメント', location: '演1', teacher: '三好・工藤' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 2, period: 2, duration: 1, subjectName: '工学基礎研究', location: '', teacher: 'AC担当教員' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 2, period: 4, duration: 1, subjectName: '地盤工学特論', location: '演1', teacher: '(鍋島)' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 3, period: 3, duration: 1, subjectName: '世界の都市形成史', location: 'テクノ', teacher: '東野' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 4, period: 1, duration: 1, subjectName: '地域計画演習Ⅰ', location: '演3', teacher: '縄田' },
+  { grade: 6, targetType: 'department', targetGroup: 'AC', dayOfWeek: 5, period: 2, duration: 1, subjectName: '応用建築構造', location: '演1', teacher: '角野・本塚' },
+
+  // 専攻科2年 ME (grade: 7, targetGroup: 'ME')
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 1, period: 2, duration: 1, subjectName: '最適化デザイン', location: 'CAD', teacher: '史' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 1, period: 3, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'ME担当教員' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 2, period: 2, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'ME担当教員' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 2, period: 4, duration: 1, subjectName: 'アルゴリズム理論', location: '情1', teacher: '森津' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 3, period: 1, duration: 1, subjectName: '材料強度学', location: 'テクノ', teacher: '森下' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 3, period: 2, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'ME担当教員' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 4, period: 3, duration: 1, subjectName: 'マイクロマシン', location: '専講', teacher: '松塚' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 5, period: 2, duration: 1, subjectName: 'エンジニアリング プレゼンテーション Ⅱ', location: '専講', teacher: 'マウンイェ・平石' },
+  { grade: 7, targetType: 'department', targetGroup: 'ME', dayOfWeek: 5, period: 3, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'ME担当教員' },
+
+  // 専攻科2年 AC (grade: 7, targetGroup: 'AC')
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 1, period: 3, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'AC担当教員' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 2, period: 2, duration: 1, subjectName: '日本の都市形成史', location: '演1', teacher: '江端' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 2, period: 3, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'AC担当教員' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 3, period: 1, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'AC担当教員' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 3, period: 2, duration: 1, subjectName: '人間・環境構成論', location: '演1', teacher: '江本' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 4, period: 2, duration: 1, subjectName: '水工システムⅡ', location: '演1', teacher: '(神田)' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 5, period: 1, duration: 1, subjectName: '防災システムⅡ', location: '演1', teacher: '小川' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 5, period: 2, duration: 1, subjectName: 'エンジニアリング プレゼンテーション Ⅱ', location: '', teacher: 'マウンイェ・平石' },
+  { grade: 7, targetType: 'department', targetGroup: 'AC', dayOfWeek: 5, period: 3, duration: 1, subjectName: '専攻科特別研究', location: '', teacher: 'AC担当教員' },
+].map((item, idx) => ({
+  id: `ac-${item.grade}-${item.targetGroup}-${idx}`,
+  ...item,
+  notes: '',
+  changeInfo: null,
+  sourceCellId: 1000 + idx,
+  sourceText: `${item.subjectName}\n${item.location ? `[${item.location}]` : ''}${item.teacher}`
+}));
+
+const LESSONS = [...UNDERGRAD_LESSONS, ...AC_LESSONS_DEF];
+
 function generateTimetable(data, selection) {
   const { grade, department, classGroup, course, studentType = 'regular', arts = 'music' } = selection;
-  if (!Number.isInteger(grade) || grade < 1 || grade > 5 || !DEPARTMENTS.includes(department)) {
+  const isAdvanced = grade === 6 || grade === 7;
+  const validDepartments = isAdvanced ? ['ME', 'AC'] : DEPARTMENTS;
+  if (!Number.isInteger(grade) || grade < 1 || grade > 7 || !validDepartments.includes(department)) {
     throw new Error('学年と学科を正しく選択してください。');
   }
-  if (grade <= 2 && !['1', '2', '3', '4'].includes(classGroup)) {
+  if (!isAdvanced && grade <= 2 && !['1', '2', '3', '4'].includes(classGroup)) {
     throw new Error('1・2年生はクラスを選択してください。');
   }
-  if (grade >= 4 && department === 'E' && !['ED', 'EJ'].includes(course)) {
+  if (!isAdvanced && grade >= 4 && department === 'E' && !['ED', 'EJ'].includes(course)) {
     throw new Error('4・5年生のE科はED・EJを選択してください。');
   }
-  if (!['regular', 'international'].includes(studentType)) throw new Error('留学生の区分を選択してください。');
-  if (grade === 1 && !['music', 'art'].includes(arts)) throw new Error('音楽・美術を選択してください。');
+  if (!isAdvanced && !['regular', 'international'].includes(studentType)) throw new Error('留学生の区分を選択してください。');
+  if (!isAdvanced && grade === 1 && !['music', 'art'].includes(arts)) throw new Error('音楽・美術を選択してください。');
   const selected = data.filter(lesson => {
     if (lesson.grade !== grade) return false;
     if (lesson.course && lesson.course !== course) return false;
