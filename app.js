@@ -79,6 +79,12 @@ function studentLabel() {
   const s = studentSelection;
   return `${s.grade}年 ${s.department}学科${s.grade <= 2 ? `・${s.classGroup}組` : ''}${s.grade >= 4 && s.department === 'E' ? `・${COURSE_LABELS[s.course] || 'コース未選択'}` : ''}${s.studentType === 'international' ? '・留学生' : ''}${s.grade === 1 ? `・${s.arts === 'art' ? '美術' : '音楽'}` : ''}`;
 }
+function studentShortLabel() {
+  const s = studentSelection;
+  if (s.grade <= 2) return `${s.grade}-${s.classGroup}-${s.department}`;
+  if (s.grade >= 4 && s.department === 'E') return `${s.grade}${s.course || 'E'}`;
+  return `${s.grade}${s.department}`;
+}
 function selectedSchedule() {
   try { return { ...generateTimetable(LESSONS, studentSelection), error: '' }; }
   catch (error) { return { selected: [], grid: Array.from({ length: 5 }, () => Array.from({ length: 4 }, () => [])), error: error.message }; }
@@ -106,7 +112,7 @@ function timetable() {
       <summary class="panel-head filter-summary">
         <h2>${icon('calendar')}表示する時間割</h2>
         <div class="filter-summary-info">
-          <span class="badge current-badge">${escapeHTML(studentLabel())}</span>
+          <span class="badge current-badge">${escapeHTML(studentShortLabel())}</span>
           <span class="filter-toggle-label">${filterOpen ? '閉じる ▲' : '変更する ▼'}</span>
         </div>
       </summary>
@@ -177,7 +183,8 @@ function openSizeAdjustModal() {
   clone.querySelectorAll('[data-export-exclude]').forEach(n => n.remove());
   clone.removeAttribute('id');
   clone.classList.add('export-sheet');
-  clone.setAttribute('data-theme', 'light');
+  clone.setAttribute('data-theme', currentTheme);
+  paper.setAttribute('data-theme', currentTheme);
   clone.querySelector('.panel-head')?.remove();
   clone.querySelector('.timetable-source')?.remove();
   const title = document.createElement('h1');
@@ -209,6 +216,8 @@ function closeSizeAdjustModal() {
   if (summary) {
     summary.textContent = `みため: ${exportSizeMode === 'nomargin' ? '余白なし' : exportSizeMode === 'memo' ? 'メモ書き可' : 'カスタム'}`;
   }
+  const panel = document.getElementById('timetable-sheet');
+  if (panel) applyLiveSheetSize(panel);
 }
 async function downloadCurrentTimetable() {
   if (exportInProgress || selectedSchedule().error) return;
@@ -217,7 +226,7 @@ async function downloadCurrentTimetable() {
   // 非同期処理中に画面や選択条件が変わっても、押した時点の時間割を保存する。
   const snapshot = panel.cloneNode(true);
   const format = document.getElementById('export-format').value;
-  const filename = `時間割_令和8年度後期_${studentLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
+  const filename = `R8後期時間割-${studentShortLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
   const button = document.getElementById('export-download');
   const status = document.getElementById('export-status');
   exportInProgress = true;
@@ -232,8 +241,11 @@ async function downloadCurrentTimetable() {
       selectedLessons: scheduleResult.selected || [],
       updated: SOURCE?.updated || '2026-09-24',
       sizeConfig: { ...exportSizeConfig },
+      theme: currentTheme,
     });
-    status.textContent = result?.message || 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。';
+    status.textContent = result?.message || (format === 'pdf'
+      ? '印刷・PDF保存画面を開きました。「PDFに保存」またはプリンターを選択してください。'
+      : 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。');
   } catch (error) {
     console.error('Timetable export failed', error);
     status.textContent = 'ファイルを作成できませんでした。通信状態を確認して、もう一度お試しください。';

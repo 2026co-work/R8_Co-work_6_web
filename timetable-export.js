@@ -55,18 +55,16 @@ export async function injectPngMetadata(blob, metadata = {}) {
   const buffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  // PNGシグネチャの検証 (89 50 4E 47 0D 0A 1A 0A)
   if (bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4E || bytes[3] !== 0x47) {
-    return blob; // PNGでなければそのまま返す
+    return blob;
   }
 
-  // IHDRチャンクの直後（バイト位置 33: 8バイトシグネチャ + 4長 + 4名前 + 13データ + 4CRC = 33）に挿入
   const ihdrEndOffset = 33;
   const chunksToAdd = [];
 
   const textEntries = [
     { key: 'Title', value: metadata.title || '明石高専 授業時間割' },
-    { key: 'Author', value: metadata.author || 'Akashi KOSEN 学生ページ(仮)' },
+    { key: 'Author', value: metadata.author || '明石高専 Co+work6班' },
     { key: 'Creation Time', value: metadata.creationTime || new Date().toISOString() },
     { key: 'Description', value: metadata.description || '' }
   ].filter(e => Boolean(e.value));
@@ -74,19 +72,17 @@ export async function injectPngMetadata(blob, metadata = {}) {
   for (const entry of textEntries) {
     const keyBytes = new TextEncoder().encode(entry.key);
     const valBytes = new TextEncoder().encode(entry.value);
-    const dataLen = keyBytes.length + 1 + valBytes.length; // key + null + value
+    const dataLen = keyBytes.length + 1 + valBytes.length;
 
-    // チャンクバッファ: 4バイト長さ + 4バイト名前('tEXt') + データ + 4バイトCRC
     const chunk = new Uint8Array(4 + 4 + dataLen + 4);
     const view = new DataView(chunk.buffer);
 
     view.setUint32(0, dataLen);
     chunk[4] = 0x74; chunk[5] = 0x45; chunk[6] = 0x58; chunk[7] = 0x74; // 'tEXt'
     chunk.set(keyBytes, 8);
-    chunk[8 + keyBytes.length] = 0; // null separator
+    chunk[8 + keyBytes.length] = 0;
     chunk.set(valBytes, 8 + keyBytes.length + 1);
 
-    // CRCは名前 + データ
     const crcData = chunk.subarray(4, 8 + dataLen);
     const crc = calculateCrc32(crcData);
     view.setUint32(8 + dataLen, crc);
@@ -94,7 +90,6 @@ export async function injectPngMetadata(blob, metadata = {}) {
     chunksToAdd.push(chunk);
   }
 
-  // 合体
   const totalExtraLen = chunksToAdd.reduce((sum, c) => sum + c.length, 0);
   const resultBytes = new Uint8Array(bytes.length + totalExtraLen);
 
@@ -111,8 +106,6 @@ export async function injectPngMetadata(blob, metadata = {}) {
 
 /**
  * iCalendar (.ics) 生成
- * GoogleカレンダーやiPhone等にインポート可能
- * TRANSP:OPAQUE（予定あり / 忙しい）を明示
  */
 export function generateIcs(selectedLessons, studentLabel) {
   const baseDates = {
@@ -153,7 +146,7 @@ export function generateIcs(selectedLessons, studentLabel) {
       `DTSTART;TZID=Asia/Tokyo:${dateStr}T${startTime}`,
       `DTEND;TZID=Asia/Tokyo:${dateStr}T${endTime}`,
       'RRULE:FREQ=WEEKLY;UNTIL=20270228T145959Z',
-      'TRANSP:OPAQUE', // Googleカレンダー等の予定あり（忙しい）
+      'TRANSP:OPAQUE',
       'STATUS:CONFIRMED',
       'END:VEVENT'
     ].filter(Boolean).join('\r\n'));
@@ -173,8 +166,7 @@ export function generateIcs(selectedLessons, studentLabel) {
 }
 
 /**
- * CSV形式生成（スクリプト処理・DBフレンドリー設計）
- * 2コマ連続授業は「1時限 = 1行」として正規化展開し、どの時限でも即座に検索可能にする
+ * CSV形式生成（1時限=1行の正規化展開）
  */
 export function generateCsv(selectedLessons, studentLabel) {
   const headers = ['曜日', '時限', '開始時間', '終了時間', '科目名', '教室', '担当教員', '連続コマ', '備考'];
@@ -186,7 +178,6 @@ export function generateCsv(selectedLessons, studentLabel) {
     const dayName = DAYS_OF_WEEK[l.dayOfWeek - 1] || `${l.dayOfWeek}`;
     const span = l.duration || 1;
 
-    // 1コマごとに1行を出力して正規化（コンピュータ処理しやすくする）
     for (let offset = 0; offset < span; offset++) {
       const currentPeriod = l.period + offset;
       const timeInfo = PERIOD_TIMES[currentPeriod - 1] || { startTime: '', endTime: '' };
@@ -206,12 +197,11 @@ export function generateCsv(selectedLessons, studentLabel) {
     }
   }
 
-  // UTF-8 BOM (\uFEFF)
   return '\uFEFF' + rows.map(r => r.join(',')).join('\r\n');
 }
 
 /**
- * テキスト / Markdown形式生成
+ * テキスト形式生成
  */
 export function generateText(selectedLessons, studentLabel) {
   const lines = [
@@ -249,15 +239,92 @@ export function generateText(selectedLessons, studentLabel) {
 }
 
 /**
+ * 所属の短縮表記 (例: 4EJ, 1-3-E)
+ */
+export function formatStudentShortBadge(label) {
+  if (!label) return '';
+  const highMatch = label.match(/([45])年\s*([MECA])(?:学科)?(?:・(?:電気電子コース\((ED)\)|情報コース\((EJ)\)))?/);
+  if (highMatch) {
+    const grade = highMatch[1];
+    const course = highMatch[3] || highMatch[4];
+    if (course) return `${grade}${course}`;
+    return `${grade}${highMatch[2]}`;
+  }
+  const midMatch = label.match(/3年\s*([MECA])(?:学科)?(?:・(留学生))?/);
+  if (midMatch) {
+    return `3${midMatch[1]}${midMatch[2] ? '-留' : ''}`;
+  }
+  const lowMatch = label.match(/([12])年\s*([MECA])(?:学科)?・(\d)組/);
+  if (lowMatch) {
+    return `${lowMatch[1]}-${lowMatch[3]}-${lowMatch[2]}`;
+  }
+  return label.replace(/\s+/g, '');
+}
+
+export function prepareExportSnapshot(snapshot, options = {}) {
+  snapshot.querySelectorAll('[data-export-exclude]').forEach(node => node.remove());
+  snapshot.removeAttribute('id');
+  snapshot.classList.add('export-sheet');
+
+  const theme = options.theme || (typeof document !== 'undefined' && document.documentElement?.getAttribute('data-theme')) || 'light';
+  snapshot.setAttribute('data-theme', theme);
+  snapshot.setAttribute('aria-hidden', 'true');
+
+  const label = options.studentLabel || '';
+  const updated = options.updated || '2026-09-24';
+  const shortBadge = formatStudentShortBadge(label);
+
+  const headH2 = snapshot.querySelector('.panel-head h2');
+  if (headH2) {
+    headH2.classList.add('export-head-title');
+    headH2.innerHTML = '';
+
+    const badgeSpan = document.createElement('span');
+    badgeSpan.className = 'export-badge-short';
+    badgeSpan.textContent = shortBadge;
+    headH2.append(badgeSpan);
+
+    const fullSpan = document.createElement('span');
+    fullSpan.className = 'export-badge-full';
+    fullSpan.textContent = label;
+    headH2.append(fullSpan);
+  }
+
+  const title = document.createElement('h1');
+  title.className = 'export-title';
+  title.textContent = `明石高専後期時間割 ${label} Co+work6班 ＜時間割PDF参照日時: ${updated}＞`;
+  snapshot.prepend(title);
+
+  const scroller = snapshot.querySelector('.table-scroll');
+  if (scroller) {
+    scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
+    scroller.scrollLeft = 0;
+  }
+  const table = snapshot.querySelector('table');
+  if (table) table.style.width = '100%';
+  return snapshot;
+}
+
+export function applyExportSizeStyle(sheet, config = {}) {
+  const pad = config.padding ?? 10;
+  const cellH = config.cellHeight ?? 172;
+  const scale = (config.fontScale ?? 105) / 100;
+  sheet.style.setProperty('--export-pad', `${pad}px`);
+  sheet.style.setProperty('--export-cell-h', `${cellH}px`);
+  sheet.style.setProperty('--export-font-scale', String(scale));
+  sheet.style.padding = `${pad}px`;
+}
+
+/**
  * 総合エクスポート処理
  */
-export async function exportTimetable(snapshot, format, filename, extraData = {}) {
-  const { selectedLessons = [], studentLabel = '' } = extraData;
-
+export async function exportTimetable(snapshot, format, filename, options = {}) {
   const validFormats = ['pdf', 'png', 'ics', 'csv', 'json', 'text'];
   if (!validFormats.includes(format)) {
     throw new Error('PDFまたはPNG、カレンダー、CSV、テキスト、JSONを選択してください。');
   }
+
+  const { selectedLessons = [], studentLabel = '' } = options;
 
   // 1. iCalendar (.ics)
   if (format === 'ics') {
@@ -307,48 +374,70 @@ export async function exportTimetable(snapshot, format, filename, extraData = {}
   }
 
   // 5. 画像・PDF (PNG / PDF)
-  snapshot.querySelectorAll('[data-export-exclude]').forEach(node => node.remove());
-  snapshot.removeAttribute('id');
-  snapshot.classList.add('export-sheet');
-  snapshot.setAttribute('data-theme', 'light');
-  snapshot.setAttribute('aria-hidden', 'true');
+  const isDark = (options.theme || (typeof document !== 'undefined' && document.documentElement?.getAttribute('data-theme'))) === 'dark';
+  const bgColor = isDark ? '#171b26' : '#ffffff';
+  const fgColor = isDark ? '#e8eaf0' : '#252b39';
+  prepareExportSnapshot(snapshot, options);
+
+  // ブラウザ標準印刷 (window.print) によるPDF出力
+  if (format === 'pdf' && typeof window !== 'undefined' && typeof window.print === 'function') {
+    snapshot.classList.add('print-target-sheet');
+    snapshot.removeAttribute('aria-hidden');
+    snapshot.style.cssText = `width:100%;max-width:none;background:${bgColor};color:${fgColor};border:0;border-radius:0;box-shadow:none;`;
+    applyExportSizeStyle(snapshot, options.sizeConfig);
+    const prevTitle = document.title;
+    document.title = filename;
+    document.body.classList.add('printing-timetable');
+    document.body.setAttribute('data-print-theme', isDark ? 'dark' : 'light');
+    document.body.append(snapshot);
+    try {
+      await document.fonts.ready;
+      window.print();
+    } finally {
+      snapshot.remove();
+      document.body.classList.remove('printing-timetable');
+      document.body.removeAttribute('data-print-theme');
+      document.title = prevTitle;
+    }
+    return { success: true, message: '印刷・PDF保存画面を開きました。' };
+  }
+
+  // PNG画像出力 (html2canvas) ＋ フォールバックjsPDF
   snapshot.inert = true;
-  snapshot.style.cssText = 'position:fixed;left:0;top:0;width:1100px;max-width:none;padding:28px;background:#fff;color:#252b39;z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;';
-  const title = document.createElement('p');
-  title.className = 'export-brand';
-  title.textContent = 'Akashi KOSEN 学生ページ(仮) ｜ 令和8年度 後期時間割';
-  snapshot.prepend(title);
-  const scroller = snapshot.querySelector('.table-scroll');
-  scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';
-  scroller.scrollLeft = 0;
-  const table = snapshot.querySelector('table');
-  table.style.width = '100%';
+  snapshot.style.cssText = `position:fixed;left:0;top:0;width:1100px;max-width:none;background:${bgColor};color:${fgColor};z-index:-100;pointer-events:none;border:0;border-radius:0;box-shadow:none;`;
+  applyExportSizeStyle(snapshot, options.sizeConfig);
   document.body.append(snapshot);
 
   try {
     await document.fonts.ready;
     const canvas = await html2canvas(snapshot, {
-      backgroundColor: '#ffffff', scale: 2, logging: false,
+      backgroundColor: bgColor, scale: 3.5, logging: false,
       windowWidth: 1200, windowHeight: Math.max(900, snapshot.scrollHeight + 60),
       scrollX: 0, scrollY: 0, useCORS: true,
     });
+
     if (format === 'png') {
       const rawBlob = await new Promise((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error('PNGを生成できませんでした。')), 'image/png'));
-      // PNGメタデータ（Author, Title, Creation Time）の注入
       const metaBlob = await injectPngMetadata(rawBlob, {
         title: filename,
-        author: 'Akashi KOSEN 学生ページ(仮)',
+        author: '明石高専 Co+work6班',
         creationTime: new Date().toISOString(),
         description: `対象: ${studentLabel}`
       });
       downloadBlob(metaBlob, `${filename}.png`);
     } else {
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
-      const bounds = fitOnPage(canvas.width, canvas.height);
+      if (isDark) {
+        pdf.setFillColor(23, 27, 38);
+        pdf.rect(0, 0, 297, 210, 'F');
+      }
+      const pdfMargin = options.sizeConfig ? Math.max(4, Math.round(options.sizeConfig.padding * 0.35)) : 5;
+      const bounds = fitOnPage(canvas.width, canvas.height, 297, 210, pdfMargin);
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bounds.x, bounds.y, bounds.width, bounds.height, undefined, 'FAST');
-      pdf.setProperties({ title: filename, creator: 'Akashi KOSEN 学生ページ(仮)' });
+      pdf.setProperties({ title: filename, creator: '明石高専 Co+work6班' });
       downloadBlob(pdf.output('blob'), `${filename}.pdf`);
     }
+
     canvas.width = 0;
     canvas.height = 0;
     return { success: true, message: `${format.toUpperCase()}を保存しました。` };
