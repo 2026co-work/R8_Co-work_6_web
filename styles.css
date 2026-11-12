@@ -287,6 +287,7 @@ body.size-modal-open{overflow:hidden}
 [data-theme="dark"] .size-a4-toggle{background:rgba(244,168,184,0.1);border-color:rgba(244,168,184,0.25);color:#f4a8b8}
 .size-close-btn{min-height:36px;padding:0 18px;font-size:13px;font-weight:700}
 .size-sliders{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 18px;max-width:960px;margin:0 auto}
+.size-sliders[hidden]{display:none!important}
 .size-slider-item{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600}
 .size-slider-name{min-width:74px;white-space:nowrap}
 .size-slider-item input[type="range"]{flex:1;accent-color:var(--wine);cursor:pointer;min-width:0}
