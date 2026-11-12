@@ -226,7 +226,7 @@ async function downloadCurrentTimetable() {
   // 非同期処理中に画面や選択条件が変わっても、押した時点の時間割を保存する。
   const snapshot = panel.cloneNode(true);
   const format = document.getElementById('export-format').value;
-  const filename = `時間割_令和8年度後期_${studentLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
+  const filename = `R8後期時間割-${studentShortLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
   const button = document.getElementById('export-download');
   const status = document.getElementById('export-status');
   exportInProgress = true;
