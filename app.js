@@ -42,7 +42,7 @@ const DEPARTMENT_NAMES = {
 };
 const EXPORT_MODES = {
   web: { padding: 16, cellHeight: 140, fontScale: 100 },
-  a4fit: { padding: 16, cellHeight: 168, fontScale: 105 },
+  a4fit: { padding: 16, cellHeight: 166, fontScale: 105 },
   memo: { padding: 16, cellHeight: 220, fontScale: 95 },
 };
 let exportSizeMode = 'web';
@@ -570,9 +570,6 @@ function render() {
   // A4枠トグル
   document.getElementById('size-toggle-a4')?.addEventListener('change', e => {
     a4ModeEnabled = e.target.checked;
-    if (exportSizeMode === 'a4fit' && !a4ModeEnabled) {
-      exportSizeMode = 'web';
-    }
     const preset = getPresetConfig(exportSizeMode, a4ModeEnabled);
     if (preset) {
       exportSizeConfig = { ...preset };

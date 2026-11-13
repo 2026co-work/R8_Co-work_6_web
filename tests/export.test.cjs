@@ -58,4 +58,8 @@ test('A4 mode layout constraints avoid table stretching and bottom margin collap
     appJs.includes('a4Mode: a4ModeEnabled'),
     'downloadCurrentTimetable must pass a4Mode option to exportTimetable'
   );
+  assert.ok(
+    !appJs.includes("exportSizeMode === 'a4fit' && !a4ModeEnabled"),
+    'a4fit mode must not be forcibly overwritten to web when toggling A4 off'
+  );
 });
