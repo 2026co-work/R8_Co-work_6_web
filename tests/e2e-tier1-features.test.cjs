@@ -556,7 +556,8 @@ test('F10-T1-03: Timetable panel displays term metadata pill', async (t) => {
 test('F10-T1-04: Footer attribution displays dynamic year/term info', async () => {
   const app = createAppInstance();
   app.navigate('#timetable');
-  assert.ok(app.elements.main.innerHTML.includes('明石高専') || app.elements.main.innerHTML.includes('キャンパス'));
+  assert.match(app.elements.main.innerHTML, /令和\d+年度|20\d{2}年度/, 'Displays dynamic fiscal year info');
+  assert.match(app.elements.main.innerHTML, /前期|後期/, 'Displays term info');
 });
 
 test('F10-T1-05: Fallback metadata does not produce undefined or null in heading', async () => {
@@ -726,7 +727,8 @@ test('F13-T1-03: Exam grid filters schedule by student grade and department', as
 
   app.selectStudent({ grade: 2, department: 'C' });
   app.navigate('#exam');
-  assert.ok(app.elements.main.innerHTML.length > 0);
+  assert.doesNotMatch(app.elements.main.innerHTML, /undefined/, 'No undefined classCode in exam heading');
+  assert.match(app.elements.main.innerHTML, /2-C/, 'Exam heading displays correct classCode 2-C');
 });
 
 test('F13-T1-04: Exam slot card displays course name and supervisor information', async (t) => {
@@ -735,7 +737,8 @@ test('F13-T1-04: Exam slot card displays course name and supervisor information'
   if (!requireOrSkip(t, ready, 'Exam slot room & supervisor info', 'M4')) return;
 
   app.navigate('#exam');
-  assert.ok(app.elements.main.innerHTML.length > 0);
+  assert.doesNotMatch(app.elements.main.innerHTML, /1-undefined/, 'Exam view does not show 1-undefined');
+  assert.match(app.elements.main.innerHTML, /試験時間割/, 'Exam timetable heading exists');
 });
 
 test('F13-T1-05: Student selection synchronizes across timetable and exam tabs via cookie', async () => {
@@ -1036,6 +1039,8 @@ test('F18-T1-05: Route #cafeteria renders weekly menu dishes and prices', async 
 
   app.navigate('#cafeteria');
   assert.match(app.document.title, /食堂|メニュー/);
+  assert.ok(app.elements.main.innerHTML.includes('cafeteria-menu-item') || app.elements.main.innerHTML.includes('ランチ'), 'Renders cafeteria weekly menu items');
+  assert.doesNotMatch(app.elements.main.innerHTML, /テキスト未抽出/, 'Weekly menus render when isTextExtracted is true');
 });
 
 // =============================================================================
@@ -1261,7 +1266,10 @@ test('F22-T1-04: Link deletion removes target item from localStorage', async (t)
   });
   const before = JSON.parse(app.localStorage.getItem('campus-links-v1'));
   assert.equal(before.length, 2);
-  app.run('const items = JSON.parse(localStorage.getItem("campus-links-v1")); localStorage.setItem("campus-links-v1", JSON.stringify(items.filter(i => i.id !== "1")));');
+  app.navigate('#links');
+  const removeBtn = app.document.querySelector('.mylink-remove-btn[data-remove-id="1"]');
+  assert.ok(removeBtn, 'Remove button exists in DOM');
+  removeBtn.click();
   const after = JSON.parse(app.localStorage.getItem('campus-links-v1'));
   assert.equal(after.length, 1);
   assert.equal(after[0].id, '2');

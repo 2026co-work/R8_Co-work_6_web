@@ -313,6 +313,9 @@ function createAppInstance(options = {}) {
           fn.call(this, eventObj);
         }
       },
+      click() {
+        this.dispatchEvent('click');
+      },
 
       focus({ preventScroll } = {}) {
         currentActiveElement = this;
@@ -396,6 +399,33 @@ function createAppInstance(options = {}) {
         if (selector === '[data-export-exclude]') {
           return [];
         }
+        if (selector === '.mylink-remove-btn') {
+          const html = elements.main?.innerHTML || '';
+          const ids = [...html.matchAll(/class="[^"]*mylink-remove-btn[^"]*"[^>]*data-remove-id="([^"]+)"/g)].map(m => m[1]);
+          return ids.map(rid => {
+            const btn = getOrCreateElement(`mylink-remove-btn-${rid}`);
+            btn.dataset.removeId = rid;
+            return btn;
+          });
+        }
+        if (selector === '.mylink-move-btn') {
+          const html = elements.main?.innerHTML || '';
+          return [...html.matchAll(/class="[^"]*mylink-move-btn[^"]*"[^>]*data-move-id="([^"]+)"[^>]*data-dir="([^"]+)"/g)].map(m => {
+            const btn = getOrCreateElement(`mylink-move-btn-${m[1]}-${m[2]}`);
+            btn.dataset.moveId = m[1];
+            btn.dataset.dir = m[2];
+            return btn;
+          });
+        }
+        if (selector === '.preset-btn') {
+          const html = elements.main?.innerHTML || '';
+          return [...html.matchAll(/class="[^"]*preset-btn[^"]*"[^>]*data-preset-name="([^"]+)"[^>]*data-preset-url="([^"]+)"/g)].map(m => {
+            const btn = getOrCreateElement(`preset-btn-${m[1]}`);
+            btn.dataset.presetName = m[1];
+            btn.dataset.presetUrl = m[2];
+            return btn;
+          });
+        }
         return [];
       }
     };
@@ -456,6 +486,15 @@ function createAppInstance(options = {}) {
     querySelector: sel => {
       if (!sel) return null;
       if (sel.startsWith('#')) return getOrCreateElement(sel.slice(1));
+      const removeMatch = sel.match(/^\.mylink-remove-btn\[data-remove-id=["']([^"']+)["']\]$/);
+      if (removeMatch) {
+        const rid = removeMatch[1];
+        const html = elements.main?.innerHTML || '';
+        if (!html.includes(`data-remove-id="${rid}"`)) return null;
+        const btn = getOrCreateElement(`mylink-remove-btn-${rid}`);
+        btn.dataset.removeId = rid;
+        return btn;
+      }
       if (sel === '.workspace') return getOrCreateElement('workspace');
       if (sel === '.skip-link') return getOrCreateElement('skip-link');
       if (sel === '.topbar') return getOrCreateElement('topbar');
