@@ -72,6 +72,111 @@ export function extractPdfLinkFromHtml(html, baseUrl) {
   return '';
 }
 
+export function parseWeeklyMenuTable(pages = [], fiscalYear = 2026) {
+  const daysFound = [];
+  for (const page of pages) {
+    const tokens = (page.Texts || []).map(t => {
+      try {
+        return { x: t.x, y: t.y, text: decodeURIComponent(t.R?.[0]?.T || '').trim() };
+      } catch {
+        return { x: t.x, y: t.y, text: (t.R?.[0]?.T || '').trim() };
+      }
+    }).filter(i => i.text.length > 0);
+
+    const dateTokens = tokens.filter(t => /^\d{1,2}\/\d{1,2}|^\d{1,2}月\d{1,2}日/.test(t.text));
+    for (const dt of dateTokens) {
+      const m = dt.text.match(/(\d{1,2})[\/月](\d{1,2})/);
+      if (!m) continue;
+      const month = Number(m[1]);
+      const day = Number(m[2]);
+      const year = month <= 3 ? fiscalYear + 1 : fiscalYear;
+      const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const colTokens = tokens
+        .filter(t => Math.abs(t.x - dt.x) < 4.5 && t.y > dt.y && t.y < dt.y + 18)
+        .sort((a, b) => a.y - b.y || a.x - b.x)
+        .map(t => t.text);
+      if (colTokens.length === 0) continue;
+      const joined = colTokens.join(' ');
+      if (/休業|休み|閉店/.test(joined)) {
+        daysFound.push({ date: isoDate, isOpen: false, closedReason: colTokens[0] });
+        continue;
+      }
+      const priceMatches = [...joined.matchAll(/(\d{3,4})\s*円/g)].map(pm => Number(pm[1]));
+      const nonPriceLines = colTokens.filter(s => !/^\d{3,4}円?$/.test(s));
+      const allergenTokens = colTokens.filter(s => /^(小麦|卵|乳|豚肉|鶏肉|牛肉|大豆|えび|かに|そば|落花生|さば|ごま)/.test(s));
+      if (nonPriceLines.length > 0) {
+        daysFound.push({
+          date: isoDate,
+          isOpen: true,
+          lunchA: { name: nonPriceLines[0], ...(priceMatches[0] ? { price: priceMatches[0] } : {}) },
+          ...(nonPriceLines[1] ? { lunchB: { name: nonPriceLines[1], ...(priceMatches[1] ? { price: priceMatches[1] } : {}) } } : {}),
+          ...(allergenTokens.length ? { allergens: allergenTokens.join(' ') } : {})
+        });
+      }
+    }
+  }
+  if (daysFound.length === 0) return [];
+  const uniqueDays = [];
+  const seenDates = new Set();
+  for (const d of daysFound) {
+    if (!seenDates.has(d.date)) {
+      seenDates.add(d.date);
+      uniqueDays.push(d);
+    }
+  }
+  uniqueDays.sort((a, b) => a.date.localeCompare(b.date));
+  const weeks = [];
+  for (let i = 0; i < uniqueDays.length; i += 5) {
+    const chunk = uniqueDays.slice(i, i + 5);
+    const first = chunk[0].date.slice(5).replace('-', '/');
+    const last = chunk[chunk.length - 1].date.slice(5).replace('-', '/');
+    weeks.push({ weekRange: `${first} - ${last}`, days: chunk });
+  }
+  return weeks;
+}
+
+export async function parseDormitoryPdf(pdfBuffer) {
+  return new Promise((resolve) => {
+    const parser = new PDFParser();
+    parser.on('pdfParser_dataError', () => resolve({ isTextExtracted: false, textsCount: 0, items: [] }));
+    parser.on('pdfParser_dataReady', (pdfData) => {
+      try {
+        const pages = pdfData.Pages || [];
+        const tokens = pages.flatMap(p => (p.Texts || []).map(t => {
+          try {
+            return { x: t.x, y: t.y, text: decodeURIComponent(t.R?.[0]?.T || '').trim() };
+          } catch {
+            return { x: t.x, y: t.y, text: (t.R?.[0]?.T || '').trim() };
+          }
+        })).filter(i => i.text.length > 0);
+        if (tokens.length < 20) {
+          resolve({ isTextExtracted: false, textsCount: tokens.length, items: [] });
+          return;
+        }
+        const items = [];
+        const rows = [];
+        tokens.sort((a, b) => a.y - b.y || a.x - b.x);
+        for (const t of tokens) {
+          const row = rows.find(r => Math.abs(r.y - t.y) < 0.7);
+          if (row) row.cells.push(t.text);
+          else rows.push({ y: t.y, cells: [t.text] });
+        }
+        for (const row of rows) {
+          const line = row.cells.join(' ').trim();
+          const dm = line.match(/^(\d{1,2}(?:日|[\/月]\d{1,2}日?))/);
+          if (dm && line.length > dm[1].length + 2) {
+            items.push({ dateLabel: dm[1], menuText: line.slice(dm[1].length).trim() });
+          }
+        }
+        resolve({ isTextExtracted: items.length > 0, textsCount: tokens.length, items });
+      } catch {
+        resolve({ isTextExtracted: false, textsCount: 0, items: [] });
+      }
+    });
+    parser.parseBuffer(pdfBuffer);
+  });
+}
+
 export async function parseCafeteriaPdf(pdfBuffer) {
   return new Promise((resolve) => {
     const parser = new PDFParser();
@@ -159,6 +264,7 @@ export async function runFetchCafeteria() {
 
     let isTextExtracted = false;
     let weeklyMenus = baseline.weeklyMenus;
+    let dormitoryMenus = [];
 
     if (sourcePdfUrl) {
       try {
@@ -169,6 +275,11 @@ export async function runFetchCafeteria() {
           isTextExtracted = parsed.isTextExtracted;
           if (isTextExtracted) {
             console.log(` -> PDFテキスト抽出成功 (${parsed.textsCount} items)`);
+            const extractedMenus = parseWeeklyMenuTable(parsed.pages, baseline.meta.fiscalYear || 2026);
+            if (extractedMenus.length > 0) {
+              weeklyMenus = extractedMenus;
+              console.log(` -> 表解析成功: ${extractedMenus.length}週分のメニューを抽出`);
+            }
           } else {
             console.log(` -> PDFは画像スキャンのためテキスト抽出不可 (テキスト数: ${parsed.textsCount})`);
             weeklyMenus = [];
@@ -176,6 +287,22 @@ export async function runFetchCafeteria() {
         }
       } catch (e) {
         console.warn(`[WARN] メニューPDF解析失敗: ${e.message}`);
+      }
+    }
+
+    if (dormitoryPdfUrl) {
+      try {
+        const dormRes = await fetch(dormitoryPdfUrl);
+        if (dormRes.ok) {
+          const dormBuf = Buffer.from(await dormRes.arrayBuffer());
+          const dormParsed = await parseDormitoryPdf(dormBuf);
+          if (dormParsed.items.length > 0) {
+            dormitoryMenus = dormParsed.items;
+            console.log(` -> 寮生食堂PDF解析成功 (${dormitoryMenus.length}件)`);
+          }
+        }
+      } catch (e) {
+        console.warn(`[WARN] 寮生食堂PDF解析失敗: ${e.message}`);
       }
     }
 
@@ -192,7 +319,8 @@ export async function runFetchCafeteria() {
         fiscalYear: baseline.meta.fiscalYear || 2026,
         updatedAt: new Date().toISOString()
       },
-      weeklyMenus
+      weeklyMenus,
+      ...(dormitoryMenus.length > 0 ? { dormitoryMenus } : {})
     };
   } catch (err) {
     console.warn(`[WARN] 食堂情報取得失敗: ${err.message}`);
