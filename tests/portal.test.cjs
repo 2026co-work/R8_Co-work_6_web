@@ -16,17 +16,17 @@ function app({cookie='',mobile=false,blocked=false,pathname='/campus/',protocol=
       classList:{toggle(name,on){if(on)classes.add(name);else classes.delete(name);},contains:name=>classes.has(name)},
       setAttribute(name,value){this.attrs[name]=value;},removeAttribute(name){delete this.attrs[name];},
       addEventListener(name,fn){this.listeners[name]=fn;},focus(){document.activeElement=this;},
-      contains(el){return this===el || (id==='sidebar' && ['menu-close','brand','home','timetable'].includes(el?.id));},
-      querySelectorAll(){return [element('brand'),element('home'),element('timetable')];}
+      contains(el){return this===el || (id==='sidebar' && ['menu-close','brand','home','timetable','exam','calendar','cafeteria','links'].includes(el?.id));},
+      querySelectorAll(){return [element('brand'),element('home'),element('timetable'),element('exam'),element('calendar'),element('cafeteria'),element('links')];}
     };
   }
   const media={matches:mobile,addEventListener(name,fn){this.change=fn;}};
-  element('home').dataset.page='home';element('timetable').dataset.page='timetable';
+  for(const p of ['home','timetable','exam','calendar','cafeteria','links']){element(p).dataset.page=p;}
   const grade=element('student-grade');grade.dataset.student='grade';grade.value='1';
   document={body:element('body'),activeElement:null,listeners:{},
     getElementById:element,
     querySelector:selector=>element(selector),
-    querySelectorAll:selector=>selector==='[data-page]'?[element('home'),element('timetable')]:selector==='[data-student]'?[grade]:[],
+    querySelectorAll:selector=>selector==='[data-page]'?['home','timetable','exam','calendar','cafeteria','links'].map(element):selector==='[data-student]'?[grade]:[],
     addEventListener(name,fn){this.listeners[name]=fn;}
   };
   Object.defineProperty(document,'cookie',{get:()=>jar,set:value=>{lastCookie=value;if(!blocked)jar=value.split(';')[0];}});
@@ -80,16 +80,16 @@ test('blocked cookies leave the current selection usable and display a save fail
   assert.match(instance.elements['.selection-status'].textContent,/保存できません/);
 });
 
-test('only home and timetable remain and removed routes fall back to the development home',()=>{
+test('6 tabs are present and removed routes fall back to the home dashboard',()=>{
   const instance=app();
-  assert.match(instance.run('home()'),/現在開発中/);
+  assert.match(instance.run('home()'),/今日の概要ダッシュボード|today-schedule/);
   const html=read('index.html');
-  assert.deepEqual([...html.matchAll(/data-page="([^"]+)"/g)].map(m=>m[1]),['home','timetable']);
+  assert.deepEqual([...html.matchAll(/data-page="([^"]+)"/g)].map(m=>m[1]),['home','timetable','exam','calendar','cafeteria','links']);
   for(const route of ['rooms','register','changes']) {
     instance.run(`location.hash='#${route}';render()`);
-    assert.match(instance.elements.main.innerHTML,/現在開発中/);
+    assert.match(instance.elements.main.innerHTML,/今日の概要ダッシュボード|today-schedule/);
   }
-  assert.doesNotMatch(read('app.js'),/localStorage|reservation-form|function roomPage/);
+  assert.doesNotMatch(read('app.js'),/reservation-form|function roomPage/);
 });
 
 test('mobile drawer opens, traps focus, closes via Escape/backdrop/navigation and resets on desktop',()=>{
@@ -101,7 +101,7 @@ test('mobile drawer opens, traps focus, closes via Escape/backdrop/navigation an
   assert.equal(elements['menu-overlay'].hidden,false);
   assert.equal(document.activeElement.id,'menu-close');
   document.listeners.keydown({key:'Tab',shiftKey:true,preventDefault(){}});
-  assert.equal(document.activeElement.id,'timetable');
+  assert.equal(document.activeElement.id,'links');
   document.listeners.keydown({key:'Escape',preventDefault(){}});
   assert.equal(elements.sidebar.inert,true);
   assert.equal(elements['.workspace'].inert,false);
