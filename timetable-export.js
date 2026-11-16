@@ -122,11 +122,38 @@ function formatDateIcs(dateStr, addDays = 0) {
 
 function resolveIcsUntil(options = {}) {
   const raw = options?.semesterInfo?.until || options?.semesterInfo?.endDate || options?.until;
-  if (!raw) return '20270228T145959Z';
-  const str = String(raw).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return `${str.replace(/-/g, '')}T145959Z`;
-  if (/^\d{8}$/.test(str)) return `${str}T145959Z`;
-  return str;
+  if (raw) {
+    const str = String(raw).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return `${str.replace(/-/g, '')}T145959Z`;
+    if (/^\d{8}$/.test(str)) return `${str}T145959Z`;
+    return str;
+  }
+  const fy = Number(options?.fiscalYear) || 2026;
+  if (options?.term === '前期') return `${fy}0831T145959Z`;
+  if (options?.fiscalYear && fy !== 2026) return `${fy + 1}0228T145959Z`;
+  return '20270228T145959Z';
+}
+
+function resolveIcsBaseDates(options = {}) {
+  const defaultDates = { 1: '20261005', 2: '20261006', 3: '20261007', 4: '20261008', 5: '20261009' };
+  const fy = Number(options?.fiscalYear) || 2026;
+  const term = options?.term || '後期';
+  const startRaw = options?.semesterInfo?.startDate;
+  if (!startRaw && term !== '前期' && fy === 2026) return defaultDates;
+  const seedStr = startRaw || (term === '前期' ? `${fy}-04-06` : `${fy}-10-05`);
+  const seedDate = new Date(`${seedStr}T00:00:00Z`);
+  if (Number.isNaN(seedDate.getTime())) return defaultDates;
+  const dow = seedDate.getUTCDay();
+  const mondayOffset = dow === 0 ? 1 : (dow === 6 ? 2 : -(dow - 1));
+  const out = {};
+  for (let d = 1; d <= 5; d++) {
+    const dt = new Date(seedDate.getTime() + (mondayOffset + d - 1) * 86400000);
+    const yyyy = dt.getUTCFullYear();
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getUTCDate()).padStart(2, '0');
+    out[d] = `${yyyy}${mm}${dd}`;
+  }
+  return out;
 }
 
 function formatFiscalYearText(fy) {
@@ -141,19 +168,16 @@ function formatFiscalYearText(fy) {
  * iCalendar (.ics) 生成
  */
 export function generateIcs(selectedLessons, studentLabel, options = {}) {
-  const baseDates = {
-    1: '20261005', // 月
-    2: '20261006', // 火
-    3: '20261007', // 水
-    4: '20261008', // 木
-    5: '20261009'  // 金
-  };
+  const baseDates = resolveIcsBaseDates(options);
 
   const escapeIcs = escapeIcsText;
   const untilStr = resolveIcsUntil(options);
   const holidayDates = (Array.isArray(options?.holidays) ? options.holidays : [])
     .map(h => formatDateIcs(h, 0))
     .filter(Boolean);
+  const calTitle = (options?.fiscalYear || options?.term)
+    ? `明石高専 ${formatFiscalYearText(options?.fiscalYear || 2026)}${options?.term || '後期'} 時間割 (${escapeIcs(studentLabel)})`
+    : `明石高専 時間割 (${escapeIcs(studentLabel)})`;
   const events = [];
 
   for (const lesson of selectedLessons) {
@@ -196,7 +220,7 @@ export function generateIcs(selectedLessons, studentLabel, options = {}) {
     'PRODID:-//Akashi KOSEN//Campus Portal Timetable//JA',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:明石高専 時間割 (${escapeIcs(studentLabel)})`,
+    `X-WR-CALNAME:${calTitle}`,
     'X-WR-TIMEZONE:Asia/Tokyo',
     ...events,
     'END:VCALENDAR'
@@ -614,7 +638,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 1. iCalendar (.ics)
   if (format === 'ics') {
-    const icsString = generateIcs(selectedLessons, studentLabel, { semesterInfo, holidays });
+    const icsString = generateIcs(selectedLessons, studentLabel, { semesterInfo, holidays, fiscalYear, term });
     if (action === 'copy') {
       const ok = await copyTextToClipboard(icsString);
       if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
