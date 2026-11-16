@@ -1,30 +1,38 @@
 # 開発引き継ぎドキュメント (HANDOVER.md)
 
-最終更新: 2026-11-15 11:58 JST  
+最終更新: 2026-11-17 00:54 JST  
 対象リポジトリ: `C:\Users\ko\.gemini\antigravity\scratch\R8_Co-work_6_web` (branch: `main`)
 
-全マイルストーン（M1〜M5, E2E, M_FINAL）の実装・ビルド・厳格E2Eテスト検証が完了した状態の引き継ぎ・完了記録ドキュメントです。
+全マイルストーン（M1〜M5, E2E, M_FINAL）および [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) で特定された全57件のバグ・UI/UX課題・未連携データ項目の改修・検証が完了した最新記録ドキュメントです。
 
 ---
 
-## 1. 関連設計・仕様ドキュメント一覧（リポジトリ内）
+## 1. 関連設計・仕様・監査ドキュメント一覧（リポジトリ内）
 
 - [`PROJECT.md`](./PROJECT.md): 全体アーキテクチャ、全24機能インベントリ（F1〜F24）、マイルストーン定義（M1〜M5, E2E, M_FINAL: すべて DONE）、データ・Cookie・LocalStorage・シラバスURL・iCal出力のインターフェース契約
+- [`AUDIT_REPORT.md`](./AUDIT_REPORT.md): 動作バグ14件（B1〜B14）・UI/UX課題31件（U1〜U31）・未実装/フォールバック乖離12件（D1〜D12）の監査報告書
 - [`TEST_INFRA.md`](./TEST_INFRA.md): E2Eテスト設計書（Tier 1〜4 のカバレッジマトリクス、12の実運用シナリオ定義）
 - [`TEST_READY.md`](./TEST_READY.md): テスト実行コマンド一覧（通常モード・`STRICT_E2E=1` 厳格モード）
 
 ---
 
-## 2. マイルストーン完了状況サマリー
+## 2. ブランチ分割・改修完了サマリー
 
-| マイルストーン | 対象機能 | 状態 | 詳細 |
-|---|---|---|---|
-| **M1: データ自動取得・公開基盤** | F1〜F5 | **完了 (DONE)** | `scripts/fetch-*.mjs`, `scripts/build-data.mjs`, `scripts/convert-to-lessons.mjs` (専攻科 専1・専2 ME/AC PDF抽出対応), `scripts/fallbacks/`, `dist-data/*.json`, `.github/workflows/data-update.yml`, `vite.config.mjs` 実装・検証済み |
-| **M2: 6タブナビ・ホーム刷新** | F6〜F8 | **完了 (DONE)** | `index.html`, `portal.html`, `app.js`, `styles.css`, `tests/portal.test.cjs` にて6タブ構成（`#home`, `#timetable`, `#exam`, `#calendar`, `#cafeteria`, `#links`）、ホーム「今日の概要ダッシュボード」、非対象機能の排除を実装・検証済み |
-| **M3: 時間割の動的連携・専攻科UI** | F9〜F12 | **完了 (DONE)** | `app.js` に専攻科選択（6:専1, 7:専2, ME/AC）、`dist-data/timetable-lessons.json` の動的メタデータ/専攻科マージ（本科 `LESSONS` の国際学生・芸術科目を保持しつつ専1/専2を動的反映）、`renderTimetableBanners()`、および `timetable-export.js` の動的ヘッダ・フッター連動を実装済み（`timetable-standalone.html` 無変更維持） |
-| **M4: 定期試験・年間予定・iCal拡張** | F13〜F17 | **完了 (DONE)** | `app.js` に `exam()`/`examView()`（クラス別スケジュールカード・監督者・シラバス連携・10日前正午未公開フォールバック・自習ルール・`syotyui.pdf`案内）、`calendar()`/`calendarView()`（行事予定タイムライン・第1〜15週・授業振替・`#export-calendar-ics`）を実装。`timetable-export.js` に `generateCalendarIcs()`, `exportCalendarIcs()`, `generateIcs()` の `UNTIL`/`EXDATE` 拡張、および `#export-format` の `.ics` 選択肢とプレビューを追加 |
-| **M5: 食堂メニュー・シラバス・マイリンク** | F18〜F22 | **完了 (DONE)** | `app.js` に `cafeteria()`/`cafeteriaView()`（抽出済みメニュー表示・未抽出時フォールバック・`sourcePdfUrl: null` 時ボタン無効化・寮生食堂/ニュースリンク）、`OFFICIAL_SERVICES` 8サイト HTTPS＋`noopener noreferrer` リンク、`getSyllabusUrl()`、`linksView()` のマイリンク一覧描画・追加/削除/ワンタップ追加UI、`addMyLink()` の `https?://` スキーム制限・保存失敗伝播を実装 |
-| **E2E / M_FINAL: 総合テスト・統合完了** | F23〜F24 | **完了 (DONE)** | `tests/e2e-harness.cjs` 同期 fetch 対応および `STRICT_E2E=1` 全280件 + 全テスト316件パス（失敗0・スキップ0） |
+1. **`main` ベースラインコミット**
+   - `feat(pipeline)`: M1 データ自動取得パイプライン・フォールバック・`.gitignore` 整備
+   - `feat(portal)`: M2〜M5 ポータル本体（`index.html`, `portal.html`, `app.js`, `styles.css`, `timetable-export.js`）
+   - `test(e2e)`: E2Eテストスイートおよび設計・監査ドキュメント一式
+2. **`fix/critical-runtime-bugs`（重大バグ修正 → `main` マージ済み）**
+   - スクリプト解析・データ生成修正（B4, B5, B13, D9, D10）: `package.json` `"type": "module"` 明記、`scripts/convert-to-lessons.mjs` の単一行・先頭ブラケットパース修正および `roomLegends` 保持、`dist-data/timetable-lessons.json` 再生成（科目名欠損 0件、教室凡例 42件）
+   - フロントエンドランタイム修正（B1, B2, B3, B6, B7, B10, D2）: `deleteMyLink()` 呼び出し修正、試験タブの `department`/`days` 参照修正、学食 `weeklyMenus` カード描画、学事週数の月曜起算化、`window` リスナー重複防止
+   - エクスポート・テーマ初期化修正（B9, B12, U26）: iCal 動的年度/学期転送、`portal.html` ダークモード FOUC 防止スクリプトおよび `localStorage` 同期
+3. **`feat/ui-ux-and-styling`（CSS＆UI/UX・アクセシビリティ改善 → `main` マージ済み）**
+   - `styles.css` 拡充（B8, U6, U9, U12, U15, U20, U23, U28, U30）: 新規4タブの完全CSS定義、時間割時限列 `sticky` 固定、サイズ調整モーダルの標準 `transform: scale` 対応、モバイルフローティングボタンの自動退避、WCAG 2.1 AA コントラスト改善（`--muted` 調整）
+   - UX・A11y 強化（U1〜U5, U7, U8, U10, U11, U13, U14, U16, U17, U19, U22, U24, U25, U27, U29, U31）: ホーム日付前後ナビ・祝日/連続コマ重複修正・公開/休業連動、時間割条件ヒント/確定ラベル/調整内保存/コピー完了通知、試験検索バー、年間予定の期間・カテゴリ絞り込み＆本日/過去区別、学食週切り替えタブ、マイリンク `↑`/`↓` 並び替えボタン＆日英エラー表示＆サービス分類、テーマボタン `aria-label` 反転＆モーダルフォーカス復元＆オフライン表示バッジ
+4. **`feat/data-pipeline-and-links`（未連携データ接続・スクレイパー・E2E強化 → `main` マージ済み）**
+   - 未連携データのUI接続（D5, D7, D8, D9, D11, D12）: 答案返却PDF・前期/後期行事PDF・`timetable-links.json` 公式PDFアーカイブ・時間割原本PDF直リンク・`roomLegends` ツールチップ/一覧・神姫バスリンクの統合
+   - スクレイパー強化（B11, D1, D3, D4, D6）: `fetch-cafeteria.mjs`（週別メニュー表・寮生食堂PDF解析）、`fetch-exam.mjs`（試験PDF解析 `parseExamPdf`）、`fetch-calendar.mjs`（HTML行事抽出 `extractCalendarEventsFromHtml`）を実装（取得不能時は安全にベースラインへフォールバック）
+   - E2E アサーション強化（B14）: `tests/e2e-harness.cjs` の `.click()` / ボタン問い合わせ対応と `F10-T1-04`, `F13-T1-03`, `F13-T1-04`, `F18-T1-05`, `F22-T1-04` の実質検証強化
 
 ---
 

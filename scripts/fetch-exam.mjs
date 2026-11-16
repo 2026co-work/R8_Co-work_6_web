@@ -9,6 +9,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import PDFParser from 'pdf2json';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,6 +87,76 @@ export async function loadBaselineExam() {
   }
 }
 
+export async function parseExamPdf(pdfBuffer, fiscalYear = 2026) {
+  return new Promise((resolve) => {
+    const parser = new PDFParser();
+    parser.on('pdfParser_dataError', () => resolve({ days: [], schedule: [], textsCount: 0 }));
+    parser.on('pdfParser_dataReady', (pdfData) => {
+      try {
+        const pages = pdfData.Pages || [];
+        const tokens = pages.flatMap((p, pageIdx) =>
+          (p.Texts || []).map(t => {
+            try {
+              return { page: pageIdx, x: t.x, y: t.y, text: decodeURIComponent(t.R?.[0]?.T || '').trim() };
+            } catch {
+              return { page: pageIdx, x: t.x, y: t.y, text: (t.R?.[0]?.T || '').trim() };
+            }
+          })
+        ).filter(i => i.text.length > 0);
+
+        const schedule = [];
+        const rows = [];
+        tokens.sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
+        for (const t of tokens) {
+          const row = rows.find(r => r.page === t.page && Math.abs(r.y - t.y) < 0.7);
+          if (row) row.cells.push(t);
+          else rows.push({ page: t.page, y: t.y, cells: [t] });
+        }
+
+        let currentDate = '';
+        for (const row of rows) {
+          const line = row.cells.map(c => c.text).join(' ');
+          const dateM = line.match(/(\d{1,2})月(\d{1,2})日/);
+          if (dateM) {
+            const m = Number(dateM[1]);
+            const d = Number(dateM[2]);
+            const y = m <= 3 ? fiscalYear + 1 : fiscalYear;
+            currentDate = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          }
+          const classM = line.match(/([1-5])[-年]?\s*([MECA]|ED|EJ)|専([12])\s*(ME|AC)/);
+          const periodM = line.match(/([2-4])\s*[-限]?\s*(F|S|前半|後半)?/);
+          if (classM && periodM) {
+            const grade = classM[3] ? Number(classM[3]) + 5 : Number(classM[1]);
+            const dept = classM[4] || (classM[2] === 'ED' || classM[2] === 'EJ' ? 'E' : classM[2]);
+            const course = (classM[2] === 'ED' || classM[2] === 'EJ') ? classM[2] : undefined;
+            const pSuffix = periodM[2] === '前半' ? 'F' : (periodM[2] === '後半' ? 'S' : (periodM[2] || 'F'));
+            const period = `${periodM[1]}-${pSuffix}`;
+            const remainder = line
+              .replace(classM[0], '')
+              .replace(periodM[0], '')
+              .replace(/\s+/g, ' ')
+              .trim();
+            if (remainder) {
+              schedule.push({
+                ...(currentDate ? { date: currentDate } : {}),
+                grade,
+                department: dept,
+                ...(course ? { course } : {}),
+                period,
+                subject: remainder
+              });
+            }
+          }
+        }
+        resolve({ days: schedule, schedule, textsCount: tokens.length });
+      } catch {
+        resolve({ days: [], schedule: [], textsCount: 0 });
+      }
+    });
+    parser.parseBuffer(pdfBuffer);
+  });
+}
+
 export async function runFetchExam() {
   console.log('=== 明石高専 定期試験取得スクリプト ===');
   console.log(`URL: ${EXAM_PAGE_URL}`);
@@ -121,11 +192,26 @@ export async function runFetchExam() {
     let status = 'scheduled';
     let sourcePdfUrl = '';
     let days = [];
+    let schedule = [];
 
     if (isCurrentTermPublished) {
       // Current term exam PDF is released
       status = 'published';
       sourcePdfUrl = timetablePdf.url;
+      try {
+        const pdfRes = await fetch(sourcePdfUrl);
+        if (pdfRes.ok) {
+          const pdfBuf = Buffer.from(await pdfRes.arrayBuffer());
+          const parsedExam = await parseExamPdf(pdfBuf, baseline.meta.fiscalYear || 2026);
+          if (parsedExam.days.length > 0) {
+            days = parsedExam.days;
+            schedule = parsedExam.schedule;
+            console.log(` -> 試験PDF解析成功 (${days.length} entries)`);
+          }
+        }
+      } catch (e) {
+        console.warn(`[WARN] 試験PDF解析失敗: ${e.message}`);
+      }
     } else if (timetablePdf) {
       // Only previous term PDF is available -> status is scheduled with link
       status = 'scheduled';
@@ -150,7 +236,8 @@ export async function runFetchExam() {
         updatedAt: new Date().toISOString()
       },
       periods: STANDARD_EXAM_PERIODS,
-      days
+      days,
+      ...(schedule.length > 0 ? { schedule } : {})
     };
   } catch (err) {
     console.warn(`[WARN] 試験情報取得失敗: ${err.message}`);

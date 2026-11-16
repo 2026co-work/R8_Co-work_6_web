@@ -71,6 +71,35 @@ export function extractCalendarPdfLinks(html, baseUrl) {
   return links;
 }
 
+export function extractCalendarEventsFromHtml(html, baselineEvents = []) {
+  const merged = Array.isArray(baselineEvents) ? [...baselineEvents] : [];
+  if (!html || typeof html !== 'string') return merged;
+  const seen = new Set(merged.map(e => `${e.date}|${e.title || e.name || ''}`));
+  const rowRegex = /<(?:tr|li|p)\b[^>]*>([\s\S]*?)<\/(?:tr|li|p)>/gi;
+  let match;
+  while ((match = rowRegex.exec(html)) !== null) {
+    const plain = match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const dm = plain.match(/(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/);
+    if (!dm) continue;
+    const dateStr = `${dm[1]}-${String(Number(dm[2])).padStart(2, '0')}-${String(Number(dm[3])).padStart(2, '0')}`;
+    const title = plain.slice(dm.index + dm[0].length).replace(/^[日\s：:\-–]+/, '').trim();
+    if (!title || title.length > 60) continue;
+    const key = `${dateStr}|${title}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      const isHoliday = /祝日|休業|休校|の日$/.test(title);
+      const isExam = /試験/.test(title);
+      merged.push({
+        date: dateStr,
+        title,
+        hasClasses: !isHoliday && !isExam,
+        type: isExam ? 'exam' : (isHoliday ? 'holiday' : 'event')
+      });
+    }
+  }
+  return merged.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+}
+
 export async function loadBaselineCalendar() {
   try {
     const raw = await fs.readFile(FALLBACK_PATH, 'utf-8');
@@ -101,6 +130,7 @@ export async function runFetchCalendar() {
 
     const pdfLinks = extractCalendarPdfLinks(html, CALENDAR_URL);
     console.log(' -> 検出されたPDFリンク:', pdfLinks);
+    const events = extractCalendarEventsFromHtml(html, baseline.events);
 
     result = {
       meta: {
@@ -113,7 +143,7 @@ export async function runFetchCalendar() {
       },
       terms: baseline.terms,
       daySubstitutions: baseline.daySubstitutions,
-      events: baseline.events
+      events
     };
   } catch (err) {
     console.warn(`[WARN] カレンダー取得失敗: ${err.message}`);
