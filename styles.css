@@ -336,3 +336,54 @@ body.size-modal-open{overflow:hidden}
   .workspace{margin:0!important}
   main{max-width:none!important;padding:0!important;margin:0!important}
 }
+
+/* ホーム「今日の概要ダッシュボード」レイアウト */
+.dashboard-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start;margin-bottom:24px}
+.dashboard-col-main,.dashboard-col-side{display:flex;flex-direction:column;gap:20px}
+@media(max-width:960px){.dashboard-grid{grid-template-columns:1fr;gap:20px}}
+.day-sub-alert{margin-bottom:18px}
+.panel-head-meta{display:flex;align-items:center;gap:8px}
+.today-periods-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.dashboard-period{display:flex;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#faf9f9;transition:background .2s}
+[data-theme="dark"] .dashboard-period{background:#1c2130;border-color:#2b3142}
+.dashboard-period.active{border-left:4px solid var(--wine)}
+[data-theme="dark"] .dashboard-period.active{border-left-color:#f4a8b8}
+.dashboard-period.empty{opacity:.65;border-left:4px solid #ccd0db}
+.period-meta{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:58px;text-align:center}
+.period-num{font-weight:700;font-size:13px;color:var(--wine)}
+[data-theme="dark"] .period-num{color:#f4a8b8}
+.period-time{font-size:10px;color:var(--muted)}
+.lesson-info{flex:1;min-width:0}
+.subject-title{display:block;font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.4}
+.lesson-sub{display:flex;gap:10px;font-size:11px;color:var(--muted);margin-top:4px;flex-wrap:wrap}
+.lesson-location{display:inline-flex;align-items:center;gap:4px;color:var(--wine);font-weight:600}
+[data-theme="dark"] .lesson-location{color:#f4a8b8}
+.lesson-location svg{width:13px;height:13px}
+.lesson-notes{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+.lesson-empty{font-size:12px;color:var(--muted)}
+.dashboard-rest-card,.dashboard-empty-card{text-align:center;padding:36px 16px;color:var(--muted)}
+.dashboard-rest-card p,.dashboard-empty-card p{margin-bottom:16px;font-size:13px}
+.panel-footer{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);text-align:right}
+.exam-alert-body{padding:4px 0}
+.exam-notice{font-size:13px;color:var(--wine);line-height:1.6;margin-bottom:8px}
+[data-theme="dark"] .exam-notice{color:#f4a8b8}
+.exam-rules{font-size:11px;color:var(--muted);line-height:1.6}
+.cafeteria-today-dishes{display:flex;flex-direction:column;gap:8px}
+.dish-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#faf9f9;border-radius:8px;border:1px solid var(--line)}
+[data-theme="dark"] .dish-item{background:#1c2130;border-color:#2b3142}
+.dish-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:#fbf1f3;color:var(--wine)}
+[data-theme="dark"] .dish-badge{background:#341f27;color:#f4a8b8}
+.dish-name{font-size:13px;font-weight:700;flex:1}
+.dish-price{font-size:12px;font-weight:700;color:var(--wine)}
+[data-theme="dark"] .dish-price{color:#f4a8b8}
+.allergens-note{font-size:10px;color:var(--muted);margin-top:6px}
+.cafeteria-fallback-info{color:var(--muted);font-size:12px;line-height:1.7;padding:8px 0}
+.cafeteria-times{margin-top:6px}
+.quick-links-grid{display:flex;flex-direction:column;gap:8px}
+.syllabus-launch-btn{font-weight:700}
+.quick-link-btn{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:white;font-size:12px;font-weight:600;color:var(--ink);transition:background .15s,border-color .15s}
+[data-theme="dark"] .quick-link-btn{background:#1c2130;border-color:#2b3142;color:#e8eaf0}
+.quick-link-btn:hover{background:#fbf1f3;border-color:var(--wine)}
+[data-theme="dark"] .quick-link-btn:hover{background:#281d24;border-color:#f4a8b8}
+.quick-link-btn svg{width:15px;height:15px;color:var(--wine)}
+[data-theme="dark"] .quick-link-btn svg{color:#f4a8b8}

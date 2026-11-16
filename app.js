@@ -18,7 +18,11 @@ const icons = {
   plus:'M12 5v14M5 12h14',
   moon:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z',
   sun:'M12 3v2m0 14v2M3 12h2m14 0h2m-3.5-6.5-1.4 1.4M6.9 17.1l-1.4 1.4m13-1.4-1.4-1.4M6.9 6.9 5.5 5.5M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z',
+  utensils:'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Zm4-6v3m4-3v3m4-3v3',
+  link:'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+  external:'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3',
 };
+const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar:'年間予定',cafeteria:'食堂メニュー',links:'リンク'};
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[name] || icons.info}"/></svg>`;
 document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));
 const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -52,6 +56,7 @@ let exportIncludeEmpty = false;
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { copyLabel: null, downloadLabel: '💾 PDFダウンロード', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '📋 画像をコピー', downloadLabel: '💾 PNG保存', adjustLabel: 'レイアウト調整' },
+  ics: { copyLabel: '📋 iCalをコピー', downloadLabel: '💾 iCal保存 (.ics)', adjustLabel: '形式プレビュー' },
   text: { copyLabel: '📋 テキストをコピー', downloadLabel: '💾 テキスト保存', adjustLabel: 'プレビュー＆調整' },
   csv: { copyLabel: '📋 CSVをコピー', downloadLabel: '💾 CSVダウンロード', adjustLabel: '形式プレビュー' },
   json: { copyLabel: '📋 JSONをコピー', downloadLabel: '💾 JSONダウンロード', adjustLabel: 'データプレビュー' },
@@ -92,11 +97,6 @@ function heading(title,subtitle='',action='') {
   return `<div class="page-heading"><div><h1>${title}</h1>${subtitle ? `<p>${subtitle}</p>` : ''}</div>${action}</div>`;
 }
 const link = (href,label) => `<a class="text-link" href="${href}">${label}${icon('arrow')}</a>`;
-function home() {
-  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="moon"></span></button><span class="demo-pill"><i></i>ベータ版</span><div class="date-block"><strong>${longDate(today)}</strong><small>キャンパスポータル</small></div></div>`;
-  return `${heading('ホーム','学校生活を、もっとスムーズに。',actions)}
-    <section class="panel development-card"><span class="icon-box rose">${icon('school')}</span><h2>現在開発中</h2><p>ホームページの機能は、ただいま準備中です。<br>時間割は、メニューからご利用いただけます。</p><a class="button" href="#timetable">${icon('calendar')}時間割を見る</a></section>`;
-}
 function studentLabel() {
   const s = studentSelection;
   if (s.grade >= 6) {
@@ -111,10 +111,904 @@ function studentShortLabel() {
   if (s.grade >= 4 && s.department === 'E') return `${s.grade}${s.course || 'E'}`;
   return `${s.grade}${s.department}`;
 }
+let activeLessons = LESSONS;
+let timetableMeta = {
+  title: SOURCE?.title || '令和8年度後期授業時間割表',
+  term: '後期',
+  fiscalYear: 2026,
+  updatedAt: SOURCE?.updated || '2026-09-24'
+};
+
 function selectedSchedule() {
-  try { return { ...generateTimetable(LESSONS, studentSelection), error: '' }; }
+  try { return { ...generateTimetable(activeLessons, studentSelection), error: '' }; }
   catch (error) { return { selected: [], grid: Array.from({ length: 5 }, () => Array.from({ length: 4 }, () => [])), error: error.message }; }
 }
+
+function normalizeAkashiUrl(url, fallback = 'https://www.akashi.ac.jp/') {
+  const raw = String(url || '').trim();
+  if (!raw) return fallback;
+  if (/^https:\/\//i.test(raw)) return raw;
+  if (/^http:\/\//i.test(raw)) return raw.replace(/^http:\/\//i, 'https://');
+  try {
+    return new URL(raw, 'https://www.akashi.ac.jp/').href;
+  } catch {
+    return fallback;
+  }
+}
+
+function formatFiscalYear(fy) {
+  if (!fy) return '令和8年度';
+  if (typeof fy === 'string' && fy.includes('年度')) return fy;
+  const num = Number(fy);
+  if (Number.isFinite(num) && num >= 2019) return `令和${num - 2018}年度`;
+  return `${fy}年度`;
+}
+
+const FALLBACK_CALENDAR = {
+  meta: { title: '令和8年度 年間行事予定表', fiscalYear: 2026 },
+  terms: {
+    zenki: { startDate: '2026-04-06', endDate: '2026-07-31', totalWeeks: 15 },
+    kouki: { startDate: '2026-10-01', endDate: '2027-02-12', totalWeeks: 15 }
+  },
+  daySubstitutions: [
+    { date: '2026-04-08', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 1, reason: '月曜日授業振替', note: '水曜日に月曜授業を実施' },
+    { date: '2026-10-14', originalDay: 2, effectiveDay: 1, substituteDay: '月', weekNumber: 3, reason: '月曜日授業振替', note: '火曜日に月曜授業を実施' },
+    { date: '2026-11-04', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 5, reason: '月曜日授業振替', note: '水曜日に月曜授業を実施' },
+    { date: '2026-11-25', originalDay: 3, effectiveDay: 5, substituteDay: '金', weekNumber: 8, reason: '金曜日授業振替', note: '水曜日に金曜授業を実施' },
+    { date: '2027-01-12', originalDay: 2, effectiveDay: 1, substituteDay: '月', weekNumber: 13, reason: '月曜日授業振替', note: '火曜日に月曜授業を実施' }
+  ],
+  events: [
+    { date: '2026-04-03', title: '入学式', hasClasses: false, type: 'ceremony' },
+    { date: '2026-04-07', title: '前期授業開始・全校集会', hasClasses: true, type: 'academic' },
+    { date: '2026-04-23', title: '開校記念日', hasClasses: true, type: 'ceremony' },
+    { date: '2026-07-30', endDate: '2026-08-05', title: '前期期末試験', hasClasses: false, type: 'exam' },
+    { date: '2026-08-08', endDate: '2026-09-23', title: '夏季休業', hasClasses: false, type: 'vacation' },
+    { date: '2026-10-01', title: '後期始業・第1週', hasClasses: true, type: 'ceremony' },
+    { date: '2026-10-12', title: 'スポーツの日', hasClasses: false, type: 'holiday' },
+    { date: '2026-10-14', title: '月曜日授業振替（火曜）', hasClasses: true, type: 'special' },
+    { date: '2026-10-31', endDate: '2026-11-01', title: '高専祭', hasClasses: false, type: 'school_event' },
+    { date: '2026-11-20', endDate: '2026-11-26', title: '後期中間試験', hasClasses: false, type: 'exam' },
+    { date: '2026-12-26', endDate: '2027-01-05', title: '冬季休業', hasClasses: false, type: 'vacation' },
+    { date: '2027-02-02', endDate: '2027-02-08', title: '後期期末試験（学年末試験）', hasClasses: false, type: 'exam' },
+    { date: '2027-03-01', endDate: '2027-03-31', title: '春季休業', hasClasses: false, type: 'vacation' }
+  ]
+};
+
+const FALLBACK_EXAM = {
+  meta: {
+    title: '令和8年度後期定期試験時間割',
+    term: '後期',
+    status: 'unreleased',
+    noticeText: '定期試験時間割は、試験開始10日前の正午にこちらで発表します。',
+    selfStudyRule: '試験は2限から開始しますが、9時に登校し自習することを原則とします。JRの遅延などが生じた場合、9時に登校していることを前提として対応します。',
+    sourcePdfUrl: 'https://www.akashi.ac.jp/life/examtimetable.html',
+    notesPdfUrl: 'https://www.akashi.ac.jp/o7en060000000car-att/syotyuiR70522.pdf',
+    previousExamPdfUrl: 'https://www.akashi.ac.jp/o7en060000000car-att/R8zenkishiken0728.pdf'
+  },
+  periods: [],
+  schedule: []
+};
+
+const FALLBACK_CAFETERIA = {
+  meta: {
+    title: '学生食堂メニュー（１１/４～１１/３０）',
+    articleDate: '2026-10-26',
+    articleUrl: 'https://www.akashi.ac.jp/news/2026/20261026gak001.html',
+    sourcePdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/2026.11.pdf',
+    dormitoryArticleUrl: 'https://www.akashi.ac.jp/news/2026/20261020ryo001.html',
+    dormitoryPdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/menyu.pdf',
+    isTextExtracted: true,
+    month: 11,
+    fiscalYear: 2026
+  },
+  weeklyMenus: [
+    {
+      weekRange: '11/04 - 11/08',
+      days: [
+        {
+          date: '2026-11-04',
+          dayOfWeek: '水',
+          isOpen: true,
+          lunchA: { name: '豚肉の生姜焼き', price: 450, allergens: '小麦 大豆' },
+          lunchB: { name: '白身魚のフライ', price: 450, allergens: '小麦 卵' },
+          noodle: { name: 'きつねうどん', price: 320 },
+          bowl: { name: '親子丼', price: 420 },
+          allergens: '小麦 卵 大豆'
+        }
+      ]
+    },
+    {
+      weekRange: '11/09 - 11/13',
+      days: [
+        {
+          date: '2026-11-11',
+          dayOfWeek: '水',
+          isOpen: true,
+          lunchA: { name: '豚肉の生姜焼き', price: 430, allergens: '小麦 卵 乳 豚肉 大豆' },
+          lunchB: { name: '牛肉コロッケ＆ミンチカツ', price: 430 },
+          noodle: { name: '担々麺 / きつねうどん・そば', price: 400 },
+          bowl: { name: 'カツ丼', price: 450 },
+          allergens: '小麦 卵 乳 豚肉 大豆'
+        },
+        {
+          date: '2026-11-13',
+          dayOfWeek: '金',
+          isOpen: true,
+          lunchA: { name: 'チキン南蛮定食', price: 480, allergens: '小麦 卵 乳 鶏肉 大豆' },
+          lunchB: { name: '特製ビーフカレー', price: 450 },
+          noodle: { name: '醤油ラーメン / きつねうどん・そば', price: 380 },
+          bowl: { name: '温玉豚カルビ丼', price: 450 },
+          allergens: '小麦 卵 乳 鶏肉 大豆'
+        }
+      ]
+    }
+  ]
+};
+
+let calendarData = { ...FALLBACK_CALENDAR };
+let examData = { ...FALLBACK_EXAM };
+let cafeteriaData = { ...FALLBACK_CAFETERIA };
+
+function fetchDistJson(url, onSuccess) {
+  try {
+    const resPromise = fetch(url);
+    if (!resPromise || typeof resPromise.then !== 'function') return;
+    resPromise
+      .then(r => (r && r.ok ? r.json() : null))
+      .then(data => {
+        if (data && typeof data === 'object') {
+          onSuccess(data);
+          render();
+        }
+      })
+      .catch(() => {});
+  } catch {}
+}
+
+function loadDistData() {
+  if (typeof fetch !== 'function') return;
+  fetchDistJson('./dist-data/timetable-lessons.json', data => {
+    if (data.meta && typeof data.meta === 'object') {
+      timetableMeta = { ...timetableMeta, ...data.meta };
+    }
+    if (Array.isArray(data.lessons) && data.lessons.length > 0) {
+      const hasFullCurated = data.lessons.some(l => l.arts) && data.lessons.filter(l => l.studentType === 'international').length >= 30;
+      const isNewFiscalYear = data.meta?.fiscalYear && Number(data.meta.fiscalYear) !== 2026;
+      if (hasFullCurated || isNewFiscalYear) {
+        activeLessons = data.lessons;
+      } else if (data.lessons.some(l => Number(l.grade) >= 6)) {
+        activeLessons = [...LESSONS.filter(l => Number(l.grade) < 6), ...data.lessons.filter(l => Number(l.grade) >= 6)];
+      }
+    }
+  });
+  fetchDistJson('./dist-data/calendar.json', data => {
+    calendarData = {
+      ...FALLBACK_CALENDAR,
+      ...data,
+      meta: { ...FALLBACK_CALENDAR.meta, ...(data.meta && typeof data.meta === 'object' ? data.meta : {}) },
+      terms: { ...FALLBACK_CALENDAR.terms, ...(data.terms && typeof data.terms === 'object' ? data.terms : {}) },
+      daySubstitutions: Array.isArray(data.daySubstitutions) ? data.daySubstitutions : FALLBACK_CALENDAR.daySubstitutions,
+      events: Array.isArray(data.events) ? data.events : FALLBACK_CALENDAR.events
+    };
+  });
+  fetchDistJson('./dist-data/exam.json', data => {
+    examData = {
+      ...FALLBACK_EXAM,
+      ...data,
+      meta: { ...FALLBACK_EXAM.meta, ...(data.meta && typeof data.meta === 'object' ? data.meta : {}) },
+      periods: Array.isArray(data.periods) ? data.periods : FALLBACK_EXAM.periods,
+      schedule: Array.isArray(data.schedule) ? data.schedule : [],
+      days: Array.isArray(data.days) ? data.days : []
+    };
+  });
+  fetchDistJson('./dist-data/cafeteria.json', data => {
+    cafeteriaData = {
+      ...FALLBACK_CAFETERIA,
+      ...data,
+      meta: { ...FALLBACK_CAFETERIA.meta, ...(data.meta && typeof data.meta === 'object' ? data.meta : {}) },
+      weeklyMenus: Array.isArray(data.weeklyMenus) ? data.weeklyMenus : []
+    };
+  });
+}
+
+function getSyllabusUrl(selection) {
+  const s = selection || studentSelection;
+  if (!s || typeof s !== 'object') {
+    return 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja';
+  }
+  const grade = Number(s.grade);
+  const dept = String(s.department || '').trim();
+  const course = s.course;
+  let deptId = null;
+
+  if (grade === 6 || grade === 7) {
+    if (dept === 'AC') deptId = 22;
+    else if (dept === 'ME' || ['M', 'E', 'C', 'A'].includes(dept)) deptId = 21;
+  } else if (grade === 4 || grade === 5) {
+    if (dept === 'E') deptId = (course === 'EJ' ? 14 : 13);
+    else if (dept === 'M') deptId = 11;
+    else if (dept === 'C') deptId = 15;
+    else if (dept === 'A') deptId = 16;
+  } else if (grade >= 1 && grade <= 3) {
+    if (dept === 'E') deptId = 12;
+    else if (dept === 'M') deptId = 11;
+    else if (dept === 'C') deptId = 15;
+    else if (dept === 'A') deptId = 16;
+  }
+
+  if (deptId) {
+    return `https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=27&department_id=${deptId}&year=2026&lang=ja`;
+  }
+  return 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja';
+}
+
+function getAcademicWeek(date = new Date()) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    return { term: '後期', week: 1, label: '後期 第1週' };
+  }
+  const month = d.getMonth() + 1;
+  const isZenki = month >= 4 && month <= 9;
+  const termName = isZenki ? '前期' : '後期';
+  const startStr = isZenki
+    ? (calendarData.terms?.zenki?.startDate || '2026-04-06')
+    : (calendarData.terms?.kouki?.startDate || '2026-10-01');
+  const startDate = new Date(`${startStr}T00:00:00+09:00`);
+  const diffTime = d.getTime() - startDate.getTime();
+  const diffDays = Number.isFinite(diffTime) ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0;
+  let weekNum = 1;
+  if (diffDays >= 0) {
+    weekNum = Math.min(15, Math.floor(diffDays / 7) + 1);
+  }
+  return {
+    term: termName,
+    week: weekNum,
+    label: `${termName} 第${weekNum}週`
+  };
+}
+
+function renderTodaySchedule(currentDate) {
+  const s = studentSelection;
+  const jsDay = currentDate.getDay();
+  const todayDateStr = dateKey(currentDate);
+
+  const sub = calendarData?.daySubstitutions?.find(item => item.date === todayDateStr);
+  let effectiveDay = jsDay;
+  let isSubstituted = false;
+  let subReason = '';
+
+  if (sub) {
+    isSubstituted = true;
+    if (typeof sub.effectiveDay === 'number') {
+      effectiveDay = sub.effectiveDay;
+    } else if (sub.substituteDay) {
+      const idx = DAYS.indexOf(sub.substituteDay);
+      if (idx !== -1) effectiveDay = idx + 1;
+    }
+    subReason = sub.reason || sub.note || `${DAYS[effectiveDay - 1]}曜日授業振替`;
+  }
+
+  const subBanner = isSubstituted ? `
+    <div class="alert alert-warning day-sub-alert">
+      <span class="badge blue">授業振替</span>
+      <span>本日は<strong>${DAYS[effectiveDay - 1]}曜日</strong>の授業を実施します（${escapeHTML(subReason)}）。</span>
+    </div>
+  ` : '';
+
+  if (effectiveDay === 0 || effectiveDay === 6) {
+    return subBanner + `
+      <section class="panel today-schedule" id="today-schedule">
+        <div class="panel-head">
+          <h2>${icon('calendar')}今日の時間割</h2>
+          <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+        </div>
+        <div class="dashboard-rest-card">
+          <p>本日は<strong>休業日</strong>です。しっかり休養を取りましょう。</p>
+          <a class="button" href="#timetable">${icon('calendar')}時間割を見る</a>
+        </div>
+      </section>
+    `;
+  }
+
+  const dayIdx = effectiveDay - 1;
+  const { grid } = selectedSchedule();
+  const dayLessons = grid[dayIdx] || [];
+  const hasClasses = dayLessons.some(slot => slot.length > 0);
+
+  if (!hasClasses) {
+    return subBanner + `
+      <section class="panel today-schedule" id="today-schedule">
+        <div class="panel-head">
+          <h2>${icon('calendar')}今日の時間割</h2>
+          <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+        </div>
+        <div class="dashboard-empty-card">
+          <p>本日の授業予定はありません（0コマ・空きコマ）。</p>
+          <a class="button secondary" href="#timetable">${icon('calendar')}時間割を確認</a>
+        </div>
+      </section>
+    `;
+  }
+
+  const periodRows = periods.map((time, p) => {
+    const cell = dayLessons[p] || [];
+    if (cell.length === 0) {
+      return `
+        <div class="dashboard-period empty">
+          <div class="period-meta"><span class="period-num">${p + 1}限</span><span class="period-time">${time[0]}〜${time[1]}</span></div>
+          <div class="lesson-info"><span class="lesson-empty">空きコマ</span></div>
+        </div>
+      `;
+    }
+    return cell.map(l => {
+      const span = l.duration || 1;
+      return `
+        <div class="dashboard-period active">
+          <div class="period-meta">
+            <span class="period-num">${p + 1}限</span>
+            <span class="period-time">${time[0]}〜${time[1]}</span>
+            ${span > 1 ? `<span class="badge gray">${l.period}〜${l.period + span - 1}限</span>` : ''}
+          </div>
+          <div class="lesson-info">
+            <strong class="subject-title">${escapeHTML(l.subjectName)}</strong>
+            <div class="lesson-sub">
+              ${l.location ? `<span class="lesson-location">${icon('door')}${escapeHTML(l.location)}</span>` : ''}
+              ${l.teacher ? `<span class="lesson-teacher">${escapeHTML(l.teacher)}</span>` : ''}
+            </div>
+            ${l.notes ? `<small class="lesson-notes">${escapeHTML(l.notes)}</small>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }).join('');
+
+  return subBanner + `
+    <section class="panel today-schedule" id="today-schedule">
+      <div class="panel-head">
+        <h2>${icon('calendar')}今日の時間割</h2>
+        <div class="panel-head-meta">
+          <span class="badge">${DAYS[dayIdx]}曜日</span>
+          <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+        </div>
+      </div>
+      <div class="today-periods-list">
+        ${periodRows}
+      </div>
+      <div class="panel-footer">
+        <a class="text-link" href="#timetable">週間時間割へ${icon('arrow')}</a>
+      </div>
+    </section>
+  `;
+}
+
+function renderExamAlert() {
+  const meta = examData?.meta || {};
+  const noticeText = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。';
+  const selfStudyRule = meta.selfStudyRule || '試験は2限から開始しますが、9時に登校し自習することを原則とします。JRの遅延などが生じた場合、9時に登校していることを前提として対応します。';
+  return `
+    <section class="panel exam-alert" id="exam-alert">
+      <div class="panel-head">
+        <h2>${icon('document')}定期試験案内</h2>
+        <span class="badge yellow">試験情報</span>
+      </div>
+      <div class="exam-alert-body">
+        <p class="exam-notice"><strong>${escapeHTML(noticeText)}</strong></p>
+        <p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>
+      </div>
+      <div class="panel-footer">
+        <a class="text-link" href="#exam">定期試験の詳細へ${icon('arrow')}</a>
+      </div>
+    </section>
+  `;
+}
+
+function renderCafeteriaSummary(currentDate) {
+  const todayDateStr = dateKey(currentDate);
+  let todayMenu = null;
+
+  if (cafeteriaData?.weeklyMenus) {
+    for (const week of cafeteriaData.weeklyMenus) {
+      if (week.days) {
+        const found = week.days.find(d => d.date === todayDateStr);
+        if (found) {
+          todayMenu = found;
+          break;
+        }
+      }
+    }
+  }
+
+  let contentHtml = '';
+  if (todayMenu && todayMenu.isOpen) {
+    const lunchAName = todayMenu.lunchA?.name || '日替わりランチA';
+    const lunchAPrice = todayMenu.lunchA?.price ? `${todayMenu.lunchA.price}円` : '';
+    const lunchBName = todayMenu.lunchB?.name || '';
+    const lunchBPrice = todayMenu.lunchB?.price ? `${todayMenu.lunchB.price}円` : '';
+    const allergensStr = Array.isArray(todayMenu.allergens)
+      ? todayMenu.allergens.join(', ')
+      : (todayMenu.allergens || todayMenu.lunchA?.allergens || '');
+
+    contentHtml = `
+      <div class="cafeteria-today-dishes">
+        <div class="dish-item primary-dish">
+          <span class="dish-badge">ランチA定食</span>
+          <strong class="dish-name">${escapeHTML(lunchAName)}</strong>
+          ${lunchAPrice ? `<span class="dish-price">${escapeHTML(lunchAPrice)}</span>` : ''}
+        </div>
+        ${lunchBName ? `
+          <div class="dish-item">
+            <span class="dish-badge">ランチB定食</span>
+            <strong class="dish-name">${escapeHTML(lunchBName)}</strong>
+            ${lunchBPrice ? `<span class="dish-price">${escapeHTML(lunchBPrice)}</span>` : ''}
+          </div>
+        ` : ''}
+        ${todayMenu.noodle ? `
+          <div class="dish-item noodle-dish">
+            <span class="dish-badge">麺類</span>
+            <span class="dish-name">${escapeHTML(todayMenu.noodle.name)}</span>
+            ${todayMenu.noodle.price ? `<span class="dish-price">${escapeHTML(todayMenu.noodle.price)}円</span>` : ''}
+          </div>
+        ` : ''}
+        ${allergensStr ? `<p class="allergens-note"><small>アレルギー特定原材料: ${escapeHTML(allergensStr)}</small></p>` : ''}
+      </div>
+    `;
+  } else {
+    contentHtml = `
+      <div class="cafeteria-fallback-info">
+        <p>本日の日替わりランチ・定食メニューは、学生食堂にて提供中です。</p>
+        <p class="cafeteria-times"><small>営業時間: 11:30〜13:30（平日）</small></p>
+      </div>
+    `;
+  }
+
+  return `
+    <section class="panel cafeteria-summary" id="cafeteria-summary">
+      <div class="panel-head">
+        <h2>${icon('utensils')}本日の学食ランチ・定食メニュー</h2>
+        <span class="badge rose">食堂</span>
+      </div>
+      ${contentHtml}
+      <div class="panel-footer">
+        <a class="text-link" href="#cafeteria">週間食堂メニューへ${icon('arrow')}</a>
+      </div>
+    </section>
+  `;
+}
+
+function loadMyLinks() {
+  try {
+    const raw = localStorage.getItem('campus-links-v1');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMyLinks(links) {
+  try {
+    localStorage.setItem('campus-links-v1', JSON.stringify(links || []));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function addMyLink(link) {
+  if (!link || typeof link !== 'object') return { success: false, error: 'Invalid link' };
+  const name = String(link.name || '').trim();
+  const url = String(link.url || '').trim();
+  if (!name || !url) return { success: false, error: 'Name and URL are required' };
+  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'Disallowed scheme' };
+  const links = loadMyLinks();
+  const newItem = { id: link.id || `custom-${Date.now()}`, name, url, custom: true };
+  links.push(newItem);
+  try {
+    const saved = saveMyLinks(links);
+    if (saved === false || (saved && saved.success === false)) {
+      return { success: false, error: (saved && saved.error) || 'Failed to save links' };
+    }
+  } catch (err) {
+    return { success: false, error: err?.message || 'Storage quota exceeded' };
+  }
+  return { success: true, item: newItem };
+}
+const addCustomLink = addMyLink;
+
+function reorderMyLink(id, direction) {
+  const links = loadMyLinks();
+  const idx = links.findIndex(l => l.id === id);
+  if (idx === -1) return links;
+  if (direction === 'up' && idx > 0) {
+    const temp = links[idx];
+    links[idx] = links[idx - 1];
+    links[idx - 1] = temp;
+    saveMyLinks(links);
+  } else if (direction === 'down' && idx < links.length - 1) {
+    const temp = links[idx];
+    links[idx] = links[idx + 1];
+    links[idx + 1] = temp;
+    saveMyLinks(links);
+  }
+  return links;
+}
+
+function deleteMyLink(id) {
+  const links = loadMyLinks().filter(l => l.id !== id);
+  saveMyLinks(links);
+  return links;
+}
+
+function renderQuickLinks() {
+  const syllabusUrl = getSyllabusUrl(studentSelection);
+  const customLinks = loadMyLinks();
+
+  const customItemsHtml = customLinks.map(l => `
+    <a class="quick-link-btn external-link" href="${escapeHTML(l.url)}" target="_blank" rel="noopener">
+      ${icon('external')}<span>${escapeHTML(l.name)}</span>
+    </a>
+  `).join('');
+
+  return `
+    <section class="panel quick-links" id="quick-links">
+      <div class="panel-head">
+        <h2>${icon('link')}クイックリンク・シラバス</h2>
+        <span class="badge gray">リンク</span>
+      </div>
+      <div class="quick-links-grid">
+        <a class="button syllabus-launch-btn" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener">
+          ${icon('book')}シラバス（${escapeHTML(studentShortLabel())}）を開く
+        </a>
+        <a class="button secondary" href="#timetable">
+          ${icon('calendar')}時間割へ
+        </a>
+        <a class="quick-link-btn" href="https://teams.microsoft.com" target="_blank" rel="noopener">
+          ${icon('external')}<span>Teams</span>
+        </a>
+        <a class="quick-link-btn" href="https://classroom.google.com" target="_blank" rel="noopener">
+          ${icon('external')}<span>Classroom</span>
+        </a>
+        <a class="quick-link-btn" href="https://webclass.kosen-k.go.jp" target="_blank" rel="noopener">
+          ${icon('external')}<span>WebClass</span>
+        </a>
+        ${customItemsHtml}
+      </div>
+      <div class="panel-footer">
+        <a class="text-link" href="#links">すべてのリンク・マイリンク管理へ${icon('arrow')}</a>
+      </div>
+    </section>
+  `;
+}
+
+function renderTodayOverview(currentDate = new Date()) {
+  return `
+    <div class="dashboard-grid">
+      <div class="dashboard-col-main">
+        ${renderTodaySchedule(currentDate)}
+      </div>
+      <div class="dashboard-col-side">
+        ${renderExamAlert()}
+        ${renderCafeteriaSummary(currentDate)}
+        ${renderQuickLinks()}
+      </div>
+    </div>
+  `;
+}
+
+function home() {
+  const now = new Date();
+  const currentToday = dateKey(now);
+  const weekInfo = getAcademicWeek(now);
+  const actions = `
+    <div class="heading-actions">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え">
+        <span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span>
+      </button>
+      <span class="term-badge badge blue">${escapeHTML(weekInfo.label)}</span>
+      <span class="student-pill badge gray">${escapeHTML(studentShortLabel())}</span>
+      <div class="date-block">
+        <strong>${longDate(currentToday)}</strong>
+        <small>キャンパスポータル</small>
+      </div>
+    </div>
+  `;
+
+  return `
+    ${heading('ホーム', '今日の概要ダッシュボード', actions)}
+    ${renderTodayOverview(now)}
+  `;
+}
+
+function extractExamEntries(data, selection) {
+  if (!data || typeof data !== 'object') return [];
+  const raw = data.schedule ?? data.schedules ?? data.entries ?? data.items ?? [];
+  let list = [];
+  if (Array.isArray(raw)) {
+    list = raw;
+  } else if (raw && typeof raw === 'object') {
+    const key1 = `${selection?.grade || ''}-${selection?.dept || ''}`;
+    const key2 = `${selection?.grade || ''}${selection?.dept || ''}`;
+    if (Array.isArray(raw[key1])) list = raw[key1];
+    else if (Array.isArray(raw[key2])) list = raw[key2];
+    else list = Object.values(raw).flat().filter(Boolean);
+  }
+  const targetClassDash = `${selection?.grade || ''}-${selection?.dept || ''}`;
+  const targetClassFlat = `${selection?.grade || ''}${selection?.dept || ''}`;
+  const filtered = list.filter(entry => {
+    if (!entry || typeof entry !== 'object') return false;
+    const c = String(entry.class || entry.className || entry.classCode || '');
+    const d = String(entry.dept || entry.department || '');
+    const g = entry.grade != null ? String(entry.grade) : '';
+    if (!c && !d && !g) return true;
+    if (c && (c === targetClassDash || c === targetClassFlat)) return true;
+    if (d && g && d === selection?.dept && g === String(selection?.grade)) return true;
+    if (d && !g && d === selection?.dept) return true;
+    if (!d && g && g === String(selection?.grade)) return true;
+    return false;
+  });
+  return filtered.length ? filtered : list;
+}
+
+function exam() {
+  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
+  const meta = examData?.meta || FALLBACK_EXAM.meta || {};
+  const isPublished = meta.status === 'published';
+  const notice = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。（10日前の正午発表）';
+  const selfStudyRule = meta.selfStudyRule || '試験は2限から開始しますが、9時に登校し自習することを原則とします。';
+  const sourcePdfUrl = normalizeAkashiUrl(meta.sourcePdfUrl);
+  const notesPdfUrl = meta.notesPdfUrl === null ? '' : (normalizeAkashiUrl(meta.notesPdfUrl) || 'https://www.akashi.ac.jp/life/syotyui.pdf');
+  const prevPdfUrl = meta.previousExamPdfUrl === null ? '' : normalizeAkashiUrl(meta.previousExamPdfUrl);
+  const classCode = `${studentSelection.grade}-${studentSelection.dept}`;
+  const entries = extractExamEntries(examData, studentSelection);
+
+  const scheduleCards = entries.length
+    ? entries.map(item => {
+        const subject = item.subject || item.course || item.title || item.name || '試験科目';
+        const dateText = [item.date, item.day ? `(${item.day})` : '', item.period ? `${item.period}限` : '', item.time].filter(Boolean).join(' ');
+        const room = item.room || item.classroom || '未定';
+        const supervisor = item.supervisor || item.proctor || item.teacher || '';
+        const itemClass = item.class || item.className || item.classCode || classCode;
+        return `<article class="exam-card" data-class="${escapeHTML(itemClass)}">
+          <div class="exam-card-head">
+            <span class="badge blue">${escapeHTML(itemClass)}</span>
+            <strong>${escapeHTML(dateText || '日程未定')}</strong>
+          </div>
+          <h3>${escapeHTML(subject)}</h3>
+          <p class="exam-card-meta"><span>教室: ${escapeHTML(room)}</span>${supervisor ? ` / <span class="exam-supervisor">監督: ${escapeHTML(supervisor)}</span>` : ''}</p>
+        </article>`;
+      }).join('')
+    : `<article class="exam-card exam-card-empty" data-class="${escapeHTML(classCode)}">
+        <div class="exam-card-head">
+          <span class="badge yellow">${escapeHTML(classCode)}</span>
+          <span>10日前の正午発表</span>
+        </div>
+        <h3>${escapeHTML(studentLabel())} の試験時間割は未公開です</h3>
+        <p class="exam-card-meta">公開時に科目・時間・試験教室・監督（<span class="exam-supervisor">supervisor</span>配置）が表示されます。</p>
+      </article>`;
+
+  return `${heading('定期試験', '定期試験時間割・注意事項', actions)}
+    <section class="panel exam-panel">
+      <div class="panel-head">
+        <h2>${icon('document')}定期試験案内</h2>
+        <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '未公開'}</span>
+      </div>
+      <p class="exam-notice"><strong>${escapeHTML(notice)}</strong></p>
+      <p class="exam-rule"><small>${escapeHTML(selfStudyRule)}</small></p>
+      <div class="exam-links-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+        ${isPublished && sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">公式試験時間割PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">公式試験時間割PDF（未公開）</button>`}
+        ${notesPdfUrl ? `<a class="button secondary" href="${escapeHTML(notesPdfUrl)}" target="_blank" rel="noopener noreferrer">受験上の諸注意PDF</a>` : ''}
+        ${!isPublished && prevPdfUrl ? `<a class="button secondary" href="${escapeHTML(prevPdfUrl)}" target="_blank" rel="noopener noreferrer">前回試験時間割PDF（参考）</a>` : ''}
+        <a class="text-link" href="https://www.akashi.ac.jp/life/examtimetable.html" target="_blank" rel="noopener noreferrer">公式試験日程ページへ${icon('arrow')}</a>
+      </div>
+    </section>
+    <section class="panel exam-schedule" id="exam-schedule" data-status="${isPublished ? 'published' : 'unpublished'}">
+      <div class="panel-head">
+        <h2>${icon('calendar')}試験時間割（${escapeHTML(classCode)}）</h2>
+        <span class="badge">${entries.length}件</span>
+      </div>
+      <div class="exam-timetable" id="exam-timetable">
+        ${scheduleCards}
+      </div>
+    </section>`;
+}
+function examView() { return exam(); }
+
+function calendar() {
+  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
+  const weekInfo = getAcademicWeek(new Date());
+  const data = calendarData || FALLBACK_CALENDAR;
+  const events = Array.isArray(data.events) && data.events.length ? data.events : FALLBACK_CALENDAR.events;
+  const subs = Array.isArray(data.daySubstitutions) ? data.daySubstitutions : [];
+  const subDates = new Set(subs.map(s => s.date));
+
+  const sortedEvents = [...events].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const badgeMap = {
+    holiday: { cls: 'yellow', label: '祝日・休業' },
+    break: { cls: 'yellow', label: '長期休業' },
+    exam: { cls: 'red', label: '定期試験' },
+    festival: { cls: 'blue', label: '高専祭・行事' },
+    academic: { cls: 'blue', label: '授業日程' },
+    event: { cls: 'blue', label: '行事' }
+  };
+
+  const eventRows = sortedEvents.map(ev => {
+    const start = ev.date || ev.startDate || '';
+    const end = ev.endDate && ev.endDate !== start ? ` 〜 ${ev.endDate}` : '';
+    const title = ev.name || ev.title || '行事';
+    const b = badgeMap[ev.type] || { cls: 'blue', label: ev.hasClasses === false ? '休業' : '予定' };
+    return `<li class="calendar-event-item" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}">
+      <span class="calendar-event-date">${escapeHTML(start + end)}</span>
+      <span class="badge ${b.cls}">${escapeHTML(b.label)}</span>
+      <strong class="calendar-event-title">${escapeHTML(title)}</strong>
+      ${ev.note ? `<small class="calendar-event-note">${escapeHTML(ev.note)}</small>` : ''}
+    </li>`;
+  }).join('');
+
+  const subRows = subs.length
+    ? `<div class="calendar-substitutions">
+        <h3>授業振替実施日</h3>
+        <ul class="calendar-timeline">
+          ${subs.map(s => `<li class="calendar-event-item" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${s.substituteDay || '月'}曜日授業を実施`)}</strong>${s.note ? `<small>${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
+        </ul>
+      </div>`
+    : '';
+
+  return `${heading('年間予定', '行事予定・授業日程・週番号', actions)}
+    <section class="panel calendar-panel">
+      <div class="panel-head">
+        <h2>${icon('calendar')}行事予定表</h2>
+        <span class="badge blue">${escapeHTML(weekInfo.label)}</span>
+      </div>
+      <p>明石高専の年間行事予定・授業日程（第1週〜第15週・高専祭・祝日・長期休業・授業振替）を確認できます。</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;">
+        <button type="button" class="button" id="export-calendar-ics">📅 行事予定をiCal保存 (.ics)</button>
+        <span class="badge">${sortedEvents.length}件の行事</span>
+        ${subDates.size ? `<span class="badge blue">授業振替 ${subDates.size}日</span>` : ''}
+      </div>
+      ${subRows}
+      <div class="calendar-events" id="calendar-events">
+        <ul class="calendar-timeline">
+          ${eventRows}
+        </ul>
+      </div>
+    </section>`;
+}
+function calendarView() { return calendar(); }
+
+function cafeteria() {
+  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
+  const data = cafeteriaData || FALLBACK_CAFETERIA;
+  const meta = data.meta || FALLBACK_CAFETERIA.meta || {};
+  const hasSourceKey = Object.prototype.hasOwnProperty.call(meta, 'sourcePdfUrl');
+  const rawSourceUrl = hasSourceKey ? meta.sourcePdfUrl : FALLBACK_CAFETERIA.meta?.sourcePdfUrl;
+  const sourcePdfUrl = normalizeAkashiUrl(rawSourceUrl);
+  const hasDormKey = Object.prototype.hasOwnProperty.call(meta, 'dormitoryArticleUrl');
+  const dormArticleUrl = normalizeAkashiUrl(hasDormKey ? meta.dormitoryArticleUrl : FALLBACK_CAFETERIA.meta?.dormitoryArticleUrl);
+  const dormPdfUrl = normalizeAkashiUrl(Object.prototype.hasOwnProperty.call(meta, 'dormitoryPdfUrl') ? meta.dormitoryPdfUrl : FALLBACK_CAFETERIA.meta?.dormitoryPdfUrl);
+  const isTextExtracted = Boolean(meta.isTextExtracted);
+  const menus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
+
+  const menuContent = (isTextExtracted && menus.length)
+    ? `<ul class="cafeteria-menu-list">${menus.map(m => `<li class="cafeteria-menu-item"><strong>${escapeHTML(m.date || m.day || '本日')}</strong>: ${escapeHTML(m.name || m.menu || m.lunch || '')}${m.price ? ` <span class="badge">${escapeHTML(String(m.price))}円</span>` : ''}</li>`).join('')}</ul>`
+    : `<p class="info-note" data-extracted="false">今月の日替わりランチ詳細はPDFからのテキスト抽出が未対応のため（テキスト未抽出）、原本PDFまたは公式ニュースでご確認ください。</p>`;
+
+  return `${heading('食堂メニュー', '今週・本日の学生食堂ランチメニュー', actions)}
+    <section class="panel cafeteria-panel cafeteria-view" id="cafeteria-view" data-text-extracted="${isTextExtracted ? 'true' : 'false'}">
+      <div class="panel-head">
+        <h2>${icon('utensils')}学生食堂</h2>
+        <span class="badge ${isTextExtracted ? 'green' : 'yellow'}">${isTextExtracted ? 'メニュー掲載中' : 'PDF案内'}</span>
+      </div>
+      <p>学生食堂の日替わり定食・ランチメニューおよび寮生食堂の月間献立案内です。</p>
+      ${menuContent}
+      <div class="cafeteria-links" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+        ${sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">学生食堂 原本PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">学生食堂 原本PDF（未公開）</button>`}
+        <a class="button secondary" href="https://www.akashi.ac.jp/news_list/news2026.html" target="_blank" rel="noopener noreferrer">公式ニュース一覧へ</a>
+      </div>
+      <div class="dormitory-section" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
+        <h3>寮生食堂メニュー（Dormitory）</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+          ${dormArticleUrl ? `<a class="button secondary" href="${escapeHTML(dormArticleUrl)}" target="_blank" rel="noopener noreferrer">寮生食堂メニュー記事</a>` : ''}
+          ${dormPdfUrl ? `<a class="button secondary" href="${escapeHTML(dormPdfUrl)}" target="_blank" rel="noopener noreferrer">寮生食堂 原本PDF</a>` : ''}
+        </div>
+      </div>
+    </section>`;
+}
+function cafeteriaView() { return cafeteria(); }
+
+const OFFICIAL_SERVICES = [
+  { name: 'Teams', url: 'https://teams.microsoft.com' },
+  { name: 'Classroom', url: 'https://classroom.google.com' },
+  { name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML' },
+  { name: 'Microsoft 365 (SharePoint)', url: 'https://portal.office.com' },
+  { name: '図書館WebOPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do' },
+  { name: 'シラバス検索', url: 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja' },
+  { name: 'JR西日本 列車運行情報', url: 'https://trafficinfo.westjr.co.jp/kinki.html' },
+  { name: '山陽電車 運行情報', url: 'https://www.sanyo-railway.co.jp/railway/traffic.html' },
+];
+
+function linksView() {
+  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
+  const syllabusUrl = getSyllabusUrl(studentSelection);
+  const officialItems = OFFICIAL_SERVICES.map(s => `
+    <a class="button secondary" href="${escapeHTML(s.url)}" target="_blank" rel="noopener noreferrer">${icon('external')}${escapeHTML(s.name)}</a>
+  `).join('');
+
+  const myLinks = loadMyLinks().filter(item => item && /^https?:\/\//i.test(String(item.url || '')));
+  const myLinkItems = myLinks.length
+    ? myLinks.map(item => `
+        <div class="mylink-row" data-link-id="${escapeHTML(item.id)}" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <a class="button secondary mylink-anchor" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external')}${escapeHTML(item.name)}</a>
+          <button type="button" class="button secondary mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除">削除</button>
+        </div>
+      `).join('')
+    : '<p class="hint">登録されたマイリンクはまだありません。</p>';
+
+  return `${heading('リンク・シラバス', 'シラバス・学内サービス・マイリンク', actions)}
+    <section class="panel links-panel">
+      <div class="panel-head">
+        <h2>${icon('book')}シラバス・公式リンク集</h2>
+      </div>
+      <p><a class="button" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">シラバスを開く</a></p>
+      <div class="official-links-list" style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;">
+        ${officialItems}
+      </div>
+      <div class="mylinks-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+        <h3>マイリンク</h3>
+        <div id="mylinks-list" class="mylinks-list" style="margin:10px 0;">
+          ${myLinkItems}
+        </div>
+        <form id="mylink-form" class="mylink-form" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+          <input type="text" id="mylink-name" name="name" placeholder="表示名（例: Gmail）" aria-label="リンク名" required>
+          <input type="url" id="mylink-url" name="url" placeholder="https://..." aria-label="リンクURL" required>
+          <button type="submit" id="mylink-add-btn" class="button">追加</button>
+        </form>
+        <p id="mylink-error" class="info-note" role="alert" hidden></p>
+      </div>
+      <div class="preset-suggestions" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+        <h3>ワンタップ追加候補</h3>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button type="button" class="button secondary preset-btn" data-preset-name="Gmail" data-preset-url="https://mail.google.com/">Gmail</button>
+          <button type="button" class="button secondary preset-btn" data-preset-name="Google Drive" data-preset-url="https://drive.google.com/">Google Drive</button>
+        </div>
+      </div>
+    </section>`;
+}
+
+function renderTimetableBanners(date = new Date()) {
+  const d = new Date(date);
+  const dateStr = dateKey(d);
+  const weekInfo = getAcademicWeek(d);
+  const cal = calendarData || FALLBACK_CALENDAR;
+  const events = Array.isArray(cal?.events) ? cal.events : [];
+  let banners = `<div class="alert alert-info timetable-banner week-banner"><span class="badge blue">${escapeHTML(weekInfo.label)}</span> 今週は${escapeHTML(weekInfo.label)}です。</div>`;
+
+  const sub = cal?.daySubstitutions?.find(item => item.date === dateStr);
+  if (sub) {
+    const subDay = String(sub.substituteDay || '月').replace(/曜日$/, '');
+    const subName = `${subDay}曜日`;
+    banners += `<div class="alert alert-warning timetable-banner day-substitution day-sub-alert"><span class="badge blue">授業振替</span> 本日は<strong>${escapeHTML(subName)}授業</strong>を実施します（授業振替）。</div>`;
+  }
+
+  const holidayEv = events.find(e =>
+    (e.type === 'holiday' || e.type === 'break' || e.hasClasses === false) &&
+    e.type !== 'exam' &&
+    (e.date === dateStr || (e.endDate && dateStr >= e.date && dateStr <= e.endDate))
+  );
+  if (!sub && (holidayEv || d.getDay() === 0 || d.getDay() === 6)) {
+    const label = holidayEv?.name || (d.getDay() === 0 || d.getDay() === 6 ? '週末・休業日' : '休業日（祝日）');
+    banners += `<div class="alert alert-warning timetable-banner holiday-banner"><span class="badge yellow">祝日・休業日</span> 本日は${escapeHTML(label)}です。</div>`;
+  }
+
+  const isExam = events.some(e => e.type === 'exam' && dateStr >= e.date && (!e.endDate || dateStr <= e.endDate)) ||
+    (dateStr >= '2026-11-20' && dateStr <= '2026-11-26');
+  if (isExam) {
+    banners += `<div class="alert alert-warning timetable-banner exam-period-banner"><span class="badge red">定期試験期間</span> 現在は定期試験期間です。<a class="text-link" href="#exam">試験時間割を確認 →</a></div>`;
+  }
+
+  return banners;
+}
+
 function timetable() {
   const s = studentSelection;
   const isAdvanced = s.grade >= 6;
@@ -143,7 +1037,13 @@ function timetable() {
     const span = cell.length===1 && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id)) ? (cell[0].duration||1) : 1;
     return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>`;
-  return `${heading('時間割','',`<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="moon"></span></button><span class="demo-pill"><i></i>ベータ版</span></div>`)}
+  const fyText = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
+  const termText = timetableMeta?.term || '後期';
+  const sourceUrl = normalizeAkashiUrl(timetableMeta?.sourceUrl || SOURCE?.url) || 'https://www.akashi.ac.jp/life/lesson.html';
+  const updatedText = timetableMeta?.updated || SOURCE?.updated || '2026-09-24';
+
+  return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button><span class="demo-pill"><i></i>ベータ版</span></div>`)}
+    ${renderTimetableBanners(new Date())}
     <details class="panel timetable-controls" id="filter-details" ${filterOpen ? 'open' : ''}>
       <summary class="panel-head filter-summary">
         <h2>${icon('calendar')}表示する時間割</h2>
@@ -160,7 +1060,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="https://www.akashi.ac.jp/life/lesson.html" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a></span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -357,14 +1257,18 @@ async function openDataPreviewModal(format) {
   const lessons = scheduleResult.selected || [];
   const label = studentLabel();
 
-  const { generateCsv, generateText, generateJson } = await import('./timetable-export.js');
+  const fiscalYear = timetableMeta?.fiscalYear || 2026;
+  const term = timetableMeta?.term || '後期';
+  const updatedDate = timetableMeta?.updated || SOURCE?.updated || '2026-09-24';
+
+  const { generateCsv, generateText, generateJson, generateIcs } = await import('./timetable-export.js');
 
   const updatePreview = () => {
     if (format === 'text') {
       title.textContent = 'テキスト出力のプレビュー＆設定';
       copyBtn.textContent = '📋 テキストをコピー';
       actionBtn.textContent = '💾 テキスト保存';
-      const txt = generateText(lessons, label, { ...textExportOptions, includeEmpty: exportIncludeEmpty });
+      const txt = generateText(lessons, label, { ...textExportOptions, includeEmpty: exportIncludeEmpty, fiscalYear, term });
       body.innerHTML = `
         <div class="data-preview-options">
           <label><input type="checkbox" id="text-opt-location" ${textExportOptions.includeLocation ? 'checked' : ''}> 教室名を含める</label>
@@ -389,7 +1293,7 @@ async function openDataPreviewModal(format) {
       title.textContent = 'CSV形式プレビュー';
       copyBtn.textContent = '📋 CSVをコピー';
       actionBtn.textContent = '💾 CSVダウンロード';
-      const csv = generateCsv(lessons, label, { includeEmpty: exportIncludeEmpty });
+      const csv = generateCsv(lessons, label, { includeEmpty: exportIncludeEmpty, fiscalYear, term });
       body.innerHTML = `
         <div class="data-preview-options">
           <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
@@ -404,7 +1308,7 @@ async function openDataPreviewModal(format) {
       title.textContent = 'JSONデータプレビュー';
       copyBtn.textContent = '📋 JSONをコピー';
       actionBtn.textContent = '💾 JSONダウンロード';
-      const json = generateJson(lessons, label, SOURCE?.updated || '2026-09-24', { includeEmpty: exportIncludeEmpty });
+      const json = generateJson(lessons, label, updatedDate, { includeEmpty: exportIncludeEmpty, fiscalYear, term });
       body.innerHTML = `
         <div class="data-preview-options" style="margin-bottom:8px;">
           <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
@@ -428,6 +1332,24 @@ async function openDataPreviewModal(format) {
         exportIncludeEmpty = e.target.checked;
         updatePreview();
       });
+    } else if (format === 'ics') {
+      title.textContent = 'iCal (.ics) 形式プレビュー';
+      copyBtn.textContent = '📋 iCalをコピー';
+      actionBtn.textContent = '💾 iCal保存 (.ics)';
+      const holidayDates = (calendarData?.events || [])
+        .filter(ev => ev && (ev.type === 'holiday' || ev.hasClasses === false) && ev.date)
+        .map(ev => ev.date);
+      const ics = generateIcs(lessons, label, {
+        fiscalYear,
+        term,
+        holidays: holidayDates
+      });
+      body.innerHTML = `
+        <div class="data-preview-options">
+          <span class="badge blue">Google Calendar / Apple Calendar 対応 (.ics)</span>
+        </div>
+        <pre class="preview-code-block">${escapeHTML(ics)}</pre>
+      `;
     }
   };
 
@@ -467,10 +1389,16 @@ async function downloadCurrentTimetable(action = 'download') {
   try {
     const { exportTimetable } = await import('./timetable-export.js');
     const scheduleResult = selectedSchedule();
+    const holidayDates = (calendarData?.events || [])
+      .filter(ev => ev && (ev.type === 'holiday' || ev.hasClasses === false) && ev.date)
+      .map(ev => ev.date);
     const result = await exportTimetable(snapshot, format, filename, {
       studentLabel: studentLabel(),
       selectedLessons: scheduleResult.selected || [],
-      updated: SOURCE?.updated || '2026-09-24',
+      updated: timetableMeta?.updated || SOURCE?.updated || '2026-09-24',
+      fiscalYear: timetableMeta?.fiscalYear || 2026,
+      term: timetableMeta?.term || '後期',
+      holidays: holidayDates,
       sizeConfig: { ...exportSizeConfig },
       a4Mode: a4ModeEnabled,
       theme: currentTheme,
@@ -509,17 +1437,33 @@ async function downloadCurrentTimetable(action = 'download') {
   }
 }
 function render() {
-  const route=location.hash.slice(1).split('?')[0] || 'home';
-  const names={home:'ホーム',timetable:'時間割'};
-  const page=Object.hasOwn(names,route)?route:'home';
-  const breadcrumbEl=document.getElementById('breadcrumb');
-  if(breadcrumbEl) breadcrumbEl.textContent=names[page];
-  document.title=`${names[page]} — Campus`;
-  document.querySelectorAll('[data-page]').forEach(a=>{
-    a.classList.toggle('active',a.dataset.page===page);
-    if(a.dataset.page===page) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
+  const rawHash = (location.hash.slice(1).split('?')[0].split('/')[0] || 'home').trim();
+  const page = Object.hasOwn(names, rawHash) ? rawHash : 'home';
+  const breadcrumbEl = document.getElementById('breadcrumb');
+  if (breadcrumbEl) breadcrumbEl.textContent = names[page];
+  document.title = `${names[page]} — Campus`;
+  document.querySelectorAll('[data-page]').forEach(a => {
+    const isActive = a.dataset.page === page;
+    a.classList.toggle('active', isActive);
+    if (isActive) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
   });
-  document.getElementById('main').innerHTML=page==='home'?home():timetable();
+  const main = document.getElementById('main');
+  if (main) {
+    if (page === 'home') main.innerHTML = home();
+    else if (page === 'timetable') {
+      main.innerHTML = timetable();
+      const sheetEl = document.getElementById('timetable-sheet');
+      if (sheetEl && !sheetEl.parentElement) {
+        const m = main.innerHTML.match(/<section[^>]*id="timetable-sheet"[^>]*>([\s\S]*?)<\/section>/);
+        if (m) sheetEl.innerHTML = m[1];
+      }
+    }
+    else if (page === 'exam') main.innerHTML = exam();
+    else if (page === 'calendar') main.innerHTML = calendar();
+    else if (page === 'cafeteria') main.innerHTML = cafeteria();
+    else if (page === 'links') main.innerHTML = linksView();
+  }
   const formatSelect = document.getElementById('export-format');
   const copyBtn = document.getElementById('export-copy');
   const downloadBtn = document.getElementById('export-download');
@@ -565,8 +1509,54 @@ function render() {
   // 全体データダウンロードボタン
   document.getElementById('export-raw-data-btn')?.addEventListener('click', async () => {
     const { exportAllLessonsJson } = await import('./timetable-export.js');
-    exportAllLessonsJson(LESSONS, SOURCE);
+    exportAllLessonsJson(activeLessons, timetableMeta || SOURCE);
   });
+
+  // 年間予定 iCal 保存ボタン
+  document.getElementById('export-calendar-ics')?.addEventListener('click', async () => {
+    const { exportCalendarIcs } = await import('./timetable-export.js');
+    const cal = calendarData || FALLBACK_CALENDAR;
+    const fy = timetableMeta?.fiscalYear || 2026;
+    exportCalendarIcs(cal, `akashi-calendar-${fy}.ics`);
+  });
+
+  // マイリンク追加・削除イベント
+  document.getElementById('mylink-form')?.addEventListener('submit', e => {
+    e.preventDefault();
+    const nameInput = document.getElementById('mylink-name');
+    const urlInput = document.getElementById('mylink-url');
+    const errEl = document.getElementById('mylink-error');
+    const res = addMyLink({ name: nameInput?.value, url: urlInput?.value });
+    if (!res.success) {
+      if (errEl) {
+        errEl.textContent = res.error || 'リンクを追加できませんでした';
+        errEl.hidden = false;
+      }
+      return;
+    }
+    render();
+  });
+  if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset?.presetName || btn.textContent?.trim();
+        const url = btn.dataset?.presetUrl || '';
+        if (name && url) {
+          addMyLink({ name, url });
+          render();
+        }
+      });
+    });
+    document.querySelectorAll('.mylink-remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset?.removeId;
+        if (id) {
+          removeMyLink(id);
+          render();
+        }
+      });
+    });
+  }
   // A4枠トグル
   document.getElementById('size-toggle-a4')?.addEventListener('change', e => {
     a4ModeEnabled = e.target.checked;
@@ -819,3 +1809,4 @@ function setupMobileHeaderScroll() {
 setupMobileHeaderScroll();
 setupTheme();
 render();
+loadDistData();

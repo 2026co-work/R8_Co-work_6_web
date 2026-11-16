@@ -104,10 +104,43 @@ export async function injectPngMetadata(blob, metadata = {}) {
   return new Blob([resultBytes], { type: 'image/png' });
 }
 
+const escapeIcsText = text => String(text ?? '')
+  .replace(/\\/g, '\\\\')
+  .replace(/;/g, '\\;')
+  .replace(/,/g, '\\,')
+  .replace(/\r?\n/g, '\\n');
+
+function formatDateIcs(dateStr, addDays = 0) {
+  const match = String(dateStr || '').trim().match(/^(\d{4})-?(\d{2})-?(\d{2})/);
+  if (!match) return '';
+  const d = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + addDays));
+  const yyyy = String(d.getUTCFullYear()).padStart(4, '0');
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${yyyy}${mm}${dd}`;
+}
+
+function resolveIcsUntil(options = {}) {
+  const raw = options?.semesterInfo?.until || options?.semesterInfo?.endDate || options?.until;
+  if (!raw) return '20270228T145959Z';
+  const str = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return `${str.replace(/-/g, '')}T145959Z`;
+  if (/^\d{8}$/.test(str)) return `${str}T145959Z`;
+  return str;
+}
+
+function formatFiscalYearText(fy) {
+  if (!fy) return '令和8年度';
+  if (typeof fy === 'string' && fy.includes('年度')) return fy;
+  const num = Number(fy);
+  if (Number.isFinite(num) && num >= 2019) return `令和${num - 2018}年度`;
+  return `${fy}年度`;
+}
+
 /**
  * iCalendar (.ics) 生成
  */
-export function generateIcs(selectedLessons, studentLabel) {
+export function generateIcs(selectedLessons, studentLabel, options = {}) {
   const baseDates = {
     1: '20261005', // 月
     2: '20261006', // 火
@@ -116,7 +149,11 @@ export function generateIcs(selectedLessons, studentLabel) {
     5: '20261009'  // 金
   };
 
-  const escapeIcs = text => (text || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const escapeIcs = escapeIcsText;
+  const untilStr = resolveIcsUntil(options);
+  const holidayDates = (Array.isArray(options?.holidays) ? options.holidays : [])
+    .map(h => formatDateIcs(h, 0))
+    .filter(Boolean);
   const events = [];
 
   for (const lesson of selectedLessons) {
@@ -145,7 +182,8 @@ export function generateIcs(selectedLessons, studentLabel) {
       `DESCRIPTION:${description}`,
       `DTSTART;TZID=Asia/Tokyo:${dateStr}T${startTime}`,
       `DTEND;TZID=Asia/Tokyo:${dateStr}T${endTime}`,
-      'RRULE:FREQ=WEEKLY;UNTIL=20270228T145959Z',
+      `RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`,
+      holidayDates.length > 0 ? `EXDATE;TZID=Asia/Tokyo:${holidayDates.map(d => `${d}T${startTime}`).join(',')}` : '',
       'TRANSP:OPAQUE',
       'STATUS:CONFIRMED',
       'END:VEVENT'
@@ -166,13 +204,84 @@ export function generateIcs(selectedLessons, studentLabel) {
 }
 
 /**
+ * 年間行事予定 iCalendar (.ics) 生成 (RFC 5545 VALUE=DATE)
+ */
+export function generateCalendarIcs(calendarData = {}, options = {}) {
+  const includeExams = options?.includeExams !== false;
+  const vevents = [];
+  const rawEvents = Array.isArray(calendarData?.events) ? calendarData.events : [];
+  const rawSubs = Array.isArray(calendarData?.daySubstitutions) ? calendarData.daySubstitutions : [];
+
+  rawEvents.forEach((ev, idx) => {
+    if (!ev || !ev.date || !ev.title) return;
+    if (!includeExams && ev.type === 'exam') return;
+
+    const start = formatDateIcs(ev.date, 0);
+    if (!start) return;
+    const end = ev.endDate ? formatDateIcs(ev.endDate, 1) : formatDateIcs(ev.date, 1);
+
+    vevents.push([
+      'BEGIN:VEVENT',
+      `UID:cal-${start}-${idx}@akashi-kosen`,
+      `DTSTART;VALUE=DATE:${start}`,
+      end ? `DTEND;VALUE=DATE:${end}` : '',
+      `SUMMARY:${escapeIcsText(ev.title)}`,
+      ev.description ? `DESCRIPTION:${escapeIcsText(ev.description)}` : '',
+      'STATUS:CONFIRMED',
+      'END:VEVENT'
+    ].filter(Boolean).join('\r\n'));
+  });
+
+  rawSubs.forEach((sub, idx) => {
+    if (!sub || !sub.date) return;
+    const start = formatDateIcs(sub.date, 0);
+    if (!start) return;
+    const end = formatDateIcs(sub.date, 1);
+    const summary = sub.reason || sub.note || (sub.substituteDay ? `${sub.substituteDay}曜日授業振替` : '授業振替');
+
+    vevents.push([
+      'BEGIN:VEVENT',
+      `UID:cal-sub-${start}-${idx}@akashi-kosen`,
+      `DTSTART;VALUE=DATE:${start}`,
+      end ? `DTEND;VALUE=DATE:${end}` : '',
+      `SUMMARY:${escapeIcsText(summary)}`,
+      sub.note && sub.note !== summary ? `DESCRIPTION:${escapeIcsText(sub.note)}` : '',
+      'STATUS:CONFIRMED',
+      'END:VEVENT'
+    ].filter(Boolean).join('\r\n'));
+  });
+
+  const calName = escapeIcsText(calendarData?.meta?.title || '明石高専 年間行事予定');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Akashi KOSEN//Campus Portal Calendar//JA',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${calName}`,
+    'X-WR-TIMEZONE:Asia/Tokyo',
+    ...vevents,
+    'END:VCALENDAR'
+  ].join('\r\n');
+}
+
+/**
  * CSV形式生成（1時限=1行の正規化展開）
  * options.includeEmpty が true の場合、空きコマも出力
  */
 export function generateCsv(selectedLessons, studentLabel, options = {}) {
   const { includeEmpty = false } = options;
   const headers = ['曜日', '時限', '開始時間', '終了時間', '科目名', '教室', '担当教員', '連続コマ', '備考'];
-  const rows = [headers];
+  const rows = [];
+  const hasDynamicMeta = Boolean(options?.fiscalYear || options?.term || options?.semesterInfo);
+  if (hasDynamicMeta) {
+    const fy = formatFiscalYearText(options?.fiscalYear || options?.semesterInfo?.fiscalYear);
+    const rawFy = options?.fiscalYear || options?.semesterInfo?.fiscalYear || 2026;
+    const termStr = options?.term || options?.semesterInfo?.term || '後期';
+    rows.push(['# メタデータ', `${fy} (${rawFy})`, termStr, `対象: ${studentLabel}`]);
+  }
+  rows.push(headers);
 
   const sorted = [...selectedLessons].sort((a, b) => (a.dayOfWeek - b.dayOfWeek) || (a.period - b.period));
 
@@ -250,9 +359,11 @@ export function generateCsv(selectedLessons, studentLabel, options = {}) {
  * テキスト形式生成
  */
 export function generateText(selectedLessons, studentLabel, options = {}) {
-  const { includeLocation = true, includeTeacher = true, includeEmpty = false } = options;
+  const { includeLocation = true, includeTeacher = true, includeEmpty = false, fiscalYear, term, semesterInfo } = options;
+  const fyLabel = formatFiscalYearText(fiscalYear || semesterInfo?.fiscalYear);
+  const termLabel = term || semesterInfo?.term || '後期';
   const lines = [
-    `■ 明石高専 時間割（令和8年度後期）`,
+    `■ 明石高専 時間割（${fyLabel}${termLabel}）`,
     `対象: ${studentLabel}`,
     `----------------------------------------`
   ];
@@ -319,8 +430,10 @@ export function generateText(selectedLessons, studentLabel, options = {}) {
  * options.includeEmpty が true の場合、空きコマ情報も含める
  */
 export function generateJson(selectedLessons, studentLabel, updated = '2026-09-24', options = {}) {
-  const { includeEmpty = false } = options;
+  const { includeEmpty = false, fiscalYear, term, semesterInfo } = options;
   const totalPeriods = selectedLessons.reduce((sum, l) => sum + (l.duration || 1), 0);
+  const fyLabel = formatFiscalYearText(fiscalYear || semesterInfo?.fiscalYear);
+  const termLabel = term || semesterInfo?.term || '後期';
 
   let outputLessons = selectedLessons;
   if (includeEmpty) {
@@ -346,7 +459,8 @@ export function generateJson(selectedLessons, studentLabel, updated = '2026-09-2
   const exportData = {
     meta: {
       title: '明石高専 授業時間割',
-      term: '令和8年度後期',
+      term: `${fyLabel}${termLabel}`,
+      ...(fiscalYear || semesterInfo?.fiscalYear ? { fiscalYear: fiscalYear || semesterInfo?.fiscalYear } : {}),
       student: studentLabel,
       sourceUpdated: updated,
       totalPeriods: totalPeriods,
@@ -395,6 +509,8 @@ export function prepareExportSnapshot(snapshot, options = {}) {
 
   const label = options.studentLabel || '';
   const updated = options.updated || '2026-09-24';
+  const termLabel = options.term || options.semesterInfo?.term || '後期';
+  const fyLabel = formatFiscalYearText(options.fiscalYear || options.semesterInfo?.fiscalYear);
   const shortBadge = formatStudentShortBadge(label);
 
   const headH2 = snapshot.querySelector('.panel-head h2');
@@ -416,7 +532,7 @@ export function prepareExportSnapshot(snapshot, options = {}) {
   headerRow.className = 'export-header-row';
   headerRow.innerHTML = `
     <div class="export-header-main">
-      <h1 class="export-title">明石高専 後期時間割</h1>
+      <h1 class="export-title">明石高専 ${fyLabel}${termLabel}時間割</h1>
       <span class="export-badge-tag">${label}</span>
       <span class="export-team-tag">Co+work 6班</span>
     </div>
@@ -485,11 +601,20 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
     throw new Error('PDFまたはPNG、カレンダー、CSV、テキスト、JSONを選択してください。');
   }
 
-  const { selectedLessons = [], studentLabel = '', action = 'download', includeEmpty = false } = options;
+  const {
+    selectedLessons = [],
+    studentLabel = '',
+    action = 'download',
+    includeEmpty = false,
+    fiscalYear,
+    term,
+    semesterInfo,
+    holidays
+  } = options;
 
   // 1. iCalendar (.ics)
   if (format === 'ics') {
-    const icsString = generateIcs(selectedLessons, studentLabel);
+    const icsString = generateIcs(selectedLessons, studentLabel, { semesterInfo, holidays });
     if (action === 'copy') {
       const ok = await copyTextToClipboard(icsString);
       if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
@@ -502,7 +627,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 2. CSV (.csv)
   if (format === 'csv') {
-    const csvString = generateCsv(selectedLessons, studentLabel, { includeEmpty });
+    const csvString = generateCsv(selectedLessons, studentLabel, { includeEmpty, fiscalYear, term, semesterInfo });
     if (action === 'copy') {
       const ok = await copyTextToClipboard(csvString);
       if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
@@ -515,7 +640,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 3. JSON (.json)
   if (format === 'json') {
-    const jsonString = generateJson(selectedLessons, studentLabel, options.updated, { includeEmpty });
+    const jsonString = generateJson(selectedLessons, studentLabel, options.updated, { includeEmpty, fiscalYear, term, semesterInfo });
     if (action === 'copy') {
       const ok = await copyTextToClipboard(jsonString);
       if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
@@ -528,7 +653,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 
   // 4. テキスト (.txt & クリップボードコピー)
   if (format === 'text') {
-    const textString = generateText(selectedLessons, studentLabel, { ...options.textOptions, includeEmpty });
+    const textString = generateText(selectedLessons, studentLabel, { ...options.textOptions, includeEmpty, fiscalYear, term, semesterInfo });
     if (action === 'copy') {
       const ok = await copyTextToClipboard(textString);
       if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
@@ -618,12 +743,24 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 }
 
 /**
+ * 年間行事予定 iCalendar (.ics) ファイル保存
+ */
+export function exportCalendarIcs(calendarData, filename = 'akashi-kosen-calendar', options = {}) {
+  const icsString = generateCalendarIcs(calendarData, options);
+  const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
+  downloadBlob(blob, `${filename}.ics`);
+  return { success: true, message: '年間行事予定 (.ics) を保存しました。' };
+}
+
+/**
  * 全学科・全学年の時間割原本データ（JSON）のエクスポート
  */
 export function exportAllLessonsJson(lessons, sourceInfo = {}) {
+  const fyLabel = formatFiscalYearText(sourceInfo.fiscalYear);
+  const termLabel = sourceInfo.term || '後期';
   const exportData = {
     meta: {
-      title: '明石高専 令和8年度後期 全時間割原本データ',
+      title: `明石高専 ${fyLabel}${termLabel} 全時間割原本データ`,
       sourceUrl: sourceInfo.url || 'https://www.akashi.ac.jp/life/lesson.html',
       sourceUpdated: sourceInfo.updated || '2026-09-24',
       totalLessons: lessons.length,
@@ -634,6 +771,6 @@ export function exportAllLessonsJson(lessons, sourceInfo = {}) {
   };
   const jsonString = JSON.stringify(exportData, null, 2);
   const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
-  downloadBlob(blob, `明石高専_令和8年度後期_全時間割データ.json`);
+  downloadBlob(blob, `明石高専_${fyLabel}${termLabel}_全時間割データ.json`);
   return { success: true, message: '全時間割データ（JSON）をダウンロードしました。' };
 }
