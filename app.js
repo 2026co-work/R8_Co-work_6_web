@@ -248,21 +248,43 @@ const FALLBACK_CAFETERIA = {
 let calendarData = { ...FALLBACK_CALENDAR };
 let examData = { ...FALLBACK_EXAM };
 let cafeteriaData = { ...FALLBACK_CAFETERIA };
+let isOfflineFallback = false;
+let dashboardOffsetDays = 0;
+let calendarFilterPeriod = 'all';
+let calendarFilterCategory = 'all';
+let selectedCafeteriaWeekIdx = -1;
+let lastModalTrigger = null;
+
+function themeToggleBtn() {
+  const isDark = currentTheme === 'dark';
+  const label = isDark ? 'ライトモードに切り替える' : 'ダークモードに切り替える';
+  return `<button id="theme-toggle" class="theme-toggle" type="button" aria-label="${label}" title="${label}"><span class="theme-icon" data-icon="${isDark ? 'sun' : 'moon'}">${icon(isDark ? 'sun' : 'moon')}</span></button>${isOfflineFallback ? '<span id="network-status-badge" class="badge yellow network-status-badge" title="内蔵フォールバックデータを表示中">オフライン表示</span>' : ''}`;
+}
 
 function fetchDistJson(url, onSuccess) {
   try {
     const resPromise = fetch(url);
     if (!resPromise || typeof resPromise.then !== 'function') return;
     resPromise
-      .then(r => (r && r.ok ? r.json() : null))
+      .then(r => {
+        if (!r || !r.ok) {
+          isOfflineFallback = true;
+          return null;
+        }
+        return r.json();
+      })
       .then(data => {
         if (data && typeof data === 'object') {
           onSuccess(data);
           render();
         }
       })
-      .catch(() => {});
-  } catch {}
+      .catch(() => {
+        isOfflineFallback = true;
+      });
+  } catch {
+    isOfflineFallback = true;
+  }
 }
 
 function loadDistData() {
@@ -371,9 +393,9 @@ function getAcademicWeek(date = new Date()) {
 }
 
 function renderTodaySchedule(currentDate) {
-  const s = studentSelection;
   const jsDay = currentDate.getDay();
   const todayDateStr = dateKey(currentDate);
+  const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
 
   const sub = calendarData?.daySubstitutions?.find(item => item.date === todayDateStr);
   let effectiveDay = jsDay;
@@ -385,11 +407,25 @@ function renderTodaySchedule(currentDate) {
     if (typeof sub.effectiveDay === 'number') {
       effectiveDay = sub.effectiveDay;
     } else if (sub.substituteDay) {
-      const idx = DAYS.indexOf(sub.substituteDay);
+      const idx = DAYS.indexOf(String(sub.substituteDay).replace(/曜日$/, ''));
       if (idx !== -1) effectiveDay = idx + 1;
     }
     subReason = sub.reason || sub.note || `${DAYS[effectiveDay - 1]}曜日授業振替`;
   }
+
+  const holidayEv = events.find(e =>
+    (e.type === 'holiday' || e.type === 'break' || e.hasClasses === false) &&
+    e.type !== 'exam' &&
+    (e.date === todayDateStr || (e.endDate && todayDateStr >= e.date && todayDateStr <= e.endDate))
+  );
+
+  const navControls = `
+    <div class="dashboard-date-nav" role="group" aria-label="日付切り替え">
+      <button type="button" class="button subtle" data-dash-offset="-1" aria-label="前日の時間割">← 前日</button>
+      <button type="button" class="button subtle ${dashboardOffsetDays === 0 ? 'active' : ''}" data-dash-offset="0">今日</button>
+      <button type="button" class="button subtle" data-dash-offset="1" aria-label="翌日の時間割">翌日 →</button>
+    </div>
+  `;
 
   const subBanner = isSubstituted ? `
     <div class="alert alert-warning day-sub-alert">
@@ -398,16 +434,21 @@ function renderTodaySchedule(currentDate) {
     </div>
   ` : '';
 
-  if (effectiveDay === 0 || effectiveDay === 6) {
+  if (!isSubstituted && (effectiveDay === 0 || effectiveDay === 6 || holidayEv)) {
+    const restLabel = holidayEv?.title || holidayEv?.name || '休業日';
     return subBanner + `
       <section class="panel today-schedule" id="today-schedule">
         <div class="panel-head">
           <h2>${icon('calendar')}今日の時間割</h2>
-          <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          <div class="panel-head-meta">
+            ${navControls}
+            <span class="badge yellow">${escapeHTML(restLabel)}</span>
+            <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          </div>
         </div>
         <div class="dashboard-rest-card">
-          <p>本日は<strong>休業日</strong>です。しっかり休養を取りましょう。</p>
-          <a class="button" href="#timetable">${icon('calendar')}時間割を見る</a>
+          <p><strong>${escapeHTML(todayDateStr)}</strong> は<strong>${escapeHTML(restLabel)}</strong>です。授業はありません。</p>
+          <a class="button" href="#timetable">${icon('calendar')}週間時間割を見る</a>
         </div>
       </section>
     `;
@@ -423,16 +464,20 @@ function renderTodaySchedule(currentDate) {
       <section class="panel today-schedule" id="today-schedule">
         <div class="panel-head">
           <h2>${icon('calendar')}今日の時間割</h2>
-          <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          <div class="panel-head-meta">
+            ${navControls}
+            <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          </div>
         </div>
         <div class="dashboard-empty-card">
-          <p>本日の授業予定はありません（0コマ・空きコマ）。</p>
+          <p>${escapeHTML(todayDateStr)} の授業予定はありません（0コマ・空きコマ）。</p>
           <a class="button secondary" href="#timetable">${icon('calendar')}時間割を確認</a>
         </div>
       </section>
     `;
   }
 
+  const renderedLessonIds = new Set();
   const periodRows = periods.map((time, p) => {
     const cell = dayLessons[p] || [];
     if (cell.length === 0) {
@@ -443,19 +488,28 @@ function renderTodaySchedule(currentDate) {
         </div>
       `;
     }
-    return cell.map(l => {
+    const freshLessons = cell.filter(l => {
+      const key = l.id || `${l.subjectName}-${l.period}`;
+      if (renderedLessonIds.has(key)) return false;
+      renderedLessonIds.add(key);
+      return true;
+    });
+    if (freshLessons.length === 0) return '';
+    return freshLessons.map(l => {
       const span = l.duration || 1;
+      const endPeriodIdx = Math.min(periods.length - 1, p + span - 1);
+      const endTime = periods[endPeriodIdx]?.[1] || time[1];
       return `
         <div class="dashboard-period active">
           <div class="period-meta">
-            <span class="period-num">${p + 1}限</span>
-            <span class="period-time">${time[0]}〜${time[1]}</span>
-            ${span > 1 ? `<span class="badge gray">${l.period}〜${l.period + span - 1}限</span>` : ''}
+            <span class="period-num">${span > 1 ? `${p + 1}〜${p + span}限` : `${p + 1}限`}</span>
+            <span class="period-time">${time[0]}〜${endTime}</span>
+            ${span > 1 ? `<span class="badge gray">${span}コマ連続</span>` : ''}
           </div>
           <div class="lesson-info">
             <strong class="subject-title">${escapeHTML(l.subjectName)}</strong>
             <div class="lesson-sub">
-              ${l.location ? `<span class="lesson-location">${icon('door')}${escapeHTML(l.location)}</span>` : ''}
+              ${l.location ? `<span class="lesson-location" title="${escapeHTML(l.location)}">${icon('door')}${escapeHTML(l.location)}</span>` : ''}
               ${l.teacher ? `<span class="lesson-teacher">${escapeHTML(l.teacher)}</span>` : ''}
             </div>
             ${l.notes ? `<small class="lesson-notes">${escapeHTML(l.notes)}</small>` : ''}
@@ -470,6 +524,7 @@ function renderTodaySchedule(currentDate) {
       <div class="panel-head">
         <h2>${icon('calendar')}今日の時間割</h2>
         <div class="panel-head-meta">
+          ${navControls}
           <span class="badge">${DAYS[dayIdx]}曜日</span>
           <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
         </div>
@@ -486,13 +541,16 @@ function renderTodaySchedule(currentDate) {
 
 function renderExamAlert() {
   const meta = examData?.meta || {};
-  const noticeText = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。';
+  const isPublished = meta.status === 'published';
+  const noticeText = isPublished
+    ? '定期試験時間割が公開されています。試験科目・教室・監督配置を確認してください。'
+    : (meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。');
   const selfStudyRule = meta.selfStudyRule || '試験は2限から開始しますが、9時に登校し自習することを原則とします。JRの遅延などが生じた場合、9時に登校していることを前提として対応します。';
   return `
     <section class="panel exam-alert" id="exam-alert">
       <div class="panel-head">
         <h2>${icon('document')}定期試験案内</h2>
-        <span class="badge yellow">試験情報</span>
+        <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '試験情報'}</span>
       </div>
       <div class="exam-alert-body">
         <p class="exam-notice"><strong>${escapeHTML(noticeText)}</strong></p>
@@ -507,6 +565,13 @@ function renderExamAlert() {
 
 function renderCafeteriaSummary(currentDate) {
   const todayDateStr = dateKey(currentDate);
+  const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
+  const holidayEv = events.find(e =>
+    (e.type === 'holiday' || e.type === 'break' || e.hasClasses === false) &&
+    e.type !== 'exam' &&
+    (e.date === todayDateStr || (e.endDate && todayDateStr >= e.date && todayDateStr <= e.endDate))
+  );
+  const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
   let todayMenu = null;
 
   if (cafeteriaData?.weeklyMenus) {
@@ -555,6 +620,14 @@ function renderCafeteriaSummary(currentDate) {
         ${allergensStr ? `<p class="allergens-note"><small>アレルギー特定原材料: ${escapeHTML(allergensStr)}</small></p>` : ''}
       </div>
     `;
+  } else if (isWeekend || holidayEv || (todayMenu && todayMenu.isOpen === false)) {
+    const reason = todayMenu?.closedReason || holidayEv?.title || holidayEv?.name || '土日・休業日';
+    contentHtml = `
+      <div class="cafeteria-fallback-info">
+        <p>本日は学生食堂の休業日です（${escapeHTML(reason)}）。</p>
+        <p class="cafeteria-times"><small>通常営業時間: 平日 11:30〜13:30</small></p>
+      </div>
+    `;
   } else {
     contentHtml = `
       <div class="cafeteria-fallback-info">
@@ -599,21 +672,21 @@ function saveMyLinks(links) {
 }
 
 function addMyLink(link) {
-  if (!link || typeof link !== 'object') return { success: false, error: 'Invalid link' };
+  if (!link || typeof link !== 'object') return { success: false, error: '無効なリンクデータです (Invalid link)' };
   const name = String(link.name || '').trim();
   const url = String(link.url || '').trim();
-  if (!name || !url) return { success: false, error: 'Name and URL are required' };
-  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'Disallowed scheme' };
+  if (!name || !url) return { success: false, error: 'リンク名とURLを入力してください (Name and URL are required)' };
+  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'URLは http:// または https:// で入力してください (Disallowed scheme)' };
   const links = loadMyLinks();
   const newItem = { id: link.id || `custom-${Date.now()}`, name, url, custom: true };
   links.push(newItem);
   try {
     const saved = saveMyLinks(links);
     if (saved === false || (saved && saved.success === false)) {
-      return { success: false, error: (saved && saved.error) || 'Failed to save links' };
+      return { success: false, error: (saved && saved.error) || 'リンクを保存できませんでした (Failed to save links)' };
     }
   } catch (err) {
-    return { success: false, error: err?.message || 'Storage quota exceeded' };
+    return { success: false, error: err?.message || 'ストレージ容量の上限に達しました (Storage quota exceeded)' };
   }
   return { success: true, item: newItem };
 }
@@ -702,25 +775,24 @@ function renderTodayOverview(currentDate = new Date()) {
 
 function home() {
   const now = new Date();
-  const currentToday = dateKey(now);
-  const weekInfo = getAcademicWeek(now);
+  const targetDate = new Date(now.getTime() + dashboardOffsetDays * 86400000);
+  const displayDateKey = dateKey(targetDate);
+  const weekInfo = getAcademicWeek(targetDate);
   const actions = `
     <div class="heading-actions">
-      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え">
-        <span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span>
-      </button>
+      ${themeToggleBtn()}
       <span class="term-badge badge blue">${escapeHTML(weekInfo.label)}</span>
       <span class="student-pill badge gray">${escapeHTML(studentShortLabel())}</span>
       <div class="date-block">
-        <strong>${longDate(currentToday)}</strong>
-        <small>キャンパスポータル</small>
+        <strong>${longDate(displayDateKey)}</strong>
+        <small>${dashboardOffsetDays === 0 ? 'キャンパスポータル' : `基準日から${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日`}</small>
       </div>
     </div>
   `;
 
   return `
     ${heading('ホーム', '今日の概要ダッシュボード', actions)}
-    ${renderTodayOverview(now)}
+    ${renderTodayOverview(targetDate)}
   `;
 }
 
@@ -775,7 +847,7 @@ function extractExamEntries(data, selection) {
 }
 
 function exam() {
-  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
   const meta = examData?.meta || FALLBACK_EXAM.meta || {};
   const isPublished = meta.status === 'published';
   const notice = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。（10日前の正午発表）';
@@ -835,7 +907,7 @@ function exam() {
         <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '未公開'}</span>
       </div>
       <p class="exam-notice"><strong>${escapeHTML(notice)}</strong></p>
-      <p class="exam-rule"><small>${escapeHTML(selfStudyRule)}</small></p>
+      <p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>
       <div class="exam-period-chips">${periodChipsHtml}</div>
       <div class="exam-links-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${isPublished && sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">公式試験時間割PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">公式試験時間割PDF（未公開）</button>`}
@@ -850,6 +922,9 @@ function exam() {
         <h2>${icon('calendar')}試験時間割（${escapeHTML(classCode)}）</h2>
         <span class="badge">${entries.length}件</span>
       </div>
+      <div class="exam-search-bar">
+        <input type="search" id="exam-search-input" placeholder="科目名・教室・監督名で絞り込み..." aria-label="定期試験科目検索">
+      </div>
       <div class="exam-timetable" id="exam-timetable">
         ${scheduleCards}
       </div>
@@ -858,30 +933,63 @@ function exam() {
 function examView() { return exam(); }
 
 function calendar() {
-  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
-  const weekInfo = getAcademicWeek(new Date());
+  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const nowDate = new Date();
+  const todayStr = dateKey(nowDate);
+  const currentMonthPrefix = todayStr.slice(0, 7);
+  const weekInfo = getAcademicWeek(nowDate);
   const data = calendarData || FALLBACK_CALENDAR;
   const events = Array.isArray(data.events) && data.events.length ? data.events : FALLBACK_CALENDAR.events;
   const subs = Array.isArray(data.daySubstitutions) ? data.daySubstitutions : [];
   const subDates = new Set(subs.map(s => s.date));
 
-  const sortedEvents = [...events].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
   const badgeMap = {
     holiday: { cls: 'yellow', label: '祝日・休業' },
     break: { cls: 'yellow', label: '長期休業' },
+    vacation: { cls: 'yellow', label: '長期休業' },
     exam: { cls: 'red', label: '定期試験' },
     festival: { cls: 'blue', label: '高専祭・行事' },
+    school_event: { cls: 'blue', label: '学校行事' },
     academic: { cls: 'blue', label: '授業日程' },
+    special: { cls: 'blue', label: '振替・特別' },
+    ceremony: { cls: 'blue', label: '式典・行事' },
     event: { cls: 'blue', label: '行事' }
   };
 
+  const sortedEvents = [...events]
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+    .filter(ev => {
+      const start = String(ev.date || ev.startDate || '');
+      if (calendarFilterPeriod === 'current' && !start.startsWith(currentMonthPrefix)) return false;
+      if (calendarFilterPeriod === 'zenki') {
+        const m = Number(start.slice(5, 7));
+        if (m < 4 || m > 9) return false;
+      }
+      if (calendarFilterPeriod === 'kouki') {
+        const m = Number(start.slice(5, 7));
+        if (m >= 4 && m <= 9) return false;
+      }
+      if (calendarFilterCategory === 'holiday') {
+        return ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false;
+      }
+      if (calendarFilterCategory === 'exam') return ev.type === 'exam';
+      if (calendarFilterCategory === 'event') {
+        return !['holiday', 'break', 'vacation', 'exam'].includes(ev.type);
+      }
+      return true;
+    });
+
   const eventRows = sortedEvents.map(ev => {
     const start = ev.date || ev.startDate || '';
+    const endRaw = ev.endDate || start;
     const end = ev.endDate && ev.endDate !== start ? ` 〜 ${ev.endDate}` : '';
     const title = ev.name || ev.title || '行事';
     const b = badgeMap[ev.type] || { cls: 'blue', label: ev.hasClasses === false ? '休業' : '予定' };
-    return `<li class="calendar-event-item" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}">
+    const isToday = start && (todayStr >= start && todayStr <= endRaw);
+    const isPast = !isToday && endRaw && endRaw < todayStr;
+    return `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}">
       <span class="calendar-event-date">${escapeHTML(start + end)}</span>
+      ${isToday ? '<span class="badge red">本日</span>' : ''}
       <span class="badge ${b.cls}">${escapeHTML(b.label)}</span>
       <strong class="calendar-event-title">${escapeHTML(title)}</strong>
       ${ev.note ? `<small class="calendar-event-note">${escapeHTML(ev.note)}</small>` : ''}
@@ -892,10 +1000,13 @@ function calendar() {
     ? `<div class="calendar-substitutions">
         <h3>授業振替実施日</h3>
         <ul class="calendar-timeline">
-          ${subs.map(s => `<li class="calendar-event-item" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${s.substituteDay || '月'}曜日授業を実施`)}</strong>${s.note ? `<small>${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
+          ${subs.map(s => `<li class="calendar-event-item" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`)}</strong>${s.note ? `<small class="calendar-event-note">${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
         </ul>
       </div>`
     : '';
+
+  const periodChip = (key, label) => `<button type="button" class="chip${calendarFilterPeriod === key ? ' active' : ''}" data-cal-period="${key}">${label}</button>`;
+  const catChip = (key, label) => `<button type="button" class="chip${calendarFilterCategory === key ? ' active' : ''}" data-cal-cat="${key}">${label}</button>`;
 
   return `${heading('年間予定', '行事予定・授業日程・週番号', actions)}
     <section class="panel calendar-panel">
@@ -909,10 +1020,14 @@ function calendar() {
         <span class="badge">${sortedEvents.length}件の行事</span>
         ${subDates.size ? `<span class="badge blue">授業振替 ${subDates.size}日</span>` : ''}
       </div>
+      <div class="calendar-filters" role="group" aria-label="年間予定絞り込み">
+        <div class="filter-group">${periodChip('all', '通年')}${periodChip('current', '今月')}${periodChip('zenki', '前期')}${periodChip('kouki', '後期')}</div>
+        <div class="filter-group">${catChip('all', 'すべて')}${catChip('holiday', '祝日・休業')}${catChip('exam', '定期試験')}${catChip('event', '学校行事')}</div>
+      </div>
       ${subRows}
       <div class="calendar-events" id="calendar-events">
         <ul class="calendar-timeline">
-          ${eventRows}
+          ${eventRows || '<li class="calendar-event-item"><span class="calendar-event-title">該当する行事はありません。</span></li>'}
         </ul>
       </div>
     </section>`;
@@ -941,7 +1056,7 @@ function renderCafeteriaDayCard(day) {
 }
 
 function cafeteria() {
-  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
   const data = cafeteriaData || FALLBACK_CAFETERIA;
   const meta = data.meta || FALLBACK_CAFETERIA.meta || {};
   const hasSourceKey = Object.prototype.hasOwnProperty.call(meta, 'sourcePdfUrl');
@@ -955,12 +1070,21 @@ function cafeteria() {
   const legacyMenus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
   const hasMenuData = weeklyMenus.some(w => Array.isArray(w?.days) && w.days.length > 0) || legacyMenus.length > 0;
 
+  let weekTabsHtml = '';
   let menuContent = `<p class="info-note" data-extracted="false">今月の日替わりランチ詳細はPDFからのテキスト抽出が未対応のため（テキスト未抽出）、原本PDFまたは公式ニュースでご確認ください。</p>`;
   if (isTextExtracted && hasMenuData) {
     if (weeklyMenus.length > 0) {
-      menuContent = weeklyMenus.map((week, idx) => {
+      const validWeekIdx = selectedCafeteriaWeekIdx >= 0 && selectedCafeteriaWeekIdx < weeklyMenus.length ? selectedCafeteriaWeekIdx : -1;
+      if (weeklyMenus.length > 1) {
+        weekTabsHtml = `<div class="cafeteria-week-tabs" role="group" aria-label="週切り替え">
+          <button type="button" class="cafeteria-week-tab${validWeekIdx === -1 ? ' active' : ''}" data-cafe-week="-1">全週</button>
+          ${weeklyMenus.map((w, idx) => `<button type="button" class="cafeteria-week-tab${validWeekIdx === idx ? ' active' : ''}" data-cafe-week="${idx}">${escapeHTML(w.weekLabel || `第${idx + 1}週`)} ${w.weekRange ? `(${escapeHTML(w.weekRange)})` : ''}</button>`).join('')}
+        </div>`;
+      }
+      const visibleWeeks = validWeekIdx === -1 ? weeklyMenus : [weeklyMenus[validWeekIdx]];
+      menuContent = visibleWeeks.map((week, idx) => {
         const days = Array.isArray(week?.days) ? week.days : [];
-        return `<div class="cafeteria-week-block" data-week-idx="${idx}">
+        return `<div class="cafeteria-week-block" data-week-idx="${validWeekIdx === -1 ? idx : validWeekIdx}">
           ${week.weekRange ? `<h3 class="cafeteria-week-heading">${escapeHTML(week.weekRange)}</h3>` : ''}
           <ul class="cafeteria-menu-list">${days.map(renderCafeteriaDayCard).join('')}</ul>
         </div>`;
@@ -977,6 +1101,7 @@ function cafeteria() {
         <span class="badge ${isTextExtracted ? 'green' : 'yellow'}">${isTextExtracted ? 'メニュー掲載中' : 'PDF案内'}</span>
       </div>
       <p>学生食堂の日替わり定食・ランチメニューおよび寮生食堂の月間献立案内です。</p>
+      ${weekTabsHtml}
       ${menuContent}
       <div class="cafeteria-links" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">学生食堂 原本PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">学生食堂 原本PDF（未公開）</button>`}
@@ -994,59 +1119,87 @@ function cafeteria() {
 function cafeteriaView() { return cafeteria(); }
 
 const OFFICIAL_SERVICES = [
-  { name: 'Teams', url: 'https://teams.microsoft.com' },
-  { name: 'Classroom', url: 'https://classroom.google.com' },
-  { name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML' },
-  { name: 'Microsoft 365 (SharePoint)', url: 'https://portal.office.com' },
-  { name: '図書館WebOPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do' },
-  { name: 'シラバス検索', url: 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja' },
-  { name: 'JR西日本 列車運行情報', url: 'https://trafficinfo.westjr.co.jp/kinki.html' },
-  { name: '山陽電車 運行情報', url: 'https://www.sanyo-railway.co.jp/railway/traffic.html' },
+  { name: 'Teams', url: 'https://teams.microsoft.com', category: 'learning' },
+  { name: 'Classroom', url: 'https://classroom.google.com', category: 'learning' },
+  { name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML', category: 'learning' },
+  { name: 'Microsoft 365 (SharePoint)', url: 'https://portal.office.com', category: 'learning' },
+  { name: '図書館WebOPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do', category: 'academic' },
+  { name: 'シラバス検索', url: 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja', category: 'academic' },
+  { name: 'JR西日本 列車運行情報', url: 'https://trafficinfo.westjr.co.jp/kinki.html', category: 'transport' },
+  { name: '山陽電車 運行情報', url: 'https://www.sanyo-railway.co.jp/railway/traffic.html', category: 'transport' },
+];
+
+const PRESET_LINKS = [
+  { name: 'Gmail', url: 'https://mail.google.com/' },
+  { name: 'Google Drive', url: 'https://drive.google.com/' },
+  { name: 'OneDrive', url: 'https://onedrive.live.com/' },
+  { name: 'iCloud', url: 'https://www.icloud.com/' },
 ];
 
 function linksView() {
-  const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
   const syllabusUrl = getSyllabusUrl(studentSelection);
-  const officialItems = OFFICIAL_SERVICES.map(s => `
-    <a class="button secondary" href="${escapeHTML(s.url)}" target="_blank" rel="noopener noreferrer">${icon('external')}${escapeHTML(s.name)}</a>
-  `).join('');
+  const serviceGroups = [
+    { key: 'learning', title: '学内学習ツール・LMS' },
+    { key: 'academic', title: '学術情報・シラバス' },
+    { key: 'transport', title: '交通・運行情報' },
+  ];
+  const officialSections = serviceGroups.map(grp => {
+    const items = OFFICIAL_SERVICES.filter(s => s.category === grp.key);
+    if (!items.length) return '';
+    return `<div class="links-category-section">
+      <h3 class="links-category-title">${escapeHTML(grp.title)}</h3>
+      <div class="official-links-group" style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${items.map(s => `<a class="button secondary" href="${escapeHTML(s.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(s.name)}（新しいタブで開く）">${icon('external')}${escapeHTML(s.name)}</a>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
 
   const myLinks = loadMyLinks().filter(item => item && /^https?:\/\//i.test(String(item.url || '')));
+  const existingUrls = new Set(myLinks.map(item => item.url));
   const myLinkItems = myLinks.length
-    ? myLinks.map(item => `
-        <div class="mylink-row" data-link-id="${escapeHTML(item.id)}" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    ? myLinks.map((item, idx) => `
+        <div class="mylink-row" data-link-id="${escapeHTML(item.id)}">
           <a class="button secondary mylink-anchor" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external')}${escapeHTML(item.name)}</a>
+          <div class="mylink-reorder-btns">
+            <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="up" aria-label="${escapeHTML(item.name)}を上へ移動" ${idx === 0 ? 'disabled' : ''}>↑</button>
+            <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="down" aria-label="${escapeHTML(item.name)}を下へ移動" ${idx === myLinks.length - 1 ? 'disabled' : ''}>↓</button>
+          </div>
           <button type="button" class="button secondary mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除">削除</button>
         </div>
       `).join('')
     : '<p class="hint">登録されたマイリンクはまだありません。</p>';
+
+  const presetButtons = PRESET_LINKS.map(p => {
+    const added = existingUrls.has(p.url);
+    return `<button type="button" class="button secondary preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${escapeHTML(p.name)}${added ? '（追加済み）' : ''}</button>`;
+  }).join('');
 
   return `${heading('リンク・シラバス', 'シラバス・学内サービス・マイリンク', actions)}
     <section class="panel links-panel">
       <div class="panel-head">
         <h2>${icon('book')}シラバス・公式リンク集</h2>
       </div>
-      <p><a class="button" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">シラバスを開く</a></p>
-      <div class="official-links-list" style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;">
-        ${officialItems}
+      <p><a class="button" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(studentShortLabel())}のシラバスを開く">シラバスを開く</a></p>
+      <div class="official-links-list" style="margin:16px 0;">
+        ${officialSections}
       </div>
       <div class="mylinks-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
         <h3>マイリンク</h3>
-        <div id="mylinks-list" class="mylinks-list" style="margin:10px 0;">
+        <div id="mylinks-list" class="mylinks-list">
           ${myLinkItems}
         </div>
-        <form id="mylink-form" class="mylink-form" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+        <form id="mylink-form" class="mylink-form">
           <input type="text" id="mylink-name" name="name" placeholder="表示名（例: Gmail）" aria-label="リンク名" required>
           <input type="url" id="mylink-url" name="url" placeholder="https://..." aria-label="リンクURL" required>
           <button type="submit" id="mylink-add-btn" class="button">追加</button>
         </form>
         <p id="mylink-error" class="info-note" role="alert" hidden></p>
       </div>
-      <div class="preset-suggestions" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <div class="preset-suggestions">
         <h3>ワンタップ追加候補</h3>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button type="button" class="button secondary preset-btn" data-preset-name="Gmail" data-preset-url="https://mail.google.com/">Gmail</button>
-          <button type="button" class="button secondary preset-btn" data-preset-name="Google Drive" data-preset-url="https://drive.google.com/">Google Drive</button>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+          ${presetButtons}
         </div>
       </div>
     </section>`;
@@ -1092,7 +1245,7 @@ function timetable() {
   const { selected, grid, error } = selectedSchedule();
   const totalPeriods = selected.reduce((sum, l) => sum + (l.duration || 1), 0);
   const options = (values, current) => values.map(([value,label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
-  const field = (label, key, values, disabled = false) => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select></label>`;
+  const field = (label, key, values, disabled = false, hintText = '') => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select>${hintText ? `<small class="field-hint">${escapeHTML(hintText)}</small>` : ''}</label>`;
   const needsCourse = !isAdvanced && s.grade >= 4 && s.department === 'E';
   const gradeOptions = [
     [1,'1年'], [2,'2年'], [3,'3年'], [4,'4年'], [5,'5年'],
@@ -1104,9 +1257,9 @@ function timetable() {
 
   const controls = field('学年','grade',gradeOptions) +
     field(isAdvanced ? '専攻' : '学科','department',deptOptions) +
-    field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),isAdvanced || s.grade>=3) +
+    field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),isAdvanced || s.grade>=3, (isAdvanced || s.grade>=3) ? '※3年生以上・専攻科は学科共通' : '') +
     field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']],isAdvanced) +
-    field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],isAdvanced || !needsCourse) +
+    field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],isAdvanced || !needsCourse, (isAdvanced || !needsCourse) ? '※4・5年E科のみ選択可' : '') +
     (!isAdvanced && s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
   const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の後期時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
     const cell = day[p];
@@ -1119,7 +1272,7 @@ function timetable() {
   const sourceUrl = normalizeAkashiUrl(timetableMeta?.sourceUrl || SOURCE?.url) || 'https://www.akashi.ac.jp/life/lesson.html';
   const updatedText = timetableMeta?.updated || SOURCE?.updated || '2026-09-24';
 
-  return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button><span class="demo-pill"><i></i>ベータ版</span></div>`)}
+  return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions">${themeToggleBtn()}<span class="demo-pill"><i></i>ベータ版</span></div>`)}
     ${renderTimetableBanners(new Date())}
     <details class="panel timetable-controls" id="filter-details" ${filterOpen ? 'open' : ''}>
       <summary class="panel-head filter-summary">
@@ -1133,7 +1286,7 @@ function timetable() {
         <div class="filters student-filters">${controls}</div>
         <p class="selection-status" role="status" hidden></p>
         <div class="filter-actions">
-          <button type="button" class="button confirm-btn" id="confirm-filter-btn">${icon('check')}決定</button>
+          <button type="button" class="button confirm-btn" id="confirm-filter-btn">${icon('check')}決定（条件を閉じる）</button>
         </div>
       </div>
     </details>
@@ -1156,7 +1309,10 @@ function timetable() {
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
             <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="テーマ切り替え">${currentTheme === 'dark' ? '☀️ ライト' : '🌙 ダーク'}</button>
           </div>
-          <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" class="button" id="size-modal-save-btn">💾 このサイズで保存</button>
+            <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
+          </div>
         </div>
         <div class="size-sliders">
           <label class="size-slider-item">
@@ -1304,16 +1460,23 @@ function openSizeAdjustModal() {
   paper.innerHTML = '';
   paper.append(clone);
   applyLiveSheetSize(clone);
+  lastModalTrigger = document.activeElement || null;
   modal.hidden = false;
   document.body.classList.add('size-modal-open');
   syncSizeControlsUI();
+  document.getElementById('export-size-close')?.focus?.();
 }
 function closeSizeAdjustModal() {
   const modal = document.getElementById('export-size-modal');
+  const wasOpen = modal && !modal.hidden;
   if (modal) modal.hidden = true;
   document.body.classList.remove('size-modal-open');
   const panel = document.getElementById('timetable-sheet');
   if (panel) applyLiveSheetSize(panel);
+  if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+    lastModalTrigger.focus();
+    lastModalTrigger = null;
+  }
 }
 function openExportAdjustModal() {
   if (currentExportFormat === 'pdf' || currentExportFormat === 'png') {
@@ -1430,14 +1593,21 @@ async function openDataPreviewModal(format) {
     }
   };
 
+  lastModalTrigger = document.activeElement || null;
   updatePreview();
   modal.hidden = false;
   document.body.classList.add('size-modal-open');
+  document.getElementById('data-preview-close')?.focus?.();
 }
 function closeDataPreviewModal() {
   const modal = document.getElementById('data-preview-modal');
+  const wasOpen = modal && !modal.hidden;
   if (modal) modal.hidden = true;
   document.body.classList.remove('size-modal-open');
+  if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+    lastModalTrigger.focus();
+    lastModalTrigger = null;
+  }
 }
 async function downloadCurrentTimetable(action = 'download') {
   if (exportInProgress || selectedSchedule().error) return;
@@ -1575,10 +1745,25 @@ function render() {
     setTheme(currentTheme === 'dark' ? 'light' : 'dark');
   });
   document.getElementById('export-size-close')?.addEventListener('click', closeSizeAdjustModal);
+  document.getElementById('size-modal-save-btn')?.addEventListener('click', () => {
+    closeSizeAdjustModal();
+    downloadCurrentTimetable('download');
+  });
   document.getElementById('data-preview-close')?.addEventListener('click', closeDataPreviewModal);
   document.getElementById('data-preview-cancel')?.addEventListener('click', closeDataPreviewModal);
-  document.getElementById('data-preview-copy')?.addEventListener('click', () => {
-    downloadCurrentTimetable('copy');
+  document.getElementById('data-preview-copy')?.addEventListener('click', async () => {
+    await downloadCurrentTimetable('copy');
+    const previewCopy = document.getElementById('data-preview-copy');
+    if (previewCopy) {
+      const orig = previewCopy.textContent;
+      previewCopy.textContent = '✅ コピー完了！';
+      previewCopy.classList?.add('btn-success');
+      const timer = setTimeout(() => {
+        previewCopy.textContent = orig;
+        previewCopy.classList?.remove('btn-success');
+      }, 1500);
+      timer?.unref?.();
+    }
   });
   document.getElementById('data-preview-action')?.addEventListener('click', () => {
     closeDataPreviewModal();
@@ -1598,6 +1783,17 @@ function render() {
     exportCalendarIcs(cal, `akashi-calendar-${fy}.ics`);
   });
 
+  // 定期試験検索入力
+  document.getElementById('exam-search-input')?.addEventListener('input', e => {
+    const q = String(e.target?.value || '').trim().toLowerCase();
+    if (typeof document.querySelectorAll === 'function') {
+      document.querySelectorAll('.exam-card').forEach(card => {
+        const txt = String(card.textContent || '').toLowerCase();
+        if (card.style) card.style.display = (!q || txt.includes(q)) ? '' : 'none';
+      });
+    }
+  });
+
   // マイリンク追加・削除イベント
   document.getElementById('mylink-form')?.addEventListener('submit', e => {
     e.preventDefault();
@@ -1615,12 +1811,48 @@ function render() {
     render();
   });
   if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('[data-dash-offset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = Number(btn.dataset?.dashOffset);
+        dashboardOffsetDays = val === 0 ? 0 : (dashboardOffsetDays + val);
+        render();
+      });
+    });
+    document.querySelectorAll('[data-cal-period]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        calendarFilterPeriod = btn.dataset?.calPeriod || 'all';
+        render();
+      });
+    });
+    document.querySelectorAll('[data-cal-cat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        calendarFilterCategory = btn.dataset?.calCat || 'all';
+        render();
+      });
+    });
+    document.querySelectorAll('[data-cafe-week]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const w = Number(btn.dataset?.cafeWeek);
+        selectedCafeteriaWeekIdx = Number.isFinite(w) ? w : -1;
+        render();
+      });
+    });
     document.querySelectorAll('.preset-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const name = btn.dataset?.presetName || btn.textContent?.trim();
         const url = btn.dataset?.presetUrl || '';
         if (name && url) {
           addMyLink({ name, url });
+          render();
+        }
+      });
+    });
+    document.querySelectorAll('.mylink-move-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset?.moveId;
+        const dir = btn.dataset?.dir;
+        if (id && dir) {
+          reorderMyLink(id, dir);
           render();
         }
       });
@@ -1877,12 +2109,15 @@ function setupMobileHeaderScroll() {
     if (!ticking) {
       raf(() => {
         const topbar = typeof document.querySelector === 'function' ? document.querySelector('.topbar') : null;
+        const menuToggle = typeof document.getElementById === 'function' ? document.getElementById('menu-toggle') : null;
         const currentY = typeof window.scrollY === 'number' ? window.scrollY : (typeof window.pageYOffset === 'number' ? window.pageYOffset : 0);
-        if (topbar && typeof window.innerWidth === 'number' && window.innerWidth <= 760 && !document.body?.classList?.contains('menu-open')) {
+        if (typeof window.innerWidth === 'number' && window.innerWidth <= 760 && !document.body?.classList?.contains('menu-open')) {
           if (currentY > lastY && currentY > 50) {
-            topbar.classList?.add('topbar-hidden');
+            topbar?.classList?.add('topbar-hidden');
+            menuToggle?.classList?.add('topbar-hidden');
           } else if (currentY < lastY || currentY <= 20) {
-            topbar.classList?.remove('topbar-hidden');
+            topbar?.classList?.remove('topbar-hidden');
+            menuToggle?.classList?.remove('topbar-hidden');
           }
         }
         lastY = Math.max(0, currentY);
