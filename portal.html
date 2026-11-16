@@ -7,6 +7,17 @@
   <meta name="description" content="あなたの学年・学科に合わせた時間割を確認できるキャンパスポータル。">
   <title>Campus — キャンパスポータル</title>
   <link rel="stylesheet" href="./styles.css">
+  <script>
+    (function() {
+      try {
+        var m = document.cookie.match(/(?:^|; )campus-theme=([^;]*)/);
+        var saved = '';
+        try { saved = localStorage.getItem('campus-theme') || ''; } catch (e) {}
+        var t = m ? decodeURIComponent(m[1]) : (saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
   <script type="module" src="./app.js"></script>
 </head>
 <body>

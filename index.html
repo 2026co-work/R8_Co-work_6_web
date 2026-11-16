@@ -11,7 +11,9 @@
     (function() {
       try {
         var m = document.cookie.match(/(?:^|; )campus-theme=([^;]*)/);
-        var t = m ? decodeURIComponent(m[1]) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        var saved = '';
+        try { saved = localStorage.getItem('campus-theme') || ''; } catch (e) {}
+        var t = m ? decodeURIComponent(m[1]) : (saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
         if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
       } catch (e) {}
     })();

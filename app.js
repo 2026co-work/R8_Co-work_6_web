@@ -1816,6 +1816,10 @@ function getInitialTheme() {
       const val = decodeURIComponent(entry.slice(THEME_COOKIE.length+1));
       if (val === 'dark' || val === 'light') return val;
     }
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(THEME_COOKIE);
+      if (saved === 'dark' || saved === 'light') return saved;
+    }
   } catch {}
   return (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
 }
@@ -1847,6 +1851,7 @@ function updateThemeUI(theme) {
 function setTheme(theme) {
   currentTheme = theme;
   updateThemeUI(theme);
+  try { localStorage.setItem('campus-theme', theme); } catch {}
   try {
     const path = location.pathname.slice(0,location.pathname.lastIndexOf('/')+1) || '/';
     document.cookie = `${THEME_COOKIE}=${encodeURIComponent(theme)}; Path=${path}; Max-Age=31536000; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
