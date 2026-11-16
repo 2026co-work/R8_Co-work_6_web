@@ -98,10 +98,27 @@ export function parseSourceText(text) {
   const locationMatch = text.match(/[［\[]([^］\]]+)[］\]]/);
   
   if (locationMatch) {
+    const before = unwrap(text.slice(0, locationMatch.index));
+    const afterRaw = text.slice(locationMatch.index + locationMatch[0].length).trim();
+    if (before) {
+      return {
+        subjectName: before,
+        location: locationMatch[1],
+        teacher: afterRaw.replace(/\n/g, '').trim()
+      };
+    }
+    const afterLines = afterRaw.split('\n').map(l => l.trim()).filter(Boolean);
+    if (afterLines.length >= 2) {
+      return {
+        subjectName: unwrap(afterLines.slice(1).join('\n')) || unwrap(afterLines[0]),
+        location: locationMatch[1],
+        teacher: afterLines[0]
+      };
+    }
     return {
-      subjectName: unwrap(text.slice(0, locationMatch.index)),
+      subjectName: unwrap(afterRaw) || locationMatch[1],
       location: locationMatch[1],
-      teacher: text.slice(locationMatch.index + locationMatch[0].length).replace(/\n/g, '').trim()
+      teacher: ''
     };
   }
   if (lines[0] === 'HR') {
@@ -111,8 +128,16 @@ export function parseSourceText(text) {
       teacher: lines.slice(1).join(' ')
     };
   }
+  if (lines.length <= 1) {
+    return {
+      subjectName: unwrap(lines[0] || text),
+      location: '',
+      teacher: ''
+    };
+  }
+  const headSubject = unwrap(lines.slice(0, -1).join('\n'));
   return {
-    subjectName: unwrap(lines.slice(0, -1).join('\n')),
+    subjectName: headSubject || unwrap(lines[0] || text),
     location: '',
     teacher: lines.at(-1) || ''
   };
@@ -184,6 +209,17 @@ export async function extractGridFromPdf(pdfPath) {
 
         const titleItem = rawItems.find(i => i.text.includes('時間割'));
         const title = titleItem ? titleItem.text : '明石高専 授業時間割表';
+
+        // 教室凡例の抽出 (y >= 86)
+        const roomLegends = {};
+        rawItems.filter(i => i.y >= 86).forEach(i => {
+          const matches = i.text.matchAll(/\[(.*?)\](.*?)(?=\s*\[|$)/g);
+          for (const m of matches) {
+            const abbr = m[1].trim();
+            const full = m[2].trim();
+            if (abbr && full) roomLegends[abbr] = full;
+          }
+        });
 
         const cells = [];
 
@@ -265,7 +301,7 @@ export async function extractGridFromPdf(pdfPath) {
           }
         }
 
-        resolve({ title, cells });
+        resolve({ title, cells, roomLegends });
       } catch (e) {
         reject(e);
       }
@@ -283,11 +319,13 @@ export async function generateLessonsData(inputPath = DEFAULT_PDF, metadata = {}
 
   let title = metadata.title || '明石高専 授業時間割表';
   let cells = [];
+  let roomLegends = {};
 
   if (fullPath.endsWith('.json')) {
     const jsonStr = await fs.readFile(fullPath, 'utf-8');
     const data = JSON.parse(jsonStr);
     title = data.meta?.title || title;
+    roomLegends = data.roomLegends || {};
     cells = (data.slots || []).map(s => {
       const colIdx = (DAY_TO_NUMBER[s.day] - 1) * 4 + (s.period - 1);
       const rowInfo = ROW_BOUNDS.find(r => r.target === s.target) || { grade: s.grade, target: s.target };
@@ -303,6 +341,7 @@ export async function generateLessonsData(inputPath = DEFAULT_PDF, metadata = {}
     const extracted = await extractGridFromPdf(fullPath);
     title = extracted.title;
     cells = extracted.cells;
+    roomLegends = extracted.roomLegends || {};
   }
 
   const lessons = [];
@@ -353,6 +392,7 @@ export async function generateLessonsData(inputPath = DEFAULT_PDF, metadata = {}
       updatedAt: new Date().toISOString(),
       totalLessons: lessons.length
     },
+    roomLegends,
     lessons
   };
 }
