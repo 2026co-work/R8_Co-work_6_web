@@ -354,7 +354,10 @@ function getAcademicWeek(date = new Date()) {
     ? (calendarData.terms?.zenki?.startDate || '2026-04-06')
     : (calendarData.terms?.kouki?.startDate || '2026-10-01');
   const startDate = new Date(`${startStr}T00:00:00+09:00`);
-  const diffTime = d.getTime() - startDate.getTime();
+  const startDay = startDate.getDay();
+  const mondayOffset = (startDay + 6) % 7;
+  const weekOneMonday = new Date(startDate.getTime() - mondayOffset * 86400000);
+  const diffTime = d.getTime() - weekOneMonday.getTime();
   const diffDays = Number.isFinite(diffTime) ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0;
   let weekNum = 1;
   if (diffDays >= 0) {
@@ -639,6 +642,7 @@ function deleteMyLink(id) {
   saveMyLinks(links);
   return links;
 }
+const removeMyLink = deleteMyLink;
 
 function renderQuickLinks() {
   const syllabusUrl = getSyllabusUrl(studentSelection);
@@ -722,32 +726,52 @@ function home() {
 
 function extractExamEntries(data, selection) {
   if (!data || typeof data !== 'object') return [];
-  const raw = data.schedule ?? data.schedules ?? data.entries ?? data.items ?? [];
+  const raw = (Array.isArray(data.schedule) && data.schedule.length ? data.schedule : null)
+    ?? (Array.isArray(data.days) && data.days.length ? data.days : null)
+    ?? data.schedule ?? data.days ?? data.schedules ?? data.entries ?? data.items ?? [];
+  const selDept = selection?.department || selection?.dept || '';
+  const selGrade = selection?.grade != null ? String(selection.grade) : '';
+  const selCourse = selection?.course ? String(selection.course) : '';
+  const targetClassDash = `${selGrade}-${selDept}`;
+  const targetClassFlat = `${selGrade}${selDept}`;
+
   let list = [];
   if (Array.isArray(raw)) {
-    list = raw;
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const nested = item.entries || item.slots || item.items;
+      if (Array.isArray(nested)) {
+        for (const sub of nested) {
+          if (sub && typeof sub === 'object') {
+            list.push({ date: item.date, day: item.day, ...sub });
+          }
+        }
+      } else {
+        list.push(item);
+      }
+    }
   } else if (raw && typeof raw === 'object') {
-    const key1 = `${selection?.grade || ''}-${selection?.dept || ''}`;
-    const key2 = `${selection?.grade || ''}${selection?.dept || ''}`;
-    if (Array.isArray(raw[key1])) list = raw[key1];
-    else if (Array.isArray(raw[key2])) list = raw[key2];
+    if (Array.isArray(raw[targetClassDash])) list = raw[targetClassDash];
+    else if (Array.isArray(raw[targetClassFlat])) list = raw[targetClassFlat];
     else list = Object.values(raw).flat().filter(Boolean);
   }
-  const targetClassDash = `${selection?.grade || ''}-${selection?.dept || ''}`;
-  const targetClassFlat = `${selection?.grade || ''}${selection?.dept || ''}`;
-  const filtered = list.filter(entry => {
-    if (!entry || typeof entry !== 'object') return false;
+
+  const hasClassMeta = list.some(e => e && (e.class || e.className || e.classCode || e.dept || e.department || e.grade != null));
+  if (!hasClassMeta) return list;
+
+  return list.filter(entry => {
     const c = String(entry.class || entry.className || entry.classCode || '');
     const d = String(entry.dept || entry.department || '');
     const g = entry.grade != null ? String(entry.grade) : '';
+    const course = entry.course ? String(entry.course) : '';
     if (!c && !d && !g) return true;
+    if (course && selCourse && course !== selCourse) return false;
     if (c && (c === targetClassDash || c === targetClassFlat)) return true;
-    if (d && g && d === selection?.dept && g === String(selection?.grade)) return true;
-    if (d && !g && d === selection?.dept) return true;
-    if (!d && g && g === String(selection?.grade)) return true;
+    if (d && g && d === selDept && g === selGrade) return true;
+    if (d && !g && d === selDept) return true;
+    if (!d && g && g === selGrade) return true;
     return false;
   });
-  return filtered.length ? filtered : list;
 }
 
 function exam() {
@@ -756,16 +780,33 @@ function exam() {
   const isPublished = meta.status === 'published';
   const notice = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。（10日前の正午発表）';
   const selfStudyRule = meta.selfStudyRule || '試験は2限から開始しますが、9時に登校し自習することを原則とします。';
-  const sourcePdfUrl = normalizeAkashiUrl(meta.sourcePdfUrl);
-  const notesPdfUrl = meta.notesPdfUrl === null ? '' : (normalizeAkashiUrl(meta.notesPdfUrl) || 'https://www.akashi.ac.jp/life/syotyui.pdf');
-  const prevPdfUrl = meta.previousExamPdfUrl === null ? '' : normalizeAkashiUrl(meta.previousExamPdfUrl);
-  const classCode = `${studentSelection.grade}-${studentSelection.dept}`;
+  const sourcePdfUrl = normalizeAkashiUrl(meta.sourcePdfUrl, '');
+  const notesPdfUrl = meta.notesPdfUrl === null ? '' : (normalizeAkashiUrl(meta.notesPdfUrl, '') || 'https://www.akashi.ac.jp/life/syotyui.pdf');
+  const prevPdfUrl = meta.previousExamPdfUrl === null ? '' : normalizeAkashiUrl(meta.previousExamPdfUrl, '');
+  const deptCode = studentSelection.department || studentSelection.dept || 'M';
+  const classCode = (studentSelection.grade >= 4 && deptCode === 'E' && studentSelection.course)
+    ? `${studentSelection.grade}-${studentSelection.course}`
+    : `${studentSelection.grade}-${deptCode}`;
   const entries = extractExamEntries(examData, studentSelection);
+  const syllabusUrl = getSyllabusUrl(studentSelection);
+  const examPeriods = (Array.isArray(examData?.periods) && examData.periods.length)
+    ? examData.periods
+    : [
+        { id: '2-F', label: '2限 前半', start: '10:40', end: '11:25' },
+        { id: '2-S', label: '2限 後半', start: '11:25', end: '12:10' },
+        { id: '3-F', label: '3限 前半', start: '13:00', end: '13:45' },
+        { id: '3-S', label: '3限 後半', start: '13:45', end: '14:30' },
+        { id: '4-F', label: '4限 前半', start: '14:40', end: '15:25' },
+        { id: '4-S', label: '4限 後半', start: '15:25', end: '16:10' }
+      ];
+  const periodChipsHtml = examPeriods
+    .map(p => `<span class="badge gray exam-period-chip">${escapeHTML(p.label || p.name || p.id)} (${escapeHTML(p.start || '')}〜${escapeHTML(p.end || '')})</span>`)
+    .join('');
 
   const scheduleCards = entries.length
     ? entries.map(item => {
         const subject = item.subject || item.course || item.title || item.name || '試験科目';
-        const dateText = [item.date, item.day ? `(${item.day})` : '', item.period ? `${item.period}限` : '', item.time].filter(Boolean).join(' ');
+        const dateText = [item.date, item.day ? `(${item.day})` : '', item.period ? `${item.period}` : '', item.time].filter(Boolean).join(' ');
         const room = item.room || item.classroom || '未定';
         const supervisor = item.supervisor || item.proctor || item.teacher || '';
         const itemClass = item.class || item.className || item.classCode || classCode;
@@ -781,9 +822,9 @@ function exam() {
     : `<article class="exam-card exam-card-empty" data-class="${escapeHTML(classCode)}">
         <div class="exam-card-head">
           <span class="badge yellow">${escapeHTML(classCode)}</span>
-          <span>10日前の正午発表</span>
+          <span>${isPublished ? '試験なし' : '10日前の正午発表'}</span>
         </div>
-        <h3>${escapeHTML(studentLabel())} の試験時間割は未公開です</h3>
+        <h3>${escapeHTML(studentLabel())} の${isPublished ? '該当試験はありません（試験なし）' : '試験時間割は未公開です'}</h3>
         <p class="exam-card-meta">公開時に科目・時間・試験教室・監督（<span class="exam-supervisor">supervisor</span>配置）が表示されます。</p>
       </article>`;
 
@@ -795,10 +836,12 @@ function exam() {
       </div>
       <p class="exam-notice"><strong>${escapeHTML(notice)}</strong></p>
       <p class="exam-rule"><small>${escapeHTML(selfStudyRule)}</small></p>
+      <div class="exam-period-chips">${periodChipsHtml}</div>
       <div class="exam-links-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${isPublished && sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">公式試験時間割PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">公式試験時間割PDF（未公開）</button>`}
         ${notesPdfUrl ? `<a class="button secondary" href="${escapeHTML(notesPdfUrl)}" target="_blank" rel="noopener noreferrer">受験上の諸注意PDF</a>` : ''}
         ${!isPublished && prevPdfUrl ? `<a class="button secondary" href="${escapeHTML(prevPdfUrl)}" target="_blank" rel="noopener noreferrer">前回試験時間割PDF（参考）</a>` : ''}
+        <a class="button secondary" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">${icon('book')}${escapeHTML(studentShortLabel())} シラバス</a>
         <a class="text-link" href="https://www.akashi.ac.jp/life/examtimetable.html" target="_blank" rel="noopener noreferrer">公式試験日程ページへ${icon('arrow')}</a>
       </div>
     </section>
@@ -876,22 +919,56 @@ function calendar() {
 }
 function calendarView() { return calendar(); }
 
+function renderCafeteriaDayCard(day) {
+  const dateTitle = [day.date, day.dayOfWeek ? `(${day.dayOfWeek})` : ''].filter(Boolean).join(' ');
+  if (day.isOpen === false) {
+    return `<li class="cafeteria-menu-item is-closed">
+      <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '休業日')}</strong><span class="badge gray">休業</span></div>
+      <p>${escapeHTML(day.closedReason || '学生食堂休業日')}</p>
+    </li>`;
+  }
+  const dishRows = [];
+  if (day.lunchA?.name) dishRows.push(`<div><span class="dish-badge">ランチA</span> <strong>${escapeHTML(day.lunchA.name)}</strong>${day.lunchA.price ? ` <span class="price">${escapeHTML(String(day.lunchA.price))}円</span>` : ''}</div>`);
+  if (day.lunchB?.name) dishRows.push(`<div><span class="dish-badge">ランチB</span> <strong>${escapeHTML(day.lunchB.name)}</strong>${day.lunchB.price ? ` <span class="price">${escapeHTML(String(day.lunchB.price))}円</span>` : ''}</div>`);
+  if (day.noodle?.name) dishRows.push(`<div><span class="dish-badge">麺類</span> <span>${escapeHTML(day.noodle.name)}</span>${day.noodle.price ? ` <span class="price">${escapeHTML(String(day.noodle.price))}円</span>` : ''}</div>`);
+  if (day.bowl?.name) dishRows.push(`<div><span class="dish-badge">丼</span> <span>${escapeHTML(day.bowl.name)}</span>${day.bowl.price ? ` <span class="price">${escapeHTML(String(day.bowl.price))}円</span>` : ''}</div>`);
+  const allergens = Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || day.lunchA?.allergens || '');
+  return `<li class="cafeteria-menu-item">
+    <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong>${day.isOpen ? '<span class="badge green">営業</span>' : ''}</div>
+    <div class="cafeteria-day-dishes">${dishRows.join('') || `<span>${escapeHTML(day.name || day.menu || '')}</span>`}</div>
+    ${allergens ? `<p class="allergens">アレルゲン: ${escapeHTML(allergens)}</p>` : ''}
+  </li>`;
+}
+
 function cafeteria() {
   const actions = `<div class="heading-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="ダークモードに切り替える" title="テーマ切り替え"><span class="theme-icon" data-icon="${currentTheme === 'dark' ? 'sun' : 'moon'}">${icon(currentTheme === 'dark' ? 'sun' : 'moon')}</span></button></div>`;
   const data = cafeteriaData || FALLBACK_CAFETERIA;
   const meta = data.meta || FALLBACK_CAFETERIA.meta || {};
   const hasSourceKey = Object.prototype.hasOwnProperty.call(meta, 'sourcePdfUrl');
   const rawSourceUrl = hasSourceKey ? meta.sourcePdfUrl : FALLBACK_CAFETERIA.meta?.sourcePdfUrl;
-  const sourcePdfUrl = normalizeAkashiUrl(rawSourceUrl);
+  const sourcePdfUrl = normalizeAkashiUrl(rawSourceUrl, '');
   const hasDormKey = Object.prototype.hasOwnProperty.call(meta, 'dormitoryArticleUrl');
-  const dormArticleUrl = normalizeAkashiUrl(hasDormKey ? meta.dormitoryArticleUrl : FALLBACK_CAFETERIA.meta?.dormitoryArticleUrl);
-  const dormPdfUrl = normalizeAkashiUrl(Object.prototype.hasOwnProperty.call(meta, 'dormitoryPdfUrl') ? meta.dormitoryPdfUrl : FALLBACK_CAFETERIA.meta?.dormitoryPdfUrl);
+  const dormArticleUrl = normalizeAkashiUrl(hasDormKey ? meta.dormitoryArticleUrl : FALLBACK_CAFETERIA.meta?.dormitoryArticleUrl, '');
+  const dormPdfUrl = normalizeAkashiUrl(Object.prototype.hasOwnProperty.call(meta, 'dormitoryPdfUrl') ? meta.dormitoryPdfUrl : FALLBACK_CAFETERIA.meta?.dormitoryPdfUrl, '');
   const isTextExtracted = Boolean(meta.isTextExtracted);
-  const menus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
+  const weeklyMenus = Array.isArray(data.weeklyMenus) ? data.weeklyMenus : [];
+  const legacyMenus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
+  const hasMenuData = weeklyMenus.some(w => Array.isArray(w?.days) && w.days.length > 0) || legacyMenus.length > 0;
 
-  const menuContent = (isTextExtracted && menus.length)
-    ? `<ul class="cafeteria-menu-list">${menus.map(m => `<li class="cafeteria-menu-item"><strong>${escapeHTML(m.date || m.day || '本日')}</strong>: ${escapeHTML(m.name || m.menu || m.lunch || '')}${m.price ? ` <span class="badge">${escapeHTML(String(m.price))}円</span>` : ''}</li>`).join('')}</ul>`
-    : `<p class="info-note" data-extracted="false">今月の日替わりランチ詳細はPDFからのテキスト抽出が未対応のため（テキスト未抽出）、原本PDFまたは公式ニュースでご確認ください。</p>`;
+  let menuContent = `<p class="info-note" data-extracted="false">今月の日替わりランチ詳細はPDFからのテキスト抽出が未対応のため（テキスト未抽出）、原本PDFまたは公式ニュースでご確認ください。</p>`;
+  if (isTextExtracted && hasMenuData) {
+    if (weeklyMenus.length > 0) {
+      menuContent = weeklyMenus.map((week, idx) => {
+        const days = Array.isArray(week?.days) ? week.days : [];
+        return `<div class="cafeteria-week-block" data-week-idx="${idx}">
+          ${week.weekRange ? `<h3 class="cafeteria-week-heading">${escapeHTML(week.weekRange)}</h3>` : ''}
+          <ul class="cafeteria-menu-list">${days.map(renderCafeteriaDayCard).join('')}</ul>
+        </div>`;
+      }).join('');
+    } else {
+      menuContent = `<ul class="cafeteria-menu-list">${legacyMenus.map(m => `<li class="cafeteria-menu-item"><strong>${escapeHTML(m.date || m.day || '本日')}</strong>: ${escapeHTML(m.name || m.menu || m.lunch || '')}${m.price ? ` <span class="badge">${escapeHTML(String(m.price))}円</span>` : ''}</li>`).join('')}</ul>`;
+    }
+  }
 
   return `${heading('食堂メニュー', '今週・本日の学生食堂ランチメニュー', actions)}
     <section class="panel cafeteria-panel cafeteria-view" id="cafeteria-view" data-text-extracted="${isTextExtracted ? 'true' : 'false'}">
@@ -1436,6 +1513,7 @@ async function downloadCurrentTimetable(action = 'download') {
     if (select) select.disabled = Boolean(selectedSchedule().error);
   }
 }
+let globalListenersBound = false;
 function render() {
   const rawHash = (location.hash.slice(1).split('?')[0].split('/')[0] || 'home').trim();
   const page = Object.hasOwn(names, rawHash) ? rawHash : 'home';
@@ -1551,7 +1629,7 @@ function render() {
       btn.addEventListener('click', () => {
         const id = btn.dataset?.removeId;
         if (id) {
-          removeMyLink(id);
+          deleteMyLink(id);
           render();
         }
       });
@@ -1580,18 +1658,21 @@ function render() {
       closeSizeAdjustModal();
     }
   });
-  // Escape キーでモーダルを閉じる
-  window.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      closeDataPreviewModal();
-      closeSizeAdjustModal();
-    }
-  });
-  window.addEventListener('resize', () => {
-    if (!document.getElementById('export-size-modal')?.hidden) {
-      updateSizeModalScale();
-    }
-  });
+  // Escape キーでモーダルを閉じる（グローバルリスナーは初回のみ登録）
+  if (!globalListenersBound && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    globalListenersBound = true;
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        closeDataPreviewModal();
+        closeSizeAdjustModal();
+      }
+    });
+    window.addEventListener('resize', () => {
+      if (!document.getElementById('export-size-modal')?.hidden) {
+        updateSizeModalScale();
+      }
+    });
+  }
   document.querySelectorAll('[data-size-mode]').forEach(btn => btn.addEventListener('click', () => {
     const mode = btn.dataset.sizeMode;
     exportSizeMode = mode;
