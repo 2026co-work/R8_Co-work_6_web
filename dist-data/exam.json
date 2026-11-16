@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "title": "令和8年度学年末試験（後期期末試験）時間割",
+    "term": "後期",
+    "fiscalYear": 2026,
+    "status": "scheduled",
+    "noticeText": "定期試験時間割は、試験開始10日前の正午にこちらで発表します。試験は2限から開始しますが、9時に登校し自習することを原則とします。JRの遅延などが生じた場合、9時に登校していることを前提として対応します。",
+    "sourceUrl": "https://www.akashi.ac.jp/life/examtimetable.html",
+    "sourcePdfUrl": "",
+    "notesPdfUrl": "https://www.akashi.ac.jp/o7en060000000car-att/syotyuiR70522.pdf",
+    "returnPdfUrl": "https://www.akashi.ac.jp/o7en060000000car-att/touanhenkyaku20260805.pdf",
+    "examStartDate": "2027-02-02",
+    "examEndDate": "2027-02-08",
+    "updatedAt": "2026-11-16T01:43:20.244Z"
+  },
+  "periods": [
+    {
+      "id": "2-F",
+      "name": "2限F",
+      "start": "10:40",
+      "end": "11:25"
+    },
+    {
+      "id": "2-S",
+      "name": "2限S",
+      "start": "11:25",
+      "end": "12:10"
+    },
+    {
+      "id": "3-F",
+      "name": "3限F",
+      "start": "13:00",
+      "end": "13:45"
+    },
+    {
+      "id": "3-S",
+      "name": "3限S",
+      "start": "13:45",
+      "end": "14:30"
+    },
+    {
+      "id": "4-F",
+      "name": "4限F",
+      "start": "14:40",
+      "end": "15:25"
+    },
+    {
+      "id": "4-S",
+      "name": "4限S",
+      "start": "15:25",
+      "end": "16:10"
+    }
+  ],
+  "days": []
+}

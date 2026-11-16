@@ -1,0 +1,59 @@
+{
+  "updatedAt": "2026-11-16T01:42:55.343Z",
+  "pages": [
+    {
+      "id": "lesson",
+      "title": "授業時間割・授業時間",
+      "sourceUrl": "https://www.akashi.ac.jp/life/lesson.html",
+      "items": [
+        {
+          "title": "令和8年度後期時間割（20260924更新）",
+          "url": "https://www.akashi.ac.jp/o7en060000000d0c-att/R8_koukijikanwari_20260924-2.pdf",
+          "fileName": "R8_koukijikanwari_20260924-2.pdf",
+          "term": "後期",
+          "fiscalYear": 2026,
+          "updatedDate": "2026-09-24"
+        },
+        {
+          "title": "令和8年度前期時間割（20260401更新）",
+          "url": "https://www.akashi.ac.jp/o7en060000000d0c-att/R8zenki_20260401.pdf",
+          "fileName": "R8zenki_20260401.pdf",
+          "term": "前期",
+          "fiscalYear": 2026,
+          "updatedDate": "2026-04-01"
+        }
+      ]
+    },
+    {
+      "id": "exam",
+      "title": "定期試験・試験時間割",
+      "sourceUrl": "https://www.akashi.ac.jp/life/examtimetable.html",
+      "items": [
+        {
+          "title": "令和8年度前期期末試験・専攻科前期試験時間割（20260728更新）",
+          "url": "https://www.akashi.ac.jp/o7en060000000car-att/R8zenkishiken0728.pdf",
+          "fileName": "R8zenkishiken0728.pdf",
+          "term": "前期",
+          "fiscalYear": 2026,
+          "updatedDate": "2026-07-28"
+        },
+        {
+          "title": "定期試験に際しての諸注意（令和7年5月22日）",
+          "url": "https://www.akashi.ac.jp/o7en060000000car-att/syotyuiR70522.pdf",
+          "fileName": "syotyuiR70522.pdf",
+          "term": null,
+          "fiscalYear": 2025,
+          "updatedDate": "2025-05-22"
+        },
+        {
+          "title": "令和8年度前期答案返却期間時間割（20260805更新）",
+          "url": "https://www.akashi.ac.jp/o7en060000000car-att/touanhenkyaku20260805.pdf",
+          "fileName": "touanhenkyaku20260805.pdf",
+          "term": "前期",
+          "fiscalYear": 2026,
+          "updatedDate": "2026-08-05"
+        }
+      ]
+    }
+  ]
+}

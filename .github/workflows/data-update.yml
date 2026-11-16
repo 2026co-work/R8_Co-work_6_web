@@ -1,0 +1,57 @@
+name: Daily Campus Data Update
+
+on:
+  schedule:
+    # 06:00 JST is 21:00 UTC of previous day
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  update-data:
+    name: Fetch Data, Verify & Commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run data acquisition pipeline
+        run: npm run build:data
+
+      - name: Run automated test suite
+        run: npm test
+
+      - name: Commit and push changes if dist-data updated
+        run: |
+          # Stage modified and untracked files in dist-data/
+          git add dist-data/
+
+          # Check if any staged changes exist in dist-data/
+          if ! git diff --cached --quiet -- dist-data/; then
+            echo "Changes detected in dist-data/. Committing and pushing..."
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore(data): auto-update campus data [skip ci]"
+            git push
+          else
+            echo "No changes detected in dist-data/. Working tree is clean."
+          fi

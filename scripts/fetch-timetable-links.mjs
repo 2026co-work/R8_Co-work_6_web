@@ -13,9 +13,11 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const OUTPUT_PATH = path.join(PROJECT_ROOT, 'dist-data', 'timetable-links.json');
+const FALLBACK_PATH = path.join(PROJECT_ROOT, 'scripts', 'fallbacks', 'timetable-links.json');
 
 // 対象ページの設定
-const TARGET_PAGES = [
+export const TARGET_PAGES = [
   {
     id: 'lesson',
     title: '授業時間割・授業時間',
@@ -28,28 +30,65 @@ const TARGET_PAGES = [
   }
 ];
 
-// HTMLからPDFリンクを抽出するヘルパー関数（外部依存ライブラリ不要）
-function extractPdfLinks(html, baseUrl) {
+export function enrichLinkMetadata(link) {
+  if (!link) return link;
+  const rawText = link.title || '';
+  const fileName = link.fileName || '';
+  
+  if (!link.term) {
+    link.term = (rawText.includes('前期') || fileName.toLowerCase().includes('zenki')) ? '前期'
+              : (rawText.includes('後期') || fileName.toLowerCase().includes('kouki')) ? '後期' : null;
+  }
+  if (!link.fiscalYear) {
+    let fiscalYear = 2026;
+    const reiwaMatch = rawText.match(/令和(\d+)年/) || fileName.match(/R(\d+)/i);
+    if (reiwaMatch) {
+      fiscalYear = parseInt(reiwaMatch[1], 10) + 2018;
+    } else {
+      const westernYearMatch = rawText.match(/(20\d{2})年/) || fileName.match(/(20\d{2})/);
+      if (westernYearMatch) {
+        fiscalYear = parseInt(westernYearMatch[1], 10);
+      }
+    }
+    link.fiscalYear = fiscalYear;
+  }
+  if (!link.updatedDate) {
+    const kanjiDateMatch = rawText.match(/(?:(\d{4})年|令和(\d+)年)(\d{1,2})月(\d{1,2})日/);
+    const numDateMatch = rawText.match(/（(\d{8})更新）/) || fileName.match(/(\d{8})/);
+    if (kanjiDateMatch) {
+      const y = kanjiDateMatch[1] ? kanjiDateMatch[1] : (parseInt(kanjiDateMatch[2], 10) + 2018).toString();
+      const m = kanjiDateMatch[3].padStart(2, '0');
+      const d = kanjiDateMatch[4].padStart(2, '0');
+      link.updatedDate = `${y}-${m}-${d}`;
+    } else if (numDateMatch) {
+      const rawNum = numDateMatch[1];
+      link.updatedDate = `${rawNum.slice(0, 4)}-${rawNum.slice(4, 6)}-${rawNum.slice(6, 8)}`;
+    }
+  }
+  return link;
+}
+
+// HTMLからPDFリンクを抽出するヘルパー関数
+export function extractPdfLinks(html, baseUrl) {
   const pdfLinks = [];
-  // <a ... href="...pdf" ...>text</a> のパターンにマッチ
   const anchorRegex = /<a\b[^>]*\bhref=["']([^"']+\.pdf(?:\?[^"']*)?)["'][^>]*>([\s\S]*?)<\/a>/gi;
   
   let match;
   while ((match = anchorRegex.exec(html)) !== null) {
     const rawHref = match[1].trim();
-    // HTMLタグを除去してテキストのみを抽出
     const rawText = match[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
     
     try {
       const absoluteUrl = new URL(rawHref, baseUrl).href;
+      const fileName = path.basename(new URL(absoluteUrl).pathname);
       
-      // 重複チェック
       if (!pdfLinks.some(item => item.url === absoluteUrl)) {
-        pdfLinks.push({
-          title: rawText || path.basename(new URL(absoluteUrl).pathname),
+        const linkObj = enrichLinkMetadata({
+          title: rawText || fileName,
           url: absoluteUrl,
-          fileName: path.basename(new URL(absoluteUrl).pathname)
+          fileName
         });
+        pdfLinks.push(linkObj);
       }
     } catch {
       // URL解析失敗時はスキップ
@@ -60,44 +99,68 @@ function extractPdfLinks(html, baseUrl) {
 }
 
 // ページのHTMLを取得
-async function fetchPage(url) {
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+export async function fetchPage(url, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTPエラー (${response.status} ${response.statusText}): ${url}`);
     }
-  });
 
-  if (!response.ok) {
-    throw new Error(`HTTPエラー (${response.status} ${response.statusText}): ${url}`);
+    const buffer = await response.arrayBuffer();
+    let text = new TextDecoder('utf-8').decode(buffer);
+    if (text.includes('charset=Shift_JIS') || text.includes('charset=shift_jis')) {
+      text = new TextDecoder('shift-jis').decode(buffer);
+    }
+
+    return text;
+  } finally {
+    clearTimeout(timer);
   }
-
-  // 明石高専のページがUTF-8かShift_JISか対応するため、arrayBuffer経由でデコード
-  const buffer = await response.arrayBuffer();
-  // まずUTF-8で試行、文字化けしそうな場合はShift_JIS fallback
-  let text = new TextDecoder('utf-8').decode(buffer);
-  if (text.includes('charset=Shift_JIS') || text.includes('charset=shift_jis')) {
-    text = new TextDecoder('shift-jis').decode(buffer);
-  }
-
-  return text;
 }
 
 // PDFファイルをダウンロードする関数（--download 指定時）
-async function downloadFile(fileUrl, destPath) {
-  const res = await fetch(fileUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
-    }
-  });
-  if (!res.ok) throw new Error(`ダウンロード失敗: ${res.statusText}`);
-  const arrayBuffer = await res.arrayBuffer();
-  await fs.writeFile(destPath, Buffer.from(arrayBuffer));
+export async function downloadFile(fileUrl, destPath, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(fileUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
+      }
+    });
+    if (!res.ok) throw new Error(`ダウンロード失敗 (${res.status}): ${fileUrl}`);
+    const arrayBuffer = await res.arrayBuffer();
+    await fs.writeFile(destPath, Buffer.from(arrayBuffer));
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-async function main() {
-  const shouldDownload = process.argv.includes('--download');
+export async function runFetchTimetableLinks(options = {}) {
+  const shouldDownload = options.download || process.argv.includes('--download');
   console.log('=== 明石高専 時間割PDF取得スクリプト ===');
-  console.log(`実行日時: ${new Date().toLocaleString('ja-JP')}`);
+
+  let previousData = null;
+  try {
+    const raw = await fs.readFile(OUTPUT_PATH, 'utf-8');
+    previousData = JSON.parse(raw);
+  } catch {
+    try {
+      const fallbackRaw = await fs.readFile(FALLBACK_PATH, 'utf-8');
+      previousData = JSON.parse(fallbackRaw);
+    } catch {
+      // no previous data
+    }
+  }
 
   const results = {
     updatedAt: new Date().toISOString(),
@@ -112,11 +175,10 @@ async function main() {
       
       console.log(` -> 検出されたPDFリンク: ${links.length} 件`);
       links.forEach((l, idx) => {
-        console.log(`    [${idx + 1}] ${l.title}`);
+        console.log(`    [${idx + 1}] ${l.title} (${l.term || '学期不明'} / ${l.fiscalYear}年度 / 更新日: ${l.updatedDate || '不明'})`);
         console.log(`        URL: ${l.url}`);
       });
 
-      // --download が指定された場合、PDFをローカルに保存
       if (shouldDownload && links.length > 0) {
         const downloadDir = path.join(PROJECT_ROOT, 'downloads', page.id);
         await fs.mkdir(downloadDir, { recursive: true });
@@ -136,28 +198,44 @@ async function main() {
         items: links
       });
     } catch (err) {
-      console.error(`エラー発生 [${page.title}]:`, err.message);
-      results.pages.push({
-        id: page.id,
-        title: page.title,
-        sourceUrl: page.url,
-        error: err.message,
-        items: []
-      });
+      console.warn(`[WARN] 取得失敗 [${page.title}]: ${err.message}`);
+      const prevPage = previousData?.pages?.find(p => p.id === page.id);
+      if (prevPage && prevPage.items && prevPage.items.length > 0) {
+        console.log(` -> 前回の有効データを保持・補完します (${prevPage.items.length} 件)`);
+        const enrichedItems = prevPage.items.map(enrichLinkMetadata);
+        results.pages.push({
+          ...prevPage,
+          items: enrichedItems
+        });
+      } else {
+        results.pages.push({
+          id: page.id,
+          title: page.title,
+          sourceUrl: page.url,
+          items: []
+        });
+      }
     }
   }
 
-  // 結果をJSONとして保存
-  const outputDir = path.join(PROJECT_ROOT, 'dist-data');
-  await fs.mkdir(outputDir, { recursive: true });
-  const outputPath = path.join(outputDir, 'timetable-links.json');
+  const totalItems = results.pages.reduce((acc, p) => acc + (p.items?.length || 0), 0);
+  if (totalItems > 0) {
+    await fs.mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
+    await fs.writeFile(OUTPUT_PATH, JSON.stringify(results, null, 2), 'utf-8');
+    console.log(`\n✔ 取得完了！ JSONファイルを保存しました:`);
+    console.log(`   ${OUTPUT_PATH}`);
+  } else if (previousData) {
+    console.warn('\n[WARN] 新規取得結果が0件のため、既存/フォールバックデータを保護します。');
+    await fs.mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
+    await fs.writeFile(OUTPUT_PATH, JSON.stringify(previousData, null, 2), 'utf-8');
+  }
 
-  await fs.writeFile(outputPath, JSON.stringify(results, null, 2), 'utf-8');
-  console.log(`\n✔ 取得完了！ JSONファイルを保存しました:`);
-  console.log(`   ${outputPath}`);
+  return results;
 }
 
-main().catch(err => {
-  console.error('致命的エラー:', err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  runFetchTimetableLinks().catch(err => {
+    console.error('致命的エラー:', err);
+    process.exit(1);
+  });
+}
