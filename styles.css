@@ -570,3 +570,16 @@ body.size-modal-open{overflow:hidden}
 .room-legends-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px;margin-top:10px;font-size:11px;color:var(--muted)}
 [data-theme="dark"] .room-legends-box{background:#1c2130;border-color:#2b3142}
 [data-theme="dark"] .room-legends-box summary{color:#f4a8b8}
+
+/* 所属クイック切替 & オンボーディング */
+button.student-pill.profile-switch-trigger{cursor:pointer;font-weight:700;transition:border-color .15s,background .15s,color .15s}
+button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:var(--wine);background:#fbf1f3}
+[data-theme="dark"] button.student-pill.profile-switch-trigger:hover{border-color:#f4a8b8;color:#f4a8b8;background:#2a1922}
+.onboarding-banner{align-items:center;justify-content:space-between;gap:14px}
+.onboarding-text{flex:1 1 220px}
+.onboarding-text strong{display:block;font-size:13px;margin-bottom:2px}
+.onboarding-text p{margin:0;font-size:11.5px}
+.onboarding-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.profile-modal-card{max-width:600px}
+.profile-modal-card .student-filters{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:4px}
+@media(max-width:520px){.profile-modal-card .student-filters{grid-template-columns:1fr}}

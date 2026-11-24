@@ -301,6 +301,7 @@ let calendarFilterPeriod = 'all';
 let calendarFilterCategory = 'all';
 let selectedCafeteriaWeekIdx = -1;
 let lastModalTrigger = null;
+let onboardingDismissed = false;
 
 function expandRoomLegend(loc) {
   const raw = String(loc || '').trim();
@@ -325,6 +326,51 @@ function getThemeButtonMeta(mode = currentTheme) {
     ? 'OS設定連動（自動）に戻す'
     : (nextMode === 'dark' ? 'ダークモードに切り替える' : 'ライトモードに切り替える');
   return { eff, nextMode, iconName, label };
+}
+
+function studentPillBtn() {
+  return `<button type="button" class="student-pill badge gray profile-switch-trigger" id="open-profile-switcher" aria-label="所属 ${escapeHTML(studentLabel())} を変更" title="学年・学科・コースを変更">${escapeHTML(studentShortLabel())} ▾</button>`;
+}
+
+function buildStudentFilterControls(selection, prefix = 'student', dataAttr = 'data-student') {
+  const s = selection || studentSelection;
+  const isAdvanced = Number(s.grade) >= 6;
+  const options = (values, current) => values.map(([value, label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
+  const field = (label, key, values, disabled = false, hintText = '') => `<label class="field">${label}<select id="${prefix}-${key}" ${dataAttr}="${key}" ${disabled ? 'disabled' : 'required'}>${options(values, s[key])}</select>${hintText ? `<small class="field-hint">${escapeHTML(hintText)}</small>` : ''}</label>`;
+  const needsCourse = !isAdvanced && Number(s.grade) >= 4 && s.department === 'E';
+  const gradeOptions = [
+    [1, '1年'], [2, '2年'], [3, '3年'], [4, '4年'], [5, '5年'],
+    [6, '専攻科1年 (専1)'], [7, '専攻科2年 (専2)']
+  ];
+  const deptOptions = isAdvanced
+    ? ADVANCED_DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || d])
+    : DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || `${d}科`]);
+  return field('学年', 'grade', gradeOptions) +
+    field(isAdvanced ? '専攻' : '学科', 'department', deptOptions) +
+    field('クラス（1・2年）', 'classGroup', [1, 2, 3, 4].map(n => [n, `${n}組`]), isAdvanced || Number(s.grade) >= 3, (isAdvanced || Number(s.grade) >= 3) ? '※3年生以上・専攻科は学科共通' : '') +
+    field('留学生の区分', 'studentType', [['regular', '留学生ではない'], ['international', '留学生']], isAdvanced) +
+    field('E科のコース（4・5年）', 'course', [['', '選択してください'], ['EJ', COURSE_LABELS.EJ], ['ED', COURSE_LABELS.ED]], isAdvanced || !needsCourse, (isAdvanced || !needsCourse) ? '※4・5年E科のみ選択可' : '') +
+    (!isAdvanced && Number(s.grade) === 1 ? field('芸術選択', 'arts', [['music', '音楽'], ['art', '美術']]) : '');
+}
+
+function renderProfileSwitcherModal() {
+  return `<div class="data-preview-overlay profile-modal-overlay" id="profile-switcher-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="学年・学科・コース設定">
+    <div class="data-preview-card profile-modal-card">
+      <div class="data-preview-head">
+        <h3>学年・学科・コースを設定</h3>
+        <button type="button" class="button size-close-btn" id="profile-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 10px;">✕</button>
+      </div>
+      <div class="data-preview-body">
+        <p class="data-preview-note">ここで選択した所属は、ホーム・時間割・定期試験・シラバスに共通して反映されます。</p>
+        <div class="filters student-filters" id="profile-modal-fields"></div>
+        <p class="selection-status" id="profile-modal-status" role="status" hidden></p>
+      </div>
+      <div class="data-preview-foot">
+        <button type="button" class="button secondary" id="profile-modal-cancel">キャンセル</button>
+        <button type="button" class="button" id="profile-modal-save">${icon('check')}この設定を適用</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 function themeToggleBtn() {
@@ -566,7 +612,25 @@ function renderTodaySchedule(currentDate) {
   }
 
   const dayIdx = effectiveDay - 1;
-  const { grid } = selectedSchedule();
+  const { grid, error: schedError } = selectedSchedule();
+  if (schedError) {
+    return subBanner + `
+      <section class="panel today-schedule" id="today-schedule">
+        <div class="panel-head">
+          <h2>${icon('calendar')}今日の時間割</h2>
+          <div class="panel-head-meta">
+            ${navControls}
+            <span class="badge yellow">設定が必要</span>
+            <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          </div>
+        </div>
+        <div class="dashboard-empty-card">
+          <p>${escapeHTML(schedError)}</p>
+          <button type="button" class="button profile-switch-trigger" id="home-fix-profile-btn">${icon('edit')}コース・学年を設定する</button>
+        </div>
+      </section>
+    `;
+  }
   const dayLessons = grid[dayIdx] || [];
   const hasClasses = dayLessons.some(slot => slot.length > 0);
 
@@ -924,16 +988,30 @@ function home() {
     <div class="heading-actions">
       ${themeToggleBtn()}
       <span class="term-badge badge blue">${escapeHTML(weekInfo.label)}</span>
-      <span class="student-pill badge gray">${escapeHTML(studentShortLabel())}</span>
+      ${studentPillBtn()}
       <div class="date-block">
         <strong>${longDate(displayDateKey)}</strong>
         <small>${dashboardOffsetDays === 0 ? 'キャンパスポータル' : `基準日から${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日`}</small>
       </div>
     </div>
   `;
+  const onboardingHtml = (!cookieSaved && !onboardingDismissed)
+    ? `<div class="alert alert-info onboarding-banner" id="onboarding-banner" role="region" aria-label="初期設定ガイド">
+        <span class="badge blue">はじめての方へ</span>
+        <div class="onboarding-text">
+          <strong>現在の表示は初期設定（${escapeHTML(studentLabel())}）です。</strong>
+          <p>あなたの学年・学科を設定すると、時間割・試験・シラバスが自動で切り替わります。</p>
+        </div>
+        <div class="onboarding-actions">
+          <button type="button" class="button profile-switch-trigger" id="onboarding-open-profile">${icon('edit')}学年・学科を設定</button>
+          <button type="button" class="button secondary" id="onboarding-dismiss">このまま使う</button>
+        </div>
+      </div>`
+    : '';
 
   return `
     ${heading('ホーム', '今日の概要ダッシュボード', actions)}
+    ${onboardingHtml}
     ${renderTodayOverview(targetDate)}
   `;
 }
@@ -993,7 +1071,7 @@ function extractExamEntries(data, selection) {
 }
 
 function exam() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const meta = examData?.meta || FALLBACK_EXAM.meta || {};
   const isPublished = meta.status === 'published';
   const notice = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。（10日前の正午発表）';
@@ -1085,7 +1163,7 @@ function exam() {
 function examView() { return exam(); }
 
 function calendar() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const nowDate = new Date();
   const todayStr = dateKey(nowDate);
   const currentMonthPrefix = todayStr.slice(0, 7);
@@ -1232,7 +1310,7 @@ function renderCafeteriaDayCard(day) {
 }
 
 function cafeteria() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const data = cafeteriaData || FALLBACK_CAFETERIA;
   const meta = data.meta || FALLBACK_CAFETERIA.meta || {};
   const hasSourceKey = Object.prototype.hasOwnProperty.call(meta, 'sourcePdfUrl');
@@ -1316,7 +1394,7 @@ const PRESET_LINKS = [
 ];
 
 function linksView() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const syllabusUrl = getSyllabusUrl(studentSelection);
   const serviceGroups = [
     { key: 'learning', title: '学内学習ツール・LMS' },
@@ -1433,23 +1511,7 @@ function timetable() {
   const isAdvanced = s.grade >= 6;
   const { selected, grid, error } = selectedSchedule();
   const totalPeriods = selected.reduce((sum, l) => sum + (l.duration || 1), 0);
-  const options = (values, current) => values.map(([value,label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
-  const field = (label, key, values, disabled = false, hintText = '') => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select>${hintText ? `<small class="field-hint">${escapeHTML(hintText)}</small>` : ''}</label>`;
-  const needsCourse = !isAdvanced && s.grade >= 4 && s.department === 'E';
-  const gradeOptions = [
-    [1,'1年'], [2,'2年'], [3,'3年'], [4,'4年'], [5,'5年'],
-    [6,'専攻科1年 (専1)'], [7,'専攻科2年 (専2)']
-  ];
-  const deptOptions = isAdvanced
-    ? ADVANCED_DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || d])
-    : DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || `${d}科`]);
-
-  const controls = field('学年','grade',gradeOptions) +
-    field(isAdvanced ? '専攻' : '学科','department',deptOptions) +
-    field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),isAdvanced || s.grade>=3, (isAdvanced || s.grade>=3) ? '※3年生以上・専攻科は学科共通' : '') +
-    field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']],isAdvanced) +
-    field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],isAdvanced || !needsCourse, (isAdvanced || !needsCourse) ? '※4・5年E科のみ選択可' : '') +
-    (!isAdvanced && s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
+  const controls = buildStudentFilterControls(s, 'student', 'data-student');
   const fyText = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
   const termText = timetableMeta?.term || '後期';
   const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の${escapeHTML(fyText)}${escapeHTML(termText)}時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
@@ -2003,19 +2065,19 @@ function render() {
   }
   const main = document.getElementById('main');
   if (main) {
-    if (page === 'home') main.innerHTML = home();
+    if (page === 'home') main.innerHTML = home() + renderProfileSwitcherModal();
     else if (page === 'timetable') {
-      main.innerHTML = timetable();
+      main.innerHTML = timetable() + renderProfileSwitcherModal();
       const sheetEl = document.getElementById('timetable-sheet');
       if (sheetEl && !sheetEl.parentElement) {
         const m = main.innerHTML.match(/<section[^>]*id="timetable-sheet"[^>]*>([\s\S]*?)<\/section>/);
         if (m) sheetEl.innerHTML = m[1];
       }
     }
-    else if (page === 'exam') main.innerHTML = exam();
-    else if (page === 'calendar') main.innerHTML = calendar();
-    else if (page === 'cafeteria') main.innerHTML = cafeteria();
-    else if (page === 'links') main.innerHTML = linksView();
+    else if (page === 'exam') main.innerHTML = exam() + renderProfileSwitcherModal();
+    else if (page === 'calendar') main.innerHTML = calendar() + renderProfileSwitcherModal();
+    else if (page === 'cafeteria') main.innerHTML = cafeteria() + renderProfileSwitcherModal();
+    else if (page === 'links') main.innerHTML = linksView() + renderProfileSwitcherModal();
   }
   const formatSelect = document.getElementById('export-format');
   const copyBtn = document.getElementById('export-copy');
@@ -2204,6 +2266,80 @@ function render() {
     }
     syncSizeControlsUI();
   });
+  let draftProfile = { ...studentSelection };
+  const closeProfileModal = () => {
+    const modal = document.getElementById('profile-switcher-modal');
+    const wasOpen = modal && !modal.hidden;
+    if (modal) modal.hidden = true;
+    setModalBackdropInert(false);
+    document.body.classList.remove('size-modal-open');
+    if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+      lastModalTrigger.focus();
+      lastModalTrigger = null;
+    }
+  };
+  const renderProfileModalFields = () => {
+    const wrap = document.getElementById('profile-modal-fields');
+    const statusEl = document.getElementById('profile-modal-status');
+    const saveBtn = document.getElementById('profile-modal-save');
+    if (!wrap) return;
+    wrap.innerHTML = buildStudentFilterControls(draftProfile, 'modal-student', 'data-modal-student');
+    const needsCourse = Number(draftProfile.grade) < 6 && Number(draftProfile.grade) >= 4 && draftProfile.department === 'E' && !draftProfile.course;
+    if (statusEl) {
+      statusEl.hidden = !needsCourse;
+      statusEl.textContent = needsCourse ? '4・5年生のE科はコース（ED・EJ）を選択してください。' : '';
+    }
+    if (saveBtn) saveBtn.disabled = Boolean(needsCourse);
+    wrap.querySelectorAll?.('[data-modal-student]').forEach(sel => {
+      sel.addEventListener('change', e => {
+        const key = e.target.dataset.modalStudent;
+        const val = key === 'grade' ? Number(e.target.value) : e.target.value;
+        if (!SELECTION_VALUES[key]?.includes(val)) return;
+        draftProfile[key] = val;
+        if (key === 'grade') {
+          const isAdv = val >= 6;
+          if (isAdv && !ADVANCED_DEPARTMENTS.includes(draftProfile.department)) draftProfile.department = 'ME';
+          else if (!isAdv && !DEPARTMENTS.includes(draftProfile.department)) draftProfile.department = 'M';
+        }
+        const focusId = e.target.id;
+        renderProfileModalFields();
+        document.getElementById(focusId)?.focus?.({ preventScroll: true });
+      });
+    });
+  };
+  const openProfileModal = () => {
+    const modal = document.getElementById('profile-switcher-modal');
+    if (!modal) return;
+    draftProfile = { ...studentSelection };
+    renderProfileModalFields();
+    lastModalTrigger = document.activeElement || null;
+    modal.hidden = false;
+    setModalBackdropInert(true, modal);
+    document.body.classList.add('size-modal-open');
+    document.getElementById('modal-student-grade')?.focus?.();
+  };
+  if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('.profile-switch-trigger').forEach(btn => {
+      btn.addEventListener('click', openProfileModal);
+    });
+  }
+  document.getElementById('onboarding-dismiss')?.addEventListener('click', () => {
+    onboardingDismissed = true;
+    render();
+  });
+  document.getElementById('profile-modal-close')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profile-modal-cancel')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profile-switcher-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeProfileModal();
+  });
+  document.getElementById('profile-modal-save')?.addEventListener('click', () => {
+    studentSelection = sanitizeSelection(draftProfile);
+    onboardingDismissed = true;
+    filterOpen = false;
+    saveSelectionCookie();
+    closeProfileModal();
+    render();
+  });
   // モーダル外部（背景オーバーレイ）クリックで閉じる
   document.getElementById('data-preview-modal')?.addEventListener('click', e => {
     if (e.target === e.currentTarget) closeDataPreviewModal();
@@ -2220,6 +2356,16 @@ function render() {
       if (e.key === 'Escape') {
         closeDataPreviewModal();
         closeSizeAdjustModal();
+        const pm = document.getElementById('profile-switcher-modal');
+        if (pm && !pm.hidden) {
+          pm.hidden = true;
+          setModalBackdropInert(false);
+          document.body.classList.remove('size-modal-open');
+          if (lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+            lastModalTrigger.focus();
+            lastModalTrigger = null;
+          }
+        }
         return;
       }
       if (e.key === 'Tab') {
