@@ -470,9 +470,9 @@ function renderTodaySchedule(currentDate) {
 
   const navControls = `
     <div class="dashboard-date-nav" role="group" aria-label="日付切り替え">
-      <button type="button" class="button subtle" data-dash-offset="-1" aria-label="前日の時間割">← 前日</button>
-      <button type="button" class="button subtle ${dashboardOffsetDays === 0 ? 'active' : ''}" data-dash-offset="0">今日</button>
-      <button type="button" class="button subtle" data-dash-offset="1" aria-label="翌日の時間割">翌日 →</button>
+      <button type="button" class="button subtle" data-dash-offset="-1" aria-label="前日の時間割" aria-pressed="false">← 前日</button>
+      <button type="button" class="button subtle ${dashboardOffsetDays === 0 ? 'active' : ''}" data-dash-offset="0" aria-pressed="${dashboardOffsetDays === 0 ? 'true' : 'false'}">今日</button>
+      <button type="button" class="button subtle" data-dash-offset="1" aria-label="翌日の時間割" aria-pressed="false">翌日 →</button>
     </div>
   `;
 
@@ -1056,8 +1056,8 @@ function calendar() {
       </div>`
     : '';
 
-  const periodChip = (key, label) => `<button type="button" class="chip${calendarFilterPeriod === key ? ' active' : ''}" data-cal-period="${key}">${label}</button>`;
-  const catChip = (key, label) => `<button type="button" class="chip${calendarFilterCategory === key ? ' active' : ''}" data-cal-cat="${key}">${label}</button>`;
+  const periodChip = (key, label) => `<button type="button" class="chip${calendarFilterPeriod === key ? ' active' : ''}" data-cal-period="${key}" aria-pressed="${calendarFilterPeriod === key ? 'true' : 'false'}">${label}</button>`;
+  const catChip = (key, label) => `<button type="button" class="chip${calendarFilterCategory === key ? ' active' : ''}" data-cal-cat="${key}" aria-pressed="${calendarFilterCategory === key ? 'true' : 'false'}">${label}</button>`;
   const zenkiPdfUrl = normalizeAkashiUrl(data.meta?.zenkiPdfUrl, '');
   const koukiPdfUrl = normalizeAkashiUrl(data.meta?.koukiPdfUrl, '');
   const calSourceUrl = normalizeAkashiUrl(data.meta?.sourceUrl, 'https://www.akashi.ac.jp/life/calendar.html');
@@ -1134,8 +1134,8 @@ function cafeteria() {
       const validWeekIdx = selectedCafeteriaWeekIdx >= 0 && selectedCafeteriaWeekIdx < weeklyMenus.length ? selectedCafeteriaWeekIdx : -1;
       if (weeklyMenus.length > 1) {
         weekTabsHtml = `<div class="cafeteria-week-tabs" role="group" aria-label="週切り替え">
-          <button type="button" class="cafeteria-week-tab${validWeekIdx === -1 ? ' active' : ''}" data-cafe-week="-1">全週</button>
-          ${weeklyMenus.map((w, idx) => `<button type="button" class="cafeteria-week-tab${validWeekIdx === idx ? ' active' : ''}" data-cafe-week="${idx}">${escapeHTML(w.weekLabel || `第${idx + 1}週`)} ${w.weekRange ? `(${escapeHTML(w.weekRange)})` : ''}</button>`).join('')}
+          <button type="button" class="cafeteria-week-tab${validWeekIdx === -1 ? ' active' : ''}" data-cafe-week="-1" aria-pressed="${validWeekIdx === -1 ? 'true' : 'false'}">全週</button>
+          ${weeklyMenus.map((w, idx) => `<button type="button" class="cafeteria-week-tab${validWeekIdx === idx ? ' active' : ''}" data-cafe-week="${idx}" aria-pressed="${validWeekIdx === idx ? 'true' : 'false'}">${escapeHTML(w.weekLabel || `第${idx + 1}週`)} ${w.weekRange ? `(${escapeHTML(w.weekRange)})` : ''}</button>`).join('')}
         </div>`;
       }
       const visibleWeeks = validWeekIdx === -1 ? weeklyMenus : [weeklyMenus[validWeekIdx]];
@@ -1376,10 +1376,10 @@ function timetable() {
         <div class="size-preset-row">
           <div class="size-preset-group" role="group" aria-label="みため">
             <span class="size-preset-label">みため:</span>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web">標準</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit">A4向け</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo">メモ書き可</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web" aria-pressed="${exportSizeMode === 'web' ? 'true' : 'false'}">標準</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit" aria-pressed="${exportSizeMode === 'a4fit' ? 'true' : 'false'}">A4向け</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo" aria-pressed="${exportSizeMode === 'memo' ? 'true' : 'false'}">メモ書き可</button>
+            <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom" aria-pressed="${exportSizeMode === 'custom' ? 'true' : 'false'}">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
             <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="出力用テーマ切り替え（サイト本体には影響しません）">${getExportTheme() === 'dark' ? '☀️ 白背景で出力' : '🌙 暗背景で出力'}</button>
@@ -1412,7 +1412,7 @@ function timetable() {
       <div class="data-preview-card">
         <div class="data-preview-head">
           <h3 id="data-preview-title">データプレビュー</h3>
-          <button type="button" class="button size-close-btn" id="data-preview-close" style="min-height:30px;padding:0 10px;">✕</button>
+          <button type="button" class="button size-close-btn" id="data-preview-close" aria-label="閉じる" style="min-height:30px;padding:0 10px;">✕</button>
         </div>
         <div class="data-preview-body" id="data-preview-body"></div>
         <div class="data-preview-foot">
@@ -1447,13 +1447,16 @@ function getPresetConfig(mode, isA4) {
 function updateSizeModalScale() {
   const viewport = document.getElementById('size-overlay-viewport');
   const wrap = document.getElementById('size-paper-wrap');
+  const paper = document.getElementById('size-modal-paper');
   if (!viewport || !wrap) return;
-  const availW = Math.max(280, (viewport.clientWidth || 360) - 48);
-  const availH = Math.max(280, (viewport.clientHeight || 500) - 48);
-  const targetW = 1100 + 32;
-  const targetH = (a4ModeEnabled ? 778 : Math.max(600, (document.getElementById('size-modal-paper')?.scrollHeight || 778))) + 32;
-  const fitScale = Math.min(availW / targetW, availH / targetH, 1);
+  const pad = (typeof window !== 'undefined' && window.innerWidth <= 680) ? 20 : 40;
+  const availW = Math.max(260, (viewport.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 360)) - pad);
+  const availH = Math.max(220, (viewport.clientHeight || 480) - pad);
+  const naturalH = a4ModeEnabled ? 778 : Math.max(520, paper?.offsetHeight || paper?.scrollHeight || 720);
+  const targetW = 1100;
+  const fitScale = Math.min(availW / targetW, availH / naturalH, 1);
   wrap.style.setProperty('--sheet-scale', String(fitScale.toFixed(3)));
+  wrap.style.setProperty('--sheet-height', `${naturalH}px`);
 }
 function applyLiveSheetSize(sheet) {
   if (!sheet) return;
@@ -1465,9 +1468,54 @@ function applyLiveSheetSize(sheet) {
   sheet.style.setProperty('--export-font-scale', String(scale));
   sheet.style.padding = `${pad}px`;
 }
+function getOpenModalEl() {
+  if (typeof document === 'undefined') return null;
+  for (const id of ['export-size-modal', 'data-preview-modal', 'profile-switcher-modal']) {
+    const el = document.getElementById(id);
+    if (el && !el.hidden) return el;
+  }
+  return null;
+}
+function setModalBackdropInert(active, activeModal = null) {
+  if (typeof document === 'undefined') return;
+  const isMobileMenuOpen = typeof document.body?.classList?.contains === 'function' && document.body.classList.contains('menu-open');
+  const sidebar = document.getElementById('sidebar');
+  const menuToggleEl = document.getElementById('menu-toggle');
+  const footer = document.querySelector?.('footer');
+  if (menuToggleEl && 'inert' in menuToggleEl) menuToggleEl.inert = Boolean(active);
+  if (footer && 'inert' in footer) footer.inert = Boolean(active);
+  if (sidebar && 'inert' in sidebar) {
+    if (active) sidebar.inert = true;
+    else sidebar.inert = Boolean(navMediaQuery?.matches && !isMobileMenuOpen);
+  }
+  const mainEl = document.getElementById('main');
+  if (mainEl && mainEl.children) {
+    for (const child of Array.from(mainEl.children)) {
+      if (child && 'inert' in child) {
+        child.inert = Boolean(active && child !== activeModal);
+      }
+    }
+  }
+}
+function trapModalFocus(modal, e) {
+  if (!modal || modal.hidden || e.key !== 'Tab' || typeof modal.querySelectorAll !== 'function') return;
+  const focusables = Array.from(modal.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'))
+    .filter(el => !el.hidden && el.offsetParent !== null);
+  if (!focusables.length) return;
+  const idx = focusables.indexOf(document.activeElement);
+  if (e.shiftKey && idx <= 0) {
+    e.preventDefault();
+    focusables[focusables.length - 1].focus();
+  } else if (!e.shiftKey && (idx === -1 || idx === focusables.length - 1)) {
+    e.preventDefault();
+    focusables[0].focus();
+  }
+}
 function syncSizeControlsUI() {
   document.querySelectorAll('[data-size-mode]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sizeMode === exportSizeMode);
+    const active = btn.dataset.sizeMode === exportSizeMode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute?.('aria-pressed', active ? 'true' : 'false');
   });
   const padIn = document.getElementById('size-slider-padding');
   const cellIn = document.getElementById('size-slider-cell');
@@ -1520,7 +1568,7 @@ function openSizeAdjustModal() {
   headerRow.className = 'export-header-row';
   headerRow.innerHTML = `
     <div class="export-header-main">
-      <h1 class="export-title">明石高専 後期時間割</h1>
+      <div class="export-title" role="heading" aria-level="2">明石高専 後期時間割</div>
       <span class="export-badge-tag">${escapeHTML(studentLabel())}</span>
       <span class="export-team-tag">Co+work 6班</span>
     </div>
@@ -1539,6 +1587,7 @@ function openSizeAdjustModal() {
   applyLiveSheetSize(clone);
   lastModalTrigger = document.activeElement || null;
   modal.hidden = false;
+  setModalBackdropInert(true, modal);
   document.body.classList.add('size-modal-open');
   syncSizeControlsUI();
   document.getElementById('export-size-close')?.focus?.();
@@ -1547,6 +1596,7 @@ function closeSizeAdjustModal() {
   const modal = document.getElementById('export-size-modal');
   const wasOpen = modal && !modal.hidden;
   if (modal) modal.hidden = true;
+  setModalBackdropInert(false);
   document.body.classList.remove('size-modal-open');
   const panel = document.getElementById('timetable-sheet');
   if (panel) applyLiveSheetSize(panel);
@@ -1673,6 +1723,7 @@ async function openDataPreviewModal(format) {
   lastModalTrigger = document.activeElement || null;
   updatePreview();
   modal.hidden = false;
+  setModalBackdropInert(true, modal);
   document.body.classList.add('size-modal-open');
   document.getElementById('data-preview-close')?.focus?.();
 }
@@ -1680,6 +1731,7 @@ function closeDataPreviewModal() {
   const modal = document.getElementById('data-preview-modal');
   const wasOpen = modal && !modal.hidden;
   if (modal) modal.hidden = true;
+  setModalBackdropInert(false);
   document.body.classList.remove('size-modal-open');
   if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
     lastModalTrigger.focus();
@@ -1975,6 +2027,11 @@ function render() {
       if (e.key === 'Escape') {
         closeDataPreviewModal();
         closeSizeAdjustModal();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const openModal = getOpenModalEl();
+        if (openModal) trapModalFocus(openModal, e);
       }
     });
     window.addEventListener('resize', () => {
@@ -2118,7 +2175,7 @@ function setupNavigation() {
   return ()=>setOpen(false,false);
 }
 const closeNavigation=setupNavigation();
-window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});document.querySelector?.('.topbar')?.classList?.remove('topbar-hidden');});
+window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});document.querySelector?.('.topbar')?.classList?.remove('topbar-hidden');document.getElementById('menu-toggle')?.classList?.remove('topbar-hidden');});
 
 const THEME_COOKIE = 'campus-theme';
 function getOsTheme() {
@@ -2229,6 +2286,8 @@ function setupTheme() {
 }
 function setupMobileHeaderScroll() {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  const menuToggleEl = typeof document.getElementById === 'function' ? document.getElementById('menu-toggle') : null;
+  menuToggleEl?.addEventListener?.('focus', () => menuToggleEl.classList?.remove('topbar-hidden'));
   let lastY = 0;
   let ticking = false;
   const raf = typeof window.requestAnimationFrame === 'function'
