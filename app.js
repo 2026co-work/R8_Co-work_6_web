@@ -301,6 +301,12 @@ let calendarFilterPeriod = 'all';
 let calendarFilterCategory = 'all';
 let selectedCafeteriaWeekIdx = -1;
 let lastModalTrigger = null;
+let onboardingDismissed = false;
+let calendarSearchQuery = '';
+let calendarHidePast = false;
+let calendarViewMode = 'list';
+let calendarMonthOffset = 0;
+let selectedAllergenFilter = '';
 
 function expandRoomLegend(loc) {
   const raw = String(loc || '').trim();
@@ -308,6 +314,15 @@ function expandRoomLegend(loc) {
   const tokens = raw.split(/[・/\s]+/).filter(Boolean);
   const expanded = tokens.map(tok => activeRoomLegends[tok] ? `${tok}: ${activeRoomLegends[tok]}` : null).filter(Boolean);
   return expanded.length ? expanded.join(' / ') : raw;
+}
+function renderLocationTrigger(loc) {
+  const raw = String(loc || '').trim();
+  if (!raw) return '';
+  const expanded = expandRoomLegend(raw);
+  return `<button type="button" class="lesson-location lesson-location-btn" data-room-raw="${escapeHTML(raw)}" data-room-full="${escapeHTML(expanded)}" title="${escapeHTML(expanded)}" aria-label="教室 ${escapeHTML(raw)} の正式名称を表示">${icon('door')}${escapeHTML(raw)}</button>`;
+}
+function renderRoomPopoverBox() {
+  return `<div class="alert alert-info room-legend-popover" id="room-legend-popover" data-export-exclude role="status" aria-live="polite" hidden><span id="room-legend-popover-text"></span><button type="button" class="button subtle size-close-btn" id="room-legend-close" aria-label="教室情報を閉じる" style="min-height:26px;padding:0 10px;margin-left:auto;">✕</button></div>`;
 }
 
 function getTimetablePdfUrl() {
@@ -325,6 +340,51 @@ function getThemeButtonMeta(mode = currentTheme) {
     ? 'OS設定連動（自動）に戻す'
     : (nextMode === 'dark' ? 'ダークモードに切り替える' : 'ライトモードに切り替える');
   return { eff, nextMode, iconName, label };
+}
+
+function studentPillBtn() {
+  return `<button type="button" class="student-pill badge gray profile-switch-trigger" id="open-profile-switcher" aria-label="所属 ${escapeHTML(studentLabel())} を変更" title="学年・学科・コースを変更">${escapeHTML(studentShortLabel())} ▾</button>`;
+}
+
+function buildStudentFilterControls(selection, prefix = 'student', dataAttr = 'data-student') {
+  const s = selection || studentSelection;
+  const isAdvanced = Number(s.grade) >= 6;
+  const options = (values, current) => values.map(([value, label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
+  const field = (label, key, values, disabled = false, hintText = '') => `<label class="field">${label}<select id="${prefix}-${key}" ${dataAttr}="${key}" ${disabled ? 'disabled' : 'required'}>${options(values, s[key])}</select>${hintText ? `<small class="field-hint">${escapeHTML(hintText)}</small>` : ''}</label>`;
+  const needsCourse = !isAdvanced && Number(s.grade) >= 4 && s.department === 'E';
+  const gradeOptions = [
+    [1, '1年'], [2, '2年'], [3, '3年'], [4, '4年'], [5, '5年'],
+    [6, '専攻科1年 (専1)'], [7, '専攻科2年 (専2)']
+  ];
+  const deptOptions = isAdvanced
+    ? ADVANCED_DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || d])
+    : DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || `${d}科`]);
+  return field('学年', 'grade', gradeOptions) +
+    field(isAdvanced ? '専攻' : '学科', 'department', deptOptions) +
+    field('クラス（1・2年）', 'classGroup', [1, 2, 3, 4].map(n => [n, `${n}組`]), isAdvanced || Number(s.grade) >= 3, (isAdvanced || Number(s.grade) >= 3) ? '※3年生以上・専攻科は学科共通' : '') +
+    field('留学生の区分', 'studentType', [['regular', '留学生ではない'], ['international', '留学生']], isAdvanced) +
+    field('E科のコース（4・5年）', 'course', [['', '選択してください'], ['EJ', COURSE_LABELS.EJ], ['ED', COURSE_LABELS.ED]], isAdvanced || !needsCourse, (isAdvanced || !needsCourse) ? '※4・5年E科のみ選択可' : '') +
+    (!isAdvanced && Number(s.grade) === 1 ? field('芸術選択', 'arts', [['music', '音楽'], ['art', '美術']]) : '');
+}
+
+function renderProfileSwitcherModal() {
+  return `<div class="data-preview-overlay profile-modal-overlay" id="profile-switcher-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="学年・学科・コース設定">
+    <div class="data-preview-card profile-modal-card">
+      <div class="data-preview-head">
+        <h3>学年・学科・コースを設定</h3>
+        <button type="button" class="button size-close-btn" id="profile-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 10px;">✕</button>
+      </div>
+      <div class="data-preview-body">
+        <p class="data-preview-note">ここで選択した所属は、ホーム・時間割・定期試験・シラバスに共通して反映されます。</p>
+        <div class="filters student-filters" id="profile-modal-fields"></div>
+        <p class="selection-status" id="profile-modal-status" role="status" hidden></p>
+      </div>
+      <div class="data-preview-foot">
+        <button type="button" class="button secondary" id="profile-modal-cancel">キャンセル</button>
+        <button type="button" class="button" id="profile-modal-save">${icon('check')}この設定を適用</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 function themeToggleBtn() {
@@ -505,7 +565,7 @@ function getAcademicWeek(date = new Date()) {
 }
 
 function renderTodaySchedule(currentDate) {
-  const { dateStr: todayDateStr, weekdayNum: jsDay } = getJstParts(currentDate);
+  const { dateStr: todayDateStr, weekdayNum: jsDay, hour: jstHour, minute: jstMinute } = getJstParts(currentDate);
   const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
 
   const sub = calendarData?.daySubstitutions?.find(item => item.date === todayDateStr);
@@ -565,8 +625,50 @@ function renderTodaySchedule(currentDate) {
     `;
   }
 
+  const examEv = !isSubstituted ? events.find(e =>
+    e.type === 'exam' &&
+    (e.date === todayDateStr || (e.endDate && todayDateStr >= e.date && todayDateStr <= e.endDate))
+  ) : null;
+  if (examEv) {
+    const examLabel = examEv.title || examEv.name || '定期試験期間';
+    return subBanner + `
+      <section class="panel today-schedule" id="today-schedule">
+        <div class="panel-head">
+          <h2>${icon('calendar')}今日の時間割</h2>
+          <div class="panel-head-meta">
+            ${navControls}
+            <span class="badge red">${escapeHTML(examLabel)}</span>
+            <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          </div>
+        </div>
+        <div class="dashboard-rest-card">
+          <p><strong>${escapeHTML(todayDateStr)}</strong> は<strong>${escapeHTML(examLabel)}</strong>期間です。通常授業の代わりに試験時間割をご確認ください。</p>
+          <a class="button" href="#exam">${icon('document')}試験時間割を見る</a>
+        </div>
+      </section>
+    `;
+  }
+
   const dayIdx = effectiveDay - 1;
-  const { grid } = selectedSchedule();
+  const { grid, error: schedError } = selectedSchedule();
+  if (schedError) {
+    return subBanner + `
+      <section class="panel today-schedule" id="today-schedule">
+        <div class="panel-head">
+          <h2>${icon('calendar')}今日の時間割</h2>
+          <div class="panel-head-meta">
+            ${navControls}
+            <span class="badge yellow">設定が必要</span>
+            <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          </div>
+        </div>
+        <div class="dashboard-empty-card">
+          <p>${escapeHTML(schedError)}</p>
+          <button type="button" class="button profile-switch-trigger" id="home-fix-profile-btn">${icon('edit')}コース・学年を設定する</button>
+        </div>
+      </section>
+    `;
+  }
   const dayLessons = grid[dayIdx] || [];
   const hasClasses = dayLessons.some(slot => slot.length > 0);
 
@@ -588,6 +690,37 @@ function renderTodaySchedule(currentDate) {
     `;
   }
 
+  const isLiveToday = dashboardOffsetDays === 0;
+  const nowMinutes = jstHour * 60 + jstMinute;
+  const toMinutes = hhmm => {
+    const [h, m] = String(hhmm || '0:0').split(':').map(Number);
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+  };
+  let currentLessonKey = null;
+  let nextLessonKey = null;
+  let lastClassEndMin = -1;
+  if (isLiveToday) {
+    const scanIds = new Set();
+    for (let pIdx = 0; pIdx < periods.length; pIdx++) {
+      const slot = dayLessons[pIdx] || [];
+      for (const l of slot) {
+        const key = l.id || `${l.subjectName}-${l.period}`;
+        if (scanIds.has(key)) continue;
+        scanIds.add(key);
+        const span = l.duration || 1;
+        const startMin = toMinutes(periods[pIdx]?.[0]);
+        const endMin = toMinutes(periods[Math.min(periods.length - 1, pIdx + span - 1)]?.[1] || periods[pIdx]?.[1]);
+        if (endMin > lastClassEndMin) lastClassEndMin = endMin;
+        if (!currentLessonKey && nowMinutes >= startMin && nowMinutes < endMin) {
+          currentLessonKey = key;
+        } else if (!nextLessonKey && nowMinutes < startMin) {
+          nextLessonKey = key;
+        }
+      }
+    }
+  }
+  const allDoneToday = isLiveToday && lastClassEndMin >= 0 && nowMinutes >= lastClassEndMin;
+
   const renderedLessonIds = new Set();
   const periodRows = periods.map((time, p) => {
     const cell = dayLessons[p] || [];
@@ -607,20 +740,31 @@ function renderTodaySchedule(currentDate) {
     });
     if (freshLessons.length === 0) return '';
     return freshLessons.map(l => {
+      const key = l.id || `${l.subjectName}-${l.period}`;
       const span = l.duration || 1;
       const endPeriodIdx = Math.min(periods.length - 1, p + span - 1);
       const endTime = periods[endPeriodIdx]?.[1] || time[1];
+      const startMin = toMinutes(time[0]);
+      const endMin = toMinutes(endTime);
+      const isCurrent = isLiveToday && currentLessonKey === key;
+      const isNext = isLiveToday && !isCurrent && nextLessonKey === key;
+      const liveBadge = isCurrent
+        ? `<span class="badge red live-status-badge">授業中・残り${Math.max(1, endMin - nowMinutes)}分</span>`
+        : (isNext ? `<span class="badge blue live-status-badge">次の授業・あと${Math.max(1, startMin - nowMinutes)}分</span>` : '');
       return `
-        <div class="dashboard-period active">
+        <div class="dashboard-period active${isCurrent ? ' is-current' : ''}${isNext ? ' is-next' : ''}">
           <div class="period-meta">
             <span class="period-num">${span > 1 ? `${p + 1}〜${p + span}限` : `${p + 1}限`}</span>
             <span class="period-time">${time[0]}〜${endTime}</span>
             ${span > 1 ? `<span class="badge gray">${span}コマ連続</span>` : ''}
           </div>
           <div class="lesson-info">
-            <strong class="subject-title">${escapeHTML(l.subjectName)}</strong>
+            <div class="subject-title-row">
+              <strong class="subject-title">${escapeHTML(l.subjectName)}</strong>
+              ${liveBadge}
+            </div>
             <div class="lesson-sub">
-              ${l.location ? `<span class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</span>` : ''}
+              ${l.location ? renderLocationTrigger(l.location) : ''}
               ${l.teacher ? `<span class="lesson-teacher">${escapeHTML(l.teacher)}</span>` : ''}
             </div>
             ${l.notes ? `<small class="lesson-notes">${escapeHTML(l.notes)}</small>` : ''}
@@ -636,6 +780,7 @@ function renderTodaySchedule(currentDate) {
         <h2>${icon('calendar')}今日の時間割</h2>
         <div class="panel-head-meta">
           ${navControls}
+          ${allDoneToday ? '<span class="badge gray">本日の授業終了</span>' : ''}
           <span class="badge">${DAYS[dayIdx]}曜日</span>
           <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
         </div>
@@ -643,11 +788,51 @@ function renderTodaySchedule(currentDate) {
       <div class="today-periods-list">
         ${periodRows}
       </div>
+      ${renderRoomPopoverBox()}
       <div class="panel-footer">
         <a class="text-link" href="#timetable">週間時間割へ${icon('arrow')}</a>
       </div>
     </section>
   `;
+}
+
+function getExamCountdownInfo() {
+  const { dateStr: todayStr } = getJstParts(new Date());
+  const meta = examData?.meta || {};
+  let startStr = meta.examStartDate || '';
+  let endStr = meta.examEndDate || '';
+  let title = meta.title || '定期試験';
+  if (!startStr || (endStr && endStr < todayStr) || (!endStr && startStr < todayStr)) {
+    const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
+    const nextExam = [...events]
+      .filter(e => e && e.type === 'exam' && (e.endDate || e.date || '') >= todayStr)
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))[0];
+    if (nextExam?.date) {
+      startStr = nextExam.date;
+      endStr = nextExam.endDate || nextExam.date;
+      title = nextExam.title || nextExam.name || title;
+    }
+  }
+  if (!startStr || !/^\d{4}-\d{2}-\d{2}$/.test(startStr)) return null;
+  const startMs = new Date(`${startStr}T00:00:00Z`).getTime();
+  const todayMs = new Date(`${todayStr}T00:00:00Z`).getTime();
+  const daysUntil = Math.round((startMs - todayMs) / 86400000);
+  const pubDate = new Date(startMs - 10 * 86400000);
+  const pubStr = `${pubDate.getUTCFullYear()}-${String(pubDate.getUTCMonth() + 1).padStart(2, '0')}-${String(pubDate.getUTCDate()).padStart(2, '0')}`;
+  const inExam = todayStr >= startStr && (!endStr || todayStr <= endStr);
+  return { startStr, endStr, title, daysUntil, publishDateStr: pubStr, inExam };
+}
+
+function renderExamCountdownBar() {
+  const info = getExamCountdownInfo();
+  if (!info) return '';
+  if (info.inExam) {
+    return `<div class="exam-countdown-bar"><span class="badge red">試験実施中</span><span class="hint" style="margin:0;">${escapeHTML(info.startStr)}${info.endStr && info.endStr !== info.startStr ? `〜${escapeHTML(info.endStr)}` : ''}</span></div>`;
+  }
+  if (info.daysUntil >= 0) {
+    return `<div class="exam-countdown-bar"><span class="badge blue">試験開始まであと ${info.daysUntil}日</span><span class="hint" style="margin:0;">期間: ${escapeHTML(info.startStr)}${info.endStr ? `〜${escapeHTML(info.endStr.slice(5))}` : ''} / 時間割発表目安: ${escapeHTML(info.publishDateStr)} 正午</span></div>`;
+  }
+  return '';
 }
 
 function renderExamAlert() {
@@ -665,6 +850,7 @@ function renderExamAlert() {
         <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '試験情報'}</span>
       </div>
       <div class="exam-alert-body">
+        ${renderExamCountdownBar()}
         <p class="exam-notice"><strong>${escapeHTML(noticeText)}</strong></p>
         ${showSeparateRule ? `<p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>` : ''}
       </div>
@@ -803,36 +989,71 @@ function normalizeLinkUrl(u) {
   return String(u || '').trim().replace(/\/+$/, '').toLowerCase();
 }
 let myLinkSeq = 0;
+let editingMyLinkId = '';
+let lastDeletedMyLink = null;
+let toastTimer = null;
 
-function addMyLink(link) {
-  if (!link || typeof link !== 'object') return { success: false, error: '無効なリンクデータです。' };
+function validateMyLinkInput(link) {
+  if (!link || typeof link !== 'object') return { valid: false, error: '無効なリンクデータです。' };
   const name = String(link.name || '').trim();
   const url = String(link.url || '').trim();
-  if (!name || !url) return { success: false, error: '表示名とURLを両方入力してください。' };
-  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'URLは http:// または https:// で入力してください。' };
-  try {
-    const parsed = new URL(url);
-    if (!parsed.hostname) return { success: false, error: '有効なURL（例: https://example.com）を入力してください。' };
-  } catch {
-    return { success: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+  if (!name || !url) return { valid: false, error: '表示名とURLを両方入力してください。' };
+  if (!/^https?:\/\//i.test(url)) return { valid: false, error: 'URLは http:// または https:// で入力してください。' };
+  if (typeof URL === 'function') {
+    try {
+      const parsed = new URL(url);
+      if (!parsed.hostname) return { valid: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+    } catch {
+      return { valid: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+    }
+  } else if (!/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(url)) {
+    return { valid: false, error: '有効なURL（例: https://example.com）を入力してください。' };
   }
-  const links = loadMyLinks();
-  if (!link.id && links.some(l => normalizeLinkUrl(l.url) === normalizeLinkUrl(url))) {
-    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
-  }
-  const newItem = { id: link.id || `custom-${Date.now()}-${++myLinkSeq}`, name, url, custom: true };
-  links.push(newItem);
+  return { valid: true, name, url };
+}
+
+function persistMyLinks(links) {
   try {
     const saved = saveMyLinks(links);
     if (saved === false || (saved && saved.success === false)) {
       return { success: false, error: (saved && saved.error) || 'リンクを保存できませんでした。' };
     }
+    return { success: true };
   } catch (err) {
     return { success: false, error: err?.message || 'ストレージ容量の上限に達しました。' };
   }
+}
+
+function addMyLink(link) {
+  const v = validateMyLinkInput(link);
+  if (!v.valid) return { success: false, error: v.error };
+  const links = loadMyLinks();
+  if (!link.id && links.some(l => normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
+    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
+  }
+  const newItem = { id: link.id || `custom-${Date.now()}-${++myLinkSeq}`, name: v.name, url: v.url, custom: true };
+  links.push(newItem);
+  const persisted = persistMyLinks(links);
+  if (!persisted.success) return persisted;
   return { success: true, item: newItem };
 }
 const addCustomLink = addMyLink;
+
+function updateMyLink(id, link) {
+  if (!id) return { success: false, error: '対象のリンクIDが見つかりません。' };
+  const v = validateMyLinkInput(link);
+  if (!v.valid) return { success: false, error: v.error };
+  const links = loadMyLinks();
+  const idx = links.findIndex(l => l.id === id);
+  if (idx === -1) return { success: false, error: '対象のマイリンクが見つかりませんでした。' };
+  if (links.some(l => l.id !== id && normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
+    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
+  }
+  links[idx] = { ...links[idx], name: v.name, url: v.url };
+  const persisted = persistMyLinks(links);
+  if (!persisted.success) return persisted;
+  return { success: true, item: links[idx], links };
+}
 
 function reorderMyLink(id, direction) {
   const links = loadMyLinks();
@@ -858,6 +1079,65 @@ function deleteMyLink(id) {
   return links;
 }
 const removeMyLink = deleteMyLink;
+
+function restoreMyLink(item, index = 0) {
+  if (!item || typeof item !== 'object' || !item.id) return loadMyLinks();
+  const links = loadMyLinks();
+  if (links.some(l => l.id === item.id)) return links;
+  const insertAt = Math.max(0, Math.min(links.length, Number.isFinite(index) ? index : links.length));
+  links.splice(insertAt, 0, { ...item });
+  persistMyLinks(links);
+  return links;
+}
+
+function showToast(message, options = {}) {
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+  const body = document.body;
+  if (!body || typeof body.append !== 'function') return;
+  let toast = document.getElementById('portal-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'portal-toast';
+    toast.className = 'toast';
+    toast.setAttribute?.('role', 'status');
+    toast.setAttribute?.('aria-live', 'polite');
+    body.append(toast);
+  }
+  while (toast.firstChild && typeof toast.removeChild === 'function') {
+    toast.removeChild(toast.firstChild);
+  }
+  toast.textContent = '';
+  const msgSpan = document.createElement('span');
+  msgSpan.textContent = String(message || '');
+  toast.append?.(msgSpan);
+  if (options.undoLabel && typeof options.onUndo === 'function') {
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.className = 'toast-action';
+    actionBtn.textContent = options.undoLabel;
+    actionBtn.addEventListener?.('click', () => {
+      if (toastTimer && typeof clearTimeout === 'function') {
+        clearTimeout(toastTimer);
+        toastTimer = null;
+      }
+      toast.hidden = true;
+      options.onUndo();
+    });
+    toast.append?.(actionBtn);
+  }
+  toast.hidden = false;
+  if (toastTimer && typeof clearTimeout === 'function') {
+    clearTimeout(toastTimer);
+    toastTimer = null;
+  }
+  if (typeof setTimeout === 'function') {
+    const duration = Number(options.duration) > 0 ? Number(options.duration) : 4500;
+    toastTimer = setTimeout(() => {
+      toast.hidden = true;
+      toastTimer = null;
+    }, duration);
+  }
+}
 
 function renderQuickLinks() {
   const syllabusUrl = getSyllabusUrl(studentSelection);
@@ -924,16 +1204,30 @@ function home() {
     <div class="heading-actions">
       ${themeToggleBtn()}
       <span class="term-badge badge blue">${escapeHTML(weekInfo.label)}</span>
-      <span class="student-pill badge gray">${escapeHTML(studentShortLabel())}</span>
+      ${studentPillBtn()}
       <div class="date-block">
         <strong>${longDate(displayDateKey)}</strong>
         <small>${dashboardOffsetDays === 0 ? 'キャンパスポータル' : `基準日から${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日`}</small>
       </div>
     </div>
   `;
+  const onboardingHtml = (!cookieSaved && !onboardingDismissed)
+    ? `<div class="alert alert-info onboarding-banner" id="onboarding-banner" role="region" aria-label="初期設定ガイド">
+        <span class="badge blue">はじめての方へ</span>
+        <div class="onboarding-text">
+          <strong>現在の表示は初期設定（${escapeHTML(studentLabel())}）です。</strong>
+          <p>あなたの学年・学科を設定すると、時間割・試験・シラバスが自動で切り替わります。</p>
+        </div>
+        <div class="onboarding-actions">
+          <button type="button" class="button profile-switch-trigger" id="onboarding-open-profile">${icon('edit')}学年・学科を設定</button>
+          <button type="button" class="button secondary" id="onboarding-dismiss">このまま使う</button>
+        </div>
+      </div>`
+    : '';
 
   return `
     ${heading('ホーム', '今日の概要ダッシュボード', actions)}
+    ${onboardingHtml}
     ${renderTodayOverview(targetDate)}
   `;
 }
@@ -993,7 +1287,7 @@ function extractExamEntries(data, selection) {
 }
 
 function exam() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const meta = examData?.meta || FALLBACK_EXAM.meta || {};
   const isPublished = meta.status === 'published';
   const notice = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。（10日前の正午発表）';
@@ -1050,12 +1344,14 @@ function exam() {
         <p class="exam-card-meta">公開時に科目・時間・試験教室・監督配置が表示されます。</p>
       </article>`;
 
+  const updatedDate = meta.updatedAt ? String(meta.updatedAt).slice(0, 10) : '';
   return `${heading('定期試験', '定期試験時間割・注意事項', actions)}
     <section class="panel exam-panel">
       <div class="panel-head">
         <h2>${icon('document')}定期試験案内</h2>
         <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '未公開'}</span>
       </div>
+      ${renderExamCountdownBar()}
       <p class="exam-notice"><strong>${escapeHTML(notice)}</strong></p>
       ${showSeparateRule ? `<p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>` : ''}
       <div class="exam-period-chips" aria-label="試験時間帯一覧"><span class="field-hint" style="margin:0 4px 0 0;display:inline;font-weight:600;">試験時間帯:</span>${periodChipsHtml}</div>
@@ -1067,6 +1363,7 @@ function exam() {
         <a class="button secondary" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">${icon('book')}${escapeHTML(studentShortLabel())} シラバス</a>
         <a class="text-link" href="https://www.akashi.ac.jp/life/examtimetable.html" target="_blank" rel="noopener noreferrer">公式試験日程ページへ${icon('arrow')}</a>
       </div>
+      ${updatedDate ? `<p class="hint" style="margin:10px 0 0;">データ取得: ${escapeHTML(updatedDate)}</p>` : ''}
     </section>
     <section class="panel exam-schedule" id="exam-schedule" data-status="${isPublished ? 'published' : 'unpublished'}">
       <div class="panel-head">
@@ -1084,8 +1381,52 @@ function exam() {
 }
 function examView() { return exam(); }
 
+function renderCalendarMonthGrid(events, subs, todayStr) {
+  const [baseY, baseM] = todayStr.slice(0, 7).split('-').map(Number);
+  const firstOfTarget = new Date(Date.UTC(baseY, (baseM - 1) + calendarMonthOffset, 1));
+  const y = firstOfTarget.getUTCFullYear();
+  const m = firstOfTarget.getUTCMonth() + 1;
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const firstDow = firstOfTarget.getUTCDay();
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<div class="cal-month-cell is-pad"></div>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayEvents = events.filter(ev => {
+      const s = ev.date || ev.startDate || '';
+      const e = ev.endDate || s;
+      return s && ds >= s && ds <= e;
+    });
+    const subDay = subs.find(s => s && s.date === ds);
+    const pills = [
+      ...dayEvents.slice(0, 2).map(ev => {
+        const cls = ev.type === 'exam' ? 'is-exam' : ((ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false) ? 'is-holiday' : 'is-event');
+        return `<span class="cal-month-pill ${cls}" title="${escapeHTML(ev.title || ev.name || '')}">${escapeHTML(ev.title || ev.name || '')}</span>`;
+      }),
+      ...(subDay ? [`<span class="cal-month-pill is-sub">${escapeHTML(String(subDay.substituteDay || '月').replace(/曜日$/, ''))}曜授業</span>`] : [])
+    ].slice(0, 3);
+    const extraCount = dayEvents.length + (subDay ? 1 : 0) - pills.length;
+    cells.push(`<div class="cal-month-cell${ds === todayStr ? ' is-today' : ''}${dayEvents.some(e => e.type === 'holiday' || e.type === 'vacation') ? ' is-rest' : ''}">
+      <span class="cal-month-daynum">${d}</span>
+      <div class="cal-month-pills">${pills.join('')}${extraCount > 0 ? `<span class="cal-month-more">+${extraCount}</span>` : ''}</div>
+    </div>`);
+  }
+  return `<div class="calendar-month-view" id="calendar-month-view">
+    <div class="cal-month-nav">
+      <button type="button" class="button secondary" data-cal-month="-1" aria-label="前の月">← 前月</button>
+      <strong>${y}年 ${m}月</strong>
+      <button type="button" class="button secondary" data-cal-month="0">今月</button>
+      <button type="button" class="button secondary" data-cal-month="1" aria-label="次の月">翌月 →</button>
+    </div>
+    <div class="cal-month-grid">
+      ${['日', '月', '火', '水', '木', '金', '土'].map(w => `<div class="cal-month-head">${w}</div>`).join('')}
+      ${cells.join('')}
+    </div>
+  </div>`;
+}
+
 function calendar() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const nowDate = new Date();
   const todayStr = dateKey(nowDate);
   const currentMonthPrefix = todayStr.slice(0, 7);
@@ -1121,6 +1462,7 @@ function calendar() {
     if (calendarFilterPeriod === 'kouki') return endSafe >= koukiStart || Number(startStr.slice(5, 7)) <= 3;
     return true;
   };
+  const qLower = calendarSearchQuery.trim().toLowerCase();
 
   const sortedEvents = [...events]
     .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
@@ -1128,6 +1470,7 @@ function calendar() {
       const start = String(ev.date || ev.startDate || '');
       const endSafe = String(ev.endDate || start);
       if (!matchesPeriod(start, endSafe)) return false;
+      if (calendarHidePast && endSafe && endSafe < todayStr) return false;
       if (calendarFilterCategory === 'holiday') {
         return ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false;
       }
@@ -1138,6 +1481,7 @@ function calendar() {
       return true;
     });
 
+  let visibleCount = 0;
   const eventRows = sortedEvents.map(ev => {
     const start = ev.date || ev.startDate || '';
     const endRaw = ev.endDate || start;
@@ -1146,7 +1490,10 @@ function calendar() {
     const b = badgeMap[ev.type] || { cls: 'blue', label: ev.hasClasses === false ? '休業' : '予定' };
     const isToday = start && (todayStr >= start && todayStr <= endRaw);
     const isPast = !isToday && endRaw && endRaw < todayStr;
-    return `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}">
+    const textForSearch = `${start} ${endRaw} ${title} ${ev.note || ''} ${b.label}`.toLowerCase();
+    const hiddenBySearch = Boolean(qLower && !textForSearch.includes(qLower));
+    if (!hiddenBySearch) visibleCount++;
+    return `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}"${hiddenBySearch ? ' style="display:none;"' : ''}>
       <span class="calendar-event-date">${escapeHTML(start + end)}</span>
       ${isToday ? '<span class="badge red">本日</span>' : ''}
       <span class="badge ${b.cls}">${escapeHTML(b.label)}</span>
@@ -1157,12 +1504,12 @@ function calendar() {
 
   const filteredSubs = (calendarFilterCategory === 'holiday' || calendarFilterCategory === 'exam')
     ? []
-    : subs.filter(s => s && matchesPeriod(String(s.date || ''), String(s.date || '')));
+    : subs.filter(s => s && matchesPeriod(String(s.date || ''), String(s.date || '')) && (!calendarHidePast || String(s.date || '') >= todayStr));
   const subRows = filteredSubs.length
     ? `<div class="calendar-substitutions">
         <h3>授業振替実施日</h3>
         <ul class="calendar-timeline">
-          ${filteredSubs.map(s => `<li class="calendar-event-item" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`)}</strong>${s.note ? `<small class="calendar-event-note">${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
+          ${filteredSubs.map(s => `<li class="calendar-event-item${s.date < todayStr ? ' is-past' : ''}${s.date === todayStr ? ' is-today' : ''}" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`)}</strong>${s.note ? `<small class="calendar-event-note">${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
         </ul>
       </div>`
     : '';
@@ -1172,6 +1519,11 @@ function calendar() {
   const zenkiPdfUrl = normalizeAkashiUrl(data.meta?.zenkiPdfUrl, '');
   const koukiPdfUrl = normalizeAkashiUrl(data.meta?.koukiPdfUrl, '');
   const calSourceUrl = normalizeAkashiUrl(data.meta?.sourceUrl, 'https://www.akashi.ac.jp/life/calendar.html');
+  const updatedDate = data.meta?.updatedAt ? String(data.meta.updatedAt).slice(0, 10) : '';
+
+  const mainBodyHtml = calendarViewMode === 'month'
+    ? renderCalendarMonthGrid(sortedEvents, subs, todayStr)
+    : `${subRows}<div class="calendar-events" id="calendar-events"><ul class="calendar-timeline" id="calendar-timeline-list">${eventRows || '<li class="calendar-event-item"><span class="calendar-event-title">該当する行事はありません。</span></li>'}</ul></div>`;
 
   return `${heading('年間予定', '行事予定・授業日程・週番号', actions)}
     <section class="panel calendar-panel">
@@ -1185,28 +1537,34 @@ function calendar() {
         ${zenkiPdfUrl ? `<a class="button secondary" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期行事予定PDF</a>` : ''}
         ${koukiPdfUrl ? `<a class="button secondary" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期行事予定PDF</a>` : ''}
         <a class="text-link" href="${escapeHTML(calSourceUrl)}" target="_blank" rel="noopener noreferrer">公式行事予定ページへ${icon('arrow')}</a>
-        <span class="badge">${sortedEvents.length}件の行事</span>
+        <span class="badge" id="calendar-count-badge" data-total="${sortedEvents.length}">${visibleCount}件の行事</span>
         ${subDates.size ? `<span class="badge blue">授業振替 ${subDates.size}日</span>` : ''}
       </div>
       <div class="calendar-filters" role="group" aria-label="年間予定絞り込み">
         <div class="filter-group">${periodChip('all', '通年')}${periodChip('current', '今月')}${periodChip('zenki', '前期')}${periodChip('kouki', '後期')}</div>
         <div class="filter-group">${catChip('all', 'すべて')}${catChip('holiday', '祝日・休業')}${catChip('exam', '定期試験')}${catChip('event', '学校行事')}</div>
+        <div class="filter-group">
+          <button type="button" class="chip${calendarViewMode === 'list' ? ' active' : ''}" data-cal-view="list" aria-pressed="${calendarViewMode === 'list' ? 'true' : 'false'}">リスト表示</button>
+          <button type="button" class="chip${calendarViewMode === 'month' ? ' active' : ''}" data-cal-view="month" aria-pressed="${calendarViewMode === 'month' ? 'true' : 'false'}">月間カレンダー</button>
+          <button type="button" class="chip${calendarHidePast ? ' active' : ''}" id="calendar-hide-past-btn" aria-pressed="${calendarHidePast ? 'true' : 'false'}">今後の予定のみ</button>
+          <button type="button" class="chip" id="calendar-jump-today">今日へジャンプ</button>
+        </div>
       </div>
-      ${subRows}
-      <div class="calendar-events" id="calendar-events">
-        <ul class="calendar-timeline">
-          ${eventRows || '<li class="calendar-event-item"><span class="calendar-event-title">該当する行事はありません。</span></li>'}
-        </ul>
+      <div class="exam-search-bar"${calendarViewMode === 'month' ? ' hidden' : ''}>
+        <input type="search" id="calendar-search-input" value="${escapeHTML(calendarSearchQuery)}" placeholder="行事名・日付・備考で検索..." aria-label="年間予定検索">
       </div>
+      ${mainBodyHtml}
+      ${updatedDate ? `<p class="hint" style="margin:12px 0 0;">データ取得: ${escapeHTML(updatedDate)}</p>` : ''}
     </section>`;
 }
 function calendarView() { return calendar(); }
 
-function renderCafeteriaDayCard(day) {
+function renderCafeteriaDayCard(day, todayStr = '', allergenAlert = '') {
   const dateTitle = [day.date, day.dayOfWeek ? `(${day.dayOfWeek})` : ''].filter(Boolean).join(' ');
+  const isToday = Boolean(todayStr && day.date === todayStr);
   if (day.isOpen === false) {
-    return `<li class="cafeteria-menu-item is-closed">
-      <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '休業日')}</strong><span class="badge gray">休業</span></div>
+    return `<li class="cafeteria-menu-item is-closed${isToday ? ' is-today' : ''}">
+      <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '休業日')}</strong>${isToday ? '<span class="badge red">本日</span>' : ''}<span class="badge gray">休業</span></div>
       <p>${escapeHTML(day.closedReason || day.notice || '学生食堂休業日')}</p>
     </li>`;
   }
@@ -1223,16 +1581,25 @@ function renderCafeteriaDayCard(day) {
     fmtDish('麺類', day.noodle, false),
     fmtDish('丼', day.bowl, false)
   ].filter(Boolean);
+  const rawAllergens = [
+    Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || ''),
+    day.lunchA?.allergens,
+    day.lunchB?.allergens,
+    day.noodle?.allergens,
+    day.bowl?.allergens
+  ].filter(Boolean).join(' ');
   const allergens = Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || day.lunchA?.allergens || '');
-  return `<li class="cafeteria-menu-item">
-    <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong>${day.isOpen ? '<span class="badge green">営業</span>' : ''}</div>
+  const hasAllergenAlert = Boolean(allergenAlert && rawAllergens.includes(allergenAlert));
+  return `<li class="cafeteria-menu-item${isToday ? ' is-today' : ''}${hasAllergenAlert ? ' has-allergen-alert' : ''}">
+    <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong><span class="panel-head-meta">${isToday ? '<span class="badge red">本日</span>' : ''}${hasAllergenAlert ? `<span class="badge red">⚠ ${escapeHTML(allergenAlert)}を含む</span>` : ''}${day.isOpen ? '<span class="badge green">営業</span>' : ''}</span></div>
     <div class="cafeteria-day-dishes">${dishRows.join('') || `<span>${escapeHTML(day.name || day.menu || '')}</span>`}</div>
     ${allergens ? `<p class="allergens">アレルゲン: ${escapeHTML(allergens)}</p>` : ''}
   </li>`;
 }
 
 function cafeteria() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
+  const todayStr = dateKey(new Date());
   const data = cafeteriaData || FALLBACK_CAFETERIA;
   const meta = data.meta || FALLBACK_CAFETERIA.meta || {};
   const hasSourceKey = Object.prototype.hasOwnProperty.call(meta, 'sourcePdfUrl');
@@ -1246,6 +1613,14 @@ function cafeteria() {
   const weeklyMenus = Array.isArray(data.weeklyMenus) ? data.weeklyMenus : [];
   const legacyMenus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
   const hasMenuData = weeklyMenus.some(w => Array.isArray(w?.days) && w.days.length > 0) || legacyMenus.length > 0;
+  const allergenChoices = ['小麦', '卵', '乳', '牛肉', '豚肉', '鶏肉', '大豆', 'ごま'];
+  const allergenChipsHtml = hasMenuData && isTextExtracted
+    ? `<div class="cafeteria-allergen-filter" role="group" aria-label="アレルゲン注意ハイライト">
+        <span class="field-hint" style="margin:0;display:inline;font-weight:600;">アレルゲン確認:</span>
+        ${allergenChoices.map(al => `<button type="button" class="chip${selectedAllergenFilter === al ? ' active' : ''}" data-allergen-chip="${al}" aria-pressed="${selectedAllergenFilter === al ? 'true' : 'false'}">${al}</button>`).join('')}
+        ${selectedAllergenFilter ? '<button type="button" class="chip" data-allergen-chip="">解除</button>' : ''}
+      </div>`
+    : '';
 
   let weekTabsHtml = '';
   let menuContent = `<p class="info-note" data-extracted="false">今月の日替わりランチ詳細はPDFからのテキスト抽出が未対応のため（テキスト未抽出）、原本PDFまたは公式ニュースでご確認ください。</p>`;
@@ -1255,7 +1630,10 @@ function cafeteria() {
       if (weeklyMenus.length > 1) {
         weekTabsHtml = `<div class="cafeteria-week-tabs" role="group" aria-label="週切り替え">
           <button type="button" class="cafeteria-week-tab${validWeekIdx === -1 ? ' active' : ''}" data-cafe-week="-1" aria-pressed="${validWeekIdx === -1 ? 'true' : 'false'}">全週</button>
-          ${weeklyMenus.map((w, idx) => `<button type="button" class="cafeteria-week-tab${validWeekIdx === idx ? ' active' : ''}" data-cafe-week="${idx}" aria-pressed="${validWeekIdx === idx ? 'true' : 'false'}">${escapeHTML(w.weekLabel || `第${idx + 1}週`)} ${w.weekRange ? `(${escapeHTML(w.weekRange)})` : ''}</button>`).join('')}
+          ${weeklyMenus.map((w, idx) => {
+            const includesToday = Array.isArray(w?.days) && w.days.some(d => d?.date === todayStr);
+            return `<button type="button" class="cafeteria-week-tab${validWeekIdx === idx ? ' active' : ''}" data-cafe-week="${idx}" aria-pressed="${validWeekIdx === idx ? 'true' : 'false'}">${escapeHTML(w.weekLabel || `第${idx + 1}週`)} ${w.weekRange ? `(${escapeHTML(w.weekRange)})` : ''}${includesToday ? '・今週' : ''}</button>`;
+          }).join('')}
         </div>`;
       }
       const visibleWeeks = validWeekIdx === -1 ? weeklyMenus : [weeklyMenus[validWeekIdx]];
@@ -1263,13 +1641,14 @@ function cafeteria() {
         const days = Array.isArray(week?.days) ? week.days : [];
         return `<div class="cafeteria-week-block" data-week-idx="${validWeekIdx === -1 ? idx : validWeekIdx}">
           ${week.weekRange ? `<h3 class="cafeteria-week-heading">${escapeHTML(week.weekRange)}</h3>` : ''}
-          <ul class="cafeteria-menu-list">${days.map(renderCafeteriaDayCard).join('')}</ul>
+          <ul class="cafeteria-menu-list">${days.map(d => renderCafeteriaDayCard(d, todayStr, selectedAllergenFilter)).join('')}</ul>
         </div>`;
       }).join('');
     } else {
       menuContent = `<ul class="cafeteria-menu-list">${legacyMenus.map(m => `<li class="cafeteria-menu-item"><strong>${escapeHTML(m.date || m.day || '本日')}</strong>: ${escapeHTML(m.name || m.menu || m.lunch || '')}${m.price ? ` <span class="badge">${escapeHTML(String(m.price))}円</span>` : ''}</li>`).join('')}</ul>`;
     }
   }
+  const updatedDate = meta.updatedAt ? String(meta.updatedAt).slice(0, 10) : '';
 
   return `${heading('食堂メニュー', '今週・本日の学生食堂ランチメニュー', actions)}
     <section class="panel cafeteria-panel cafeteria-view" id="cafeteria-view" data-text-extracted="${isTextExtracted ? 'true' : 'false'}">
@@ -1279,12 +1658,14 @@ function cafeteria() {
       </div>
       <p>学生食堂の日替わり定食・ランチメニューおよび寮生食堂の月間献立案内です。</p>
       ${weekTabsHtml}
+      ${allergenChipsHtml}
       ${menuContent}
       <div class="cafeteria-links" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">学生食堂 原本PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">学生食堂 原本PDF（未公開）</button>`}
         ${articleUrl ? `<a class="button secondary" href="${escapeHTML(articleUrl)}" target="_blank" rel="noopener noreferrer">食堂メニュー案内記事</a>` : ''}
         <a class="button secondary" href="https://www.akashi.ac.jp/news_list/news2026.html" target="_blank" rel="noopener noreferrer">公式ニュース一覧へ</a>
       </div>
+      ${updatedDate ? `<p class="hint" style="margin:10px 0 0;">データ取得: ${escapeHTML(updatedDate)}</p>` : ''}
       <div class="dormitory-section" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
         <h3>寮生食堂メニュー（Dormitory）</h3>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
@@ -1316,7 +1697,7 @@ const PRESET_LINKS = [
 ];
 
 function linksView() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const syllabusUrl = getSyllabusUrl(studentSelection);
   const serviceGroups = [
     { key: 'learning', title: '学内学習ツール・LMS' },
@@ -1337,16 +1718,30 @@ function linksView() {
   const myLinks = loadMyLinks().filter(item => item && /^https?:\/\//i.test(String(item.url || '')));
   const existingUrls = new Set(myLinks.map(item => normalizeLinkUrl(item.url)));
   const myLinkItems = myLinks.length
-    ? myLinks.map((item, idx) => `
-        <div class="mylink-row" data-link-id="${escapeHTML(item.id)}">
+    ? myLinks.map((item, idx) => {
+        const isEditing = editingMyLinkId === item.id;
+        return `
+        <div class="mylink-row${isEditing ? ' is-editing' : ''}" data-link-id="${escapeHTML(item.id)}">
           <a class="button secondary mylink-anchor" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external')}${escapeHTML(item.name)}</a>
           <div class="mylink-reorder-btns">
             <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="up" aria-label="${escapeHTML(item.name)}を上へ移動" ${idx === 0 ? 'disabled' : ''}>↑</button>
             <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="down" aria-label="${escapeHTML(item.name)}を下へ移動" ${idx === myLinks.length - 1 ? 'disabled' : ''}>↓</button>
           </div>
+          <button type="button" class="button secondary mylink-edit-btn" data-edit-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を編集" aria-expanded="${isEditing ? 'true' : 'false'}">編集</button>
           <button type="button" class="button secondary mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除">削除</button>
+          ${isEditing ? `
+          <form class="mylink-edit-form" data-edit-form-id="${escapeHTML(item.id)}" novalidate>
+            <input type="text" class="mylink-edit-name" name="name" value="${escapeHTML(item.name)}" placeholder="表示名" aria-label="リンク名を編集">
+            <input type="url" class="mylink-edit-url" name="url" value="${escapeHTML(item.url)}" placeholder="https://..." aria-label="URLを編集">
+            <div class="mylink-edit-actions">
+              <button type="submit" class="button mylink-save-btn">保存</button>
+              <button type="button" class="button secondary mylink-cancel-btn">キャンセル</button>
+            </div>
+            <p class="mylink-edit-error info-note" role="alert" hidden></p>
+          </form>` : ''}
         </div>
-      `).join('')
+      `;
+      }).join('')
     : '<p class="hint">登録されたマイリンクはまだありません。</p>';
 
   const presetButtons = PRESET_LINKS.map(p => {
@@ -1433,30 +1828,16 @@ function timetable() {
   const isAdvanced = s.grade >= 6;
   const { selected, grid, error } = selectedSchedule();
   const totalPeriods = selected.reduce((sum, l) => sum + (l.duration || 1), 0);
-  const options = (values, current) => values.map(([value,label]) => `<option value="${escapeHTML(value)}" ${String(value) === String(current) ? 'selected' : ''}>${escapeHTML(label)}</option>`).join('');
-  const field = (label, key, values, disabled = false, hintText = '') => `<label class="field">${label}<select id="student-${key}" data-student="${key}" ${disabled ? 'disabled' : 'required'}>${options(values,s[key])}</select>${hintText ? `<small class="field-hint">${escapeHTML(hintText)}</small>` : ''}</label>`;
-  const needsCourse = !isAdvanced && s.grade >= 4 && s.department === 'E';
-  const gradeOptions = [
-    [1,'1年'], [2,'2年'], [3,'3年'], [4,'4年'], [5,'5年'],
-    [6,'専攻科1年 (専1)'], [7,'専攻科2年 (専2)']
-  ];
-  const deptOptions = isAdvanced
-    ? ADVANCED_DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || d])
-    : DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || `${d}科`]);
-
-  const controls = field('学年','grade',gradeOptions) +
-    field(isAdvanced ? '専攻' : '学科','department',deptOptions) +
-    field('クラス（1・2年）','classGroup',[1,2,3,4].map(n=>[n,`${n}組`]),isAdvanced || s.grade>=3, (isAdvanced || s.grade>=3) ? '※3年生以上・専攻科は学科共通' : '') +
-    field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']],isAdvanced) +
-    field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],isAdvanced || !needsCourse, (isAdvanced || !needsCourse) ? '※4・5年E科のみ選択可' : '') +
-    (!isAdvanced && s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
+  const controls = buildStudentFilterControls(s, 'student', 'data-student');
   const fyText = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
   const termText = timetableMeta?.term || '後期';
-  const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の${escapeHTML(fyText)}${escapeHTML(termText)}時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
+  const { weekdayNum: todayWeekdayNum } = getJstParts(new Date());
+  const todayDayIdx = (todayWeekdayNum >= 1 && todayWeekdayNum <= 5) ? (todayWeekdayNum - 1) : -1;
+  const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の${escapeHTML(fyText)}${escapeHTML(termText)}時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map((d, dIdx)=>`<th scope="col" class="${dIdx === todayDayIdx ? 'is-today-col' : ''}">${d}曜日${dIdx === todayDayIdx ? ' <span class="today-col-tag" data-export-exclude>今日</span>' : ''}</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map((day, dIdx)=>{
     const cell = day[p];
     if(cell.length===1 && cell[0].period-1<p && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id))) return '';
     const span = cell.length===1 && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id)) ? (cell[0].duration||1) : 1;
-    return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
+    return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}${dIdx === todayDayIdx ? ' is-today-col' : ''}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?renderLocationTrigger(l.location):''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>`;
   const sourceUrl = normalizeAkashiUrl(timetableMeta?.sourceUrl || SOURCE?.url) || 'https://www.akashi.ac.jp/life/lesson.html';
   const sourcePdfUrl = getTimetablePdfUrl();
@@ -1484,7 +1865,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div>${error ? '' : '<p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>'}${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div>${error ? '' : '<div class="timetable-search-bar" data-export-exclude><input type="search" id="timetable-search-input" placeholder="科目名・教員名・教室名で検索ハイライト..." aria-label="時間割内検索"><span id="timetable-search-count" class="field-hint" hidden></span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。教室名をタップすると正式名称を確認できます。</p>'}${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -1958,6 +2339,13 @@ async function downloadCurrentTimetable(action = 'download') {
           ? '印刷・PDF保存画面を開きました。「PDFに保存」またはプリンターを選択してください。'
           : 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。'));
     }
+    if (ok) {
+      showToast(action === 'copy'
+        ? '時間割をクリップボードにコピーしました。'
+        : (format === 'pdf' ? '印刷・PDF保存ダイアログを開きました。' : `${format.toUpperCase()}ファイルを保存しました。`));
+    } else {
+      showToast('出力に失敗しました。もう一度お試しください。');
+    }
   } catch (error) {
     console.error('Timetable export failed', error);
     ok = false;
@@ -1965,6 +2353,7 @@ async function downloadCurrentTimetable(action = 'download') {
       status.hidden = false;
       status.textContent = '処理を完了できませんでした。通信状態を確認して、もう一度お試しください。';
     }
+    showToast('出力に失敗しました。もう一度お試しください。');
   } finally {
     exportInProgress = false;
     const currentDL = document.getElementById('export-download');
@@ -1986,6 +2375,7 @@ let globalListenersBound = false;
 function render() {
   const rawHash = (location.hash.slice(1).split('?')[0].split('/')[0] || 'home').trim();
   const page = Object.hasOwn(names, rawHash) ? rawHash : 'home';
+  if (page !== 'links') editingMyLinkId = '';
   const breadcrumbEl = document.getElementById('breadcrumb');
   if (breadcrumbEl) breadcrumbEl.textContent = names[page];
   document.title = `${names[page]} — Campus`;
@@ -2003,19 +2393,26 @@ function render() {
   }
   const main = document.getElementById('main');
   if (main) {
-    if (page === 'home') main.innerHTML = home();
+    if (page === 'home') main.innerHTML = home() + renderProfileSwitcherModal();
     else if (page === 'timetable') {
-      main.innerHTML = timetable();
+      main.innerHTML = timetable() + renderProfileSwitcherModal();
       const sheetEl = document.getElementById('timetable-sheet');
       if (sheetEl && !sheetEl.parentElement) {
         const m = main.innerHTML.match(/<section[^>]*id="timetable-sheet"[^>]*>([\s\S]*?)<\/section>/);
         if (m) sheetEl.innerHTML = m[1];
       }
+      if (typeof window !== 'undefined' && typeof window.innerWidth === 'number' && window.innerWidth <= 760) {
+        const scroller = document.querySelector?.('.table-scroll');
+        const todayCol = document.querySelector?.('.real-timetable thead th.is-today-col');
+        if (scroller && todayCol && typeof todayCol.offsetLeft === 'number') {
+          scroller.scrollLeft = Math.max(0, todayCol.offsetLeft - 72);
+        }
+      }
     }
-    else if (page === 'exam') main.innerHTML = exam();
-    else if (page === 'calendar') main.innerHTML = calendar();
-    else if (page === 'cafeteria') main.innerHTML = cafeteria();
-    else if (page === 'links') main.innerHTML = linksView();
+    else if (page === 'exam') main.innerHTML = exam() + renderProfileSwitcherModal();
+    else if (page === 'calendar') main.innerHTML = calendar() + renderProfileSwitcherModal();
+    else if (page === 'cafeteria') main.innerHTML = cafeteria() + renderProfileSwitcherModal();
+    else if (page === 'links') main.innerHTML = linksView() + renderProfileSwitcherModal();
   }
   const formatSelect = document.getElementById('export-format');
   const copyBtn = document.getElementById('export-copy');
@@ -2091,6 +2488,65 @@ function render() {
     const cal = calendarData || FALLBACK_CALENDAR;
     const fy = timetableMeta?.fiscalYear || 2026;
     exportCalendarIcs(cal, `akashi-calendar-${fy}`);
+    showToast('年間行事予定 (.ics) を保存しました。');
+  });
+
+  // 時間割内ハイライト検索
+  document.getElementById('timetable-search-input')?.addEventListener('input', e => {
+    const q = String(e.target?.value || '').trim().toLowerCase();
+    const countEl = document.getElementById('timetable-search-count');
+    if (typeof document.querySelectorAll !== 'function') return;
+    const cards = Array.from(document.querySelectorAll('.real-timetable .lesson-card'));
+    const cells = Array.from(document.querySelectorAll('.real-timetable td.schedule-cell'));
+    if (!q) {
+      cards.forEach(c => c.classList?.remove('is-match', 'is-dimmed'));
+      cells.forEach(td => td.classList?.remove('is-match', 'is-dimmed'));
+      if (countEl) { countEl.hidden = true; countEl.textContent = ''; }
+      return;
+    }
+    let matches = 0;
+    cards.forEach(c => {
+      const extraRoom = c.querySelector?.('.lesson-location-btn')?.dataset?.roomFull || '';
+      const hit = `${c.textContent || ''} ${extraRoom}`.toLowerCase().includes(q);
+      c.classList?.toggle('is-match', hit);
+      c.classList?.toggle('is-dimmed', !hit);
+      if (hit) matches++;
+    });
+    cells.forEach(td => {
+      if (td.classList?.contains('schedule-empty')) {
+        td.classList?.remove('is-match');
+        td.classList?.add('is-dimmed');
+        return;
+      }
+      const cellCards = td.querySelectorAll ? Array.from(td.querySelectorAll('.lesson-card')) : [];
+      const anyHit = cellCards.some(c => c.classList?.contains('is-match'));
+      td.classList?.toggle('is-match', anyHit);
+      td.classList?.toggle('is-dimmed', !anyHit);
+    });
+    if (countEl) {
+      countEl.hidden = false;
+      countEl.textContent = `${matches}件の授業が一致`;
+    }
+  });
+
+  // 教室略称タップ展開ポップオーバー
+  if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('.lesson-location-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pop = document.getElementById('room-legend-popover');
+        const txt = document.getElementById('room-legend-popover-text');
+        const raw = btn.dataset?.roomRaw || '';
+        const full = btn.dataset?.roomFull || expandRoomLegend(raw);
+        if (pop && txt) {
+          txt.innerHTML = `<strong>教室情報 (${escapeHTML(raw)}):</strong> ${escapeHTML(full === raw ? `${raw}（特別略称なし）` : full)}`;
+          pop.hidden = false;
+        }
+      });
+    });
+  }
+  document.getElementById('room-legend-close')?.addEventListener('click', () => {
+    const pop = document.getElementById('room-legend-popover');
+    if (pop) pop.hidden = true;
   });
 
   // 定期試験検索入力
@@ -2128,6 +2584,7 @@ function render() {
       return;
     }
     render();
+    showToast('マイリンクを追加しました。');
   });
   if (typeof document.querySelectorAll === 'function') {
     document.querySelectorAll('[data-dash-offset]').forEach(btn => {
@@ -2149,6 +2606,26 @@ function render() {
         render();
       });
     });
+    document.querySelectorAll('[data-cal-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        calendarViewMode = btn.dataset?.calView === 'month' ? 'month' : 'list';
+        render();
+      });
+    });
+    document.querySelectorAll('[data-cal-month]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const delta = Number(btn.dataset?.calMonth);
+        calendarMonthOffset = delta === 0 ? 0 : (calendarMonthOffset + delta);
+        render();
+      });
+    });
+    document.querySelectorAll('[data-allergen-chip]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset?.allergenChip || '';
+        selectedAllergenFilter = (val && selectedAllergenFilter === val) ? '' : val;
+        render();
+      });
+    });
     document.querySelectorAll('[data-cafe-week]').forEach(btn => {
       btn.addEventListener('click', () => {
         const w = Number(btn.dataset?.cafeWeek);
@@ -2156,13 +2633,46 @@ function render() {
         render();
       });
     });
+  }
+  document.getElementById('calendar-hide-past-btn')?.addEventListener('click', () => {
+    calendarHidePast = !calendarHidePast;
+    render();
+  });
+  document.getElementById('calendar-jump-today')?.addEventListener('click', () => {
+    if (calendarViewMode === 'month') {
+      calendarMonthOffset = 0;
+      render();
+      return;
+    }
+    const list = document.getElementById('calendar-timeline-list');
+    if (!list?.querySelector) return;
+    const todayStr = dateKey(new Date());
+    const todayItem = list.querySelector('.calendar-event-item.is-today')
+      || Array.from(list.querySelectorAll('.calendar-event-item[data-date]')).find(li => (li.dataset?.date || '') >= todayStr && li.style?.display !== 'none');
+    todayItem?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  });
+  document.getElementById('calendar-search-input')?.addEventListener('input', e => {
+    calendarSearchQuery = String(e.target?.value || '');
+    const q = calendarSearchQuery.trim().toLowerCase();
+    const badgeEl = document.getElementById('calendar-count-badge');
+    const items = Array.from(document.querySelectorAll('#calendar-timeline-list .calendar-event-item'));
+    let shown = 0;
+    items.forEach(item => {
+      const hit = !q || String(item.textContent || '').toLowerCase().includes(q);
+      if (item.style) item.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    if (badgeEl) badgeEl.textContent = `${shown}件の行事`;
+  });
+  if (typeof document.querySelectorAll === 'function') {
     document.querySelectorAll('.preset-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const name = btn.dataset?.presetName || btn.textContent?.trim();
         const url = btn.dataset?.presetUrl || '';
         if (name && url) {
-          addMyLink({ name, url });
+          const res = addMyLink({ name, url });
           render();
+          if (res?.success) showToast(`「${name}」を追加しました。`);
         }
       });
     });
@@ -2179,13 +2689,67 @@ function render() {
         }
       });
     });
+    document.querySelectorAll('.mylink-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset?.editId || '';
+        if (!id) return;
+        editingMyLinkId = editingMyLinkId === id ? '' : id;
+        render();
+        if (editingMyLinkId) {
+          document.querySelector?.(`.mylink-edit-form[data-edit-form-id="${editingMyLinkId}"] .mylink-edit-name`)?.focus?.({ preventScroll: true });
+        }
+      });
+    });
+    document.querySelectorAll('.mylink-cancel-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingMyLinkId = '';
+        render();
+      });
+    });
+    document.querySelectorAll('.mylink-edit-form').forEach(form => {
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        const id = form.dataset?.editFormId || '';
+        const nameVal = form.querySelector?.('.mylink-edit-name')?.value;
+        const urlVal = form.querySelector?.('.mylink-edit-url')?.value;
+        const errEl = form.querySelector?.('.mylink-edit-error');
+        const res = updateMyLink(id, { name: nameVal, url: urlVal });
+        if (!res.success) {
+          if (errEl) {
+            errEl.textContent = res.error || 'リンクを更新できませんでした。';
+            errEl.hidden = false;
+          }
+          return;
+        }
+        editingMyLinkId = '';
+        render();
+        showToast('マイリンクを更新しました。');
+      });
+    });
     document.querySelectorAll('.mylink-remove-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset?.removeId;
         if (id) {
+          const prevLinks = loadMyLinks();
+          const idx = prevLinks.findIndex(l => l.id === id);
+          const removedItem = idx >= 0 ? { ...prevLinks[idx] } : null;
           deleteMyLink(id);
+          if (editingMyLinkId === id) editingMyLinkId = '';
           render();
           document.getElementById('mylink-name')?.focus?.({ preventScroll: true });
+          if (removedItem) {
+            lastDeletedMyLink = { item: removedItem, index: idx };
+            showToast(`「${removedItem.name}」を削除しました。`, {
+              undoLabel: '元に戻す',
+              onUndo: () => {
+                if (!lastDeletedMyLink) return;
+                restoreMyLink(lastDeletedMyLink.item, lastDeletedMyLink.index);
+                lastDeletedMyLink = null;
+                render();
+                showToast('削除を取り消しました。');
+              }
+            });
+          }
         }
       });
     });
@@ -2204,6 +2768,80 @@ function render() {
     }
     syncSizeControlsUI();
   });
+  let draftProfile = { ...studentSelection };
+  const closeProfileModal = () => {
+    const modal = document.getElementById('profile-switcher-modal');
+    const wasOpen = modal && !modal.hidden;
+    if (modal) modal.hidden = true;
+    setModalBackdropInert(false);
+    document.body.classList.remove('size-modal-open');
+    if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+      lastModalTrigger.focus();
+      lastModalTrigger = null;
+    }
+  };
+  const renderProfileModalFields = () => {
+    const wrap = document.getElementById('profile-modal-fields');
+    const statusEl = document.getElementById('profile-modal-status');
+    const saveBtn = document.getElementById('profile-modal-save');
+    if (!wrap) return;
+    wrap.innerHTML = buildStudentFilterControls(draftProfile, 'modal-student', 'data-modal-student');
+    const needsCourse = Number(draftProfile.grade) < 6 && Number(draftProfile.grade) >= 4 && draftProfile.department === 'E' && !draftProfile.course;
+    if (statusEl) {
+      statusEl.hidden = !needsCourse;
+      statusEl.textContent = needsCourse ? '4・5年生のE科はコース（ED・EJ）を選択してください。' : '';
+    }
+    if (saveBtn) saveBtn.disabled = Boolean(needsCourse);
+    wrap.querySelectorAll?.('[data-modal-student]').forEach(sel => {
+      sel.addEventListener('change', e => {
+        const key = e.target.dataset.modalStudent;
+        const val = key === 'grade' ? Number(e.target.value) : e.target.value;
+        if (!SELECTION_VALUES[key]?.includes(val)) return;
+        draftProfile[key] = val;
+        if (key === 'grade') {
+          const isAdv = val >= 6;
+          if (isAdv && !ADVANCED_DEPARTMENTS.includes(draftProfile.department)) draftProfile.department = 'ME';
+          else if (!isAdv && !DEPARTMENTS.includes(draftProfile.department)) draftProfile.department = 'M';
+        }
+        const focusId = e.target.id;
+        renderProfileModalFields();
+        document.getElementById(focusId)?.focus?.({ preventScroll: true });
+      });
+    });
+  };
+  const openProfileModal = () => {
+    const modal = document.getElementById('profile-switcher-modal');
+    if (!modal) return;
+    draftProfile = { ...studentSelection };
+    renderProfileModalFields();
+    lastModalTrigger = document.activeElement || null;
+    modal.hidden = false;
+    setModalBackdropInert(true, modal);
+    document.body.classList.add('size-modal-open');
+    document.getElementById('modal-student-grade')?.focus?.();
+  };
+  if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('.profile-switch-trigger').forEach(btn => {
+      btn.addEventListener('click', openProfileModal);
+    });
+  }
+  document.getElementById('onboarding-dismiss')?.addEventListener('click', () => {
+    onboardingDismissed = true;
+    render();
+  });
+  document.getElementById('profile-modal-close')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profile-modal-cancel')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profile-switcher-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeProfileModal();
+  });
+  document.getElementById('profile-modal-save')?.addEventListener('click', () => {
+    studentSelection = sanitizeSelection(draftProfile);
+    onboardingDismissed = true;
+    filterOpen = false;
+    saveSelectionCookie();
+    closeProfileModal();
+    render();
+  });
   // モーダル外部（背景オーバーレイ）クリックで閉じる
   document.getElementById('data-preview-modal')?.addEventListener('click', e => {
     if (e.target === e.currentTarget) closeDataPreviewModal();
@@ -2220,11 +2858,44 @@ function render() {
       if (e.key === 'Escape') {
         closeDataPreviewModal();
         closeSizeAdjustModal();
+        const pm = document.getElementById('profile-switcher-modal');
+        if (pm && !pm.hidden) {
+          pm.hidden = true;
+          setModalBackdropInert(false);
+          document.body.classList.remove('size-modal-open');
+          if (lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+            lastModalTrigger.focus();
+            lastModalTrigger = null;
+          }
+        }
         return;
       }
       if (e.key === 'Tab') {
         const openModal = getOpenModalEl();
         if (openModal) trapModalFocus(openModal, e);
+        return;
+      }
+      if (getOpenModalEl()) return;
+      const target = e.target || document.activeElement;
+      const tag = String(target?.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^[1-6]$/.test(String(e.key || ''))) {
+        const routes = ['home', 'timetable', 'exam', 'calendar', 'cafeteria', 'links'];
+        const nextRoute = routes[Number(e.key) - 1];
+        if (nextRoute) {
+          e.preventDefault?.();
+          location.hash = `#${nextRoute}`;
+        }
+        return;
+      }
+      if (e.key === '/' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        const searchEl = document.getElementById('timetable-search-input')
+          || document.getElementById('exam-search-input')
+          || document.getElementById('calendar-search-input');
+        if (searchEl && !searchEl.disabled && !searchEl.hidden && typeof searchEl.focus === 'function') {
+          e.preventDefault?.();
+          searchEl.focus();
+        }
       }
     });
     window.addEventListener('resize', () => {

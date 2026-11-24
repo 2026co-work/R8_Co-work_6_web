@@ -26,6 +26,14 @@ function copyDistAssetsPlugin() {
         cpSync(srcStandalone, destStandalone);
         console.log('[vite] Mirrored timetable-standalone.html -> dist/timetable-standalone.html');
       }
+
+      // 3. Mirror manifest.webmanifest into dist/
+      const srcManifest = resolve('manifest.webmanifest');
+      const destManifest = resolve('dist/manifest.webmanifest');
+      if (existsSync(srcManifest)) {
+        cpSync(srcManifest, destManifest);
+        console.log('[vite] Mirrored manifest.webmanifest -> dist/manifest.webmanifest');
+      }
     },
   };
 }
