@@ -332,14 +332,41 @@ function themeToggleBtn() {
   return `<button id="theme-toggle" class="theme-toggle" type="button" data-theme-mode="${escapeHTML(currentTheme)}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}"><span class="theme-icon" data-icon="${iconName}">${icon(iconName)}</span></button>${isOfflineFallback ? '<span id="network-status-badge" class="badge yellow network-status-badge" title="内蔵フォールバックデータを表示中">オフライン表示</span>' : ''}`;
 }
 
+let batchLoadingDist = false;
+let pendingDistFetches = 0;
+let distRenderDirty = false;
+function safeDistRender() {
+  if (typeof document === 'undefined') { render(); return; }
+  const openModal = getOpenModalEl();
+  const activeEl = document.activeElement;
+  const mainEl = document.getElementById('main');
+  const editingInMain = Boolean(mainEl && activeEl && mainEl.contains?.(activeEl) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName));
+  if (openModal || editingInMain) {
+    distRenderDirty = true;
+    return;
+  }
+  distRenderDirty = false;
+  render();
+}
 function fetchDistJson(url, onSuccess) {
   try {
     const resPromise = fetch(url);
     if (!resPromise || typeof resPromise.then !== 'function') return;
+    pendingDistFetches++;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      pendingDistFetches = Math.max(0, pendingDistFetches - 1);
+      if (!batchLoadingDist && pendingDistFetches === 0 && distRenderDirty) {
+        safeDistRender();
+      }
+    };
     resPromise
       .then(r => {
         if (!r || !r.ok) {
           isOfflineFallback = true;
+          distRenderDirty = true;
           return null;
         }
         return r.json();
@@ -347,19 +374,25 @@ function fetchDistJson(url, onSuccess) {
       .then(data => {
         if (data && typeof data === 'object') {
           onSuccess(data);
-          render();
+          distRenderDirty = true;
         }
+        finish();
       })
       .catch(() => {
         isOfflineFallback = true;
+        distRenderDirty = true;
+        finish();
       });
   } catch {
     isOfflineFallback = true;
+    distRenderDirty = true;
   }
 }
 
 function loadDistData() {
   if (typeof fetch !== 'function') return;
+  batchLoadingDist = true;
+  distRenderDirty = false;
   fetchDistJson('./dist-data/timetable-lessons.json', data => {
     if (data.meta && typeof data.meta === 'object') {
       timetableMeta = { ...timetableMeta, ...data.meta };
@@ -408,6 +441,10 @@ function loadDistData() {
   fetchDistJson('./dist-data/timetable-links.json', data => {
     timetableLinksData = data;
   });
+  batchLoadingDist = false;
+  if (pendingDistFetches === 0 && distRenderDirty) {
+    safeDistRender();
+  }
 }
 
 function getSyllabusUrl(selection) {
@@ -436,7 +473,8 @@ function getSyllabusUrl(selection) {
   }
 
   if (deptId) {
-    return `https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=27&department_id=${deptId}&year=2026&lang=ja`;
+    const syllabusYear = Number(timetableMeta?.fiscalYear) || 2026;
+    return `https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=27&department_id=${deptId}&year=${syllabusYear}&lang=ja`;
   }
   return 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja';
 }
@@ -691,11 +729,18 @@ function renderCafeteriaSummary(currentDate) {
             ${todayMenu.noodle.price ? `<span class="dish-price">${escapeHTML(todayMenu.noodle.price)}円</span>` : ''}
           </div>
         ` : ''}
+        ${todayMenu.bowl ? `
+          <div class="dish-item bowl-dish">
+            <span class="dish-badge">丼物</span>
+            <span class="dish-name">${escapeHTML(todayMenu.bowl.name)}</span>
+            ${todayMenu.bowl.price ? `<span class="dish-price">${escapeHTML(todayMenu.bowl.price)}円</span>` : ''}
+          </div>
+        ` : ''}
         ${allergensStr ? `<p class="allergens-note"><small>アレルギー特定原材料: ${escapeHTML(allergensStr)}</small></p>` : ''}
       </div>
     `;
   } else if (isWeekend || holidayEv || (todayMenu && todayMenu.isOpen === false)) {
-    const reason = todayMenu?.closedReason || holidayEv?.title || holidayEv?.name || '土日・休業日';
+    const reason = todayMenu?.closedReason || todayMenu?.notice || holidayEv?.title || holidayEv?.name || '土日・休業日';
     contentHtml = `
       <div class="cafeteria-fallback-info">
         <p>本日は学生食堂の休業日です（${escapeHTML(reason)}）。</p>
@@ -703,10 +748,19 @@ function renderCafeteriaSummary(currentDate) {
       </div>
     `;
   } else {
+    const allDates = (cafeteriaData?.weeklyMenus || [])
+      .flatMap(w => (Array.isArray(w?.days) ? w.days : []))
+      .map(d => d?.date)
+      .filter(Boolean)
+      .sort();
+    const rangeNote = allDates.length >= 2
+      ? `（現在のメニューデータ掲載期間: ${allDates[0].slice(5).replace('-', '/')}〜${allDates[allDates.length - 1].slice(5).replace('-', '/')}）`
+      : '';
+    const articleUrl = normalizeAkashiUrl(cafeteriaData?.meta?.articleUrl, '');
     contentHtml = `
       <div class="cafeteria-fallback-info">
-        <p>本日の日替わりランチ・定食メニューは、学生食堂にて提供中です。</p>
-        <p class="cafeteria-times"><small>営業時間: 11:30〜13:30（平日）</small></p>
+        <p>本日の日替わりランチデータは未掲載です${escapeHTML(rangeNote)}。最新の献立は<a class="text-link" href="#cafeteria">食堂メニュータブ</a>${articleUrl ? `や<a class="text-link" href="${escapeHTML(articleUrl)}" target="_blank" rel="noopener noreferrer">公式案内記事</a>` : ''}でご確認ください。</p>
+        <p class="cafeteria-times"><small>通常営業時間: 11:30〜13:30（平日）</small></p>
       </div>
     `;
   }
@@ -745,22 +799,36 @@ function saveMyLinks(links) {
   }
 }
 
+function normalizeLinkUrl(u) {
+  return String(u || '').trim().replace(/\/+$/, '').toLowerCase();
+}
+let myLinkSeq = 0;
+
 function addMyLink(link) {
-  if (!link || typeof link !== 'object') return { success: false, error: '無効なリンクデータです (Invalid link)' };
+  if (!link || typeof link !== 'object') return { success: false, error: '無効なリンクデータです。' };
   const name = String(link.name || '').trim();
   const url = String(link.url || '').trim();
-  if (!name || !url) return { success: false, error: 'リンク名とURLを入力してください (Name and URL are required)' };
-  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'URLは http:// または https:// で入力してください (Disallowed scheme)' };
+  if (!name || !url) return { success: false, error: '表示名とURLを両方入力してください。' };
+  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'URLは http:// または https:// で入力してください。' };
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname) return { success: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+  } catch {
+    return { success: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+  }
   const links = loadMyLinks();
-  const newItem = { id: link.id || `custom-${Date.now()}`, name, url, custom: true };
+  if (!link.id && links.some(l => normalizeLinkUrl(l.url) === normalizeLinkUrl(url))) {
+    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
+  }
+  const newItem = { id: link.id || `custom-${Date.now()}-${++myLinkSeq}`, name, url, custom: true };
   links.push(newItem);
   try {
     const saved = saveMyLinks(links);
     if (saved === false || (saved && saved.success === false)) {
-      return { success: false, error: (saved && saved.error) || 'リンクを保存できませんでした (Failed to save links)' };
+      return { success: false, error: (saved && saved.error) || 'リンクを保存できませんでした。' };
     }
   } catch (err) {
-    return { success: false, error: err?.message || 'ストレージ容量の上限に達しました (Storage quota exceeded)' };
+    return { success: false, error: err?.message || 'ストレージ容量の上限に達しました。' };
   }
   return { success: true, item: newItem };
 }
@@ -796,7 +864,7 @@ function renderQuickLinks() {
   const customLinks = loadMyLinks();
 
   const customItemsHtml = customLinks.map(l => `
-    <a class="quick-link-btn external-link" href="${escapeHTML(l.url)}" target="_blank" rel="noopener">
+    <a class="quick-link-btn external-link" href="${escapeHTML(l.url)}" target="_blank" rel="noopener noreferrer">
       ${icon('external')}<span>${escapeHTML(l.name)}</span>
     </a>
   `).join('');
@@ -808,19 +876,19 @@ function renderQuickLinks() {
         <span class="badge gray">リンク</span>
       </div>
       <div class="quick-links-grid">
-        <a class="button syllabus-launch-btn" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener">
+        <a class="button syllabus-launch-btn" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">
           ${icon('book')}シラバス（${escapeHTML(studentShortLabel())}）を開く
         </a>
         <a class="button secondary" href="#timetable">
           ${icon('calendar')}時間割へ
         </a>
-        <a class="quick-link-btn" href="https://teams.microsoft.com" target="_blank" rel="noopener">
+        <a class="quick-link-btn" href="https://teams.microsoft.com" target="_blank" rel="noopener noreferrer">
           ${icon('external')}<span>Teams</span>
         </a>
-        <a class="quick-link-btn" href="https://classroom.google.com" target="_blank" rel="noopener">
+        <a class="quick-link-btn" href="https://classroom.google.com" target="_blank" rel="noopener noreferrer">
           ${icon('external')}<span>Classroom</span>
         </a>
-        <a class="quick-link-btn" href="https://webclass.kosen-k.go.jp" target="_blank" rel="noopener">
+        <a class="quick-link-btn" href="https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML" target="_blank" rel="noopener noreferrer">
           ${icon('external')}<span>WebClass</span>
         </a>
         ${customItemsHtml}
@@ -1139,14 +1207,22 @@ function renderCafeteriaDayCard(day) {
   if (day.isOpen === false) {
     return `<li class="cafeteria-menu-item is-closed">
       <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '休業日')}</strong><span class="badge gray">休業</span></div>
-      <p>${escapeHTML(day.closedReason || '学生食堂休業日')}</p>
+      <p>${escapeHTML(day.closedReason || day.notice || '学生食堂休業日')}</p>
     </li>`;
   }
-  const dishRows = [];
-  if (day.lunchA?.name) dishRows.push(`<div><span class="dish-badge">ランチA</span> <strong>${escapeHTML(day.lunchA.name)}</strong>${day.lunchA.price ? ` <span class="price">${escapeHTML(String(day.lunchA.price))}円</span>` : ''}</div>`);
-  if (day.lunchB?.name) dishRows.push(`<div><span class="dish-badge">ランチB</span> <strong>${escapeHTML(day.lunchB.name)}</strong>${day.lunchB.price ? ` <span class="price">${escapeHTML(String(day.lunchB.price))}円</span>` : ''}</div>`);
-  if (day.noodle?.name) dishRows.push(`<div><span class="dish-badge">麺類</span> <span>${escapeHTML(day.noodle.name)}</span>${day.noodle.price ? ` <span class="price">${escapeHTML(String(day.noodle.price))}円</span>` : ''}</div>`);
-  if (day.bowl?.name) dishRows.push(`<div><span class="dish-badge">丼</span> <span>${escapeHTML(day.bowl.name)}</span>${day.bowl.price ? ` <span class="price">${escapeHTML(String(day.bowl.price))}円</span>` : ''}</div>`);
+  const fmtDish = (badge, item, strong = false) => {
+    if (!item?.name) return '';
+    const titleHtml = strong ? `<strong>${escapeHTML(item.name)}</strong>` : `<span>${escapeHTML(item.name)}</span>`;
+    const priceHtml = item.price ? ` <span class="price">${escapeHTML(String(item.price))}円</span>` : '';
+    const detailsHtml = item.details ? ` <small class="dish-details">(${escapeHTML(item.details)})</small>` : '';
+    return `<div><span class="dish-badge">${badge}</span> ${titleHtml}${priceHtml}${detailsHtml}</div>`;
+  };
+  const dishRows = [
+    fmtDish('ランチA', day.lunchA, true),
+    fmtDish('ランチB', day.lunchB, true),
+    fmtDish('麺類', day.noodle, false),
+    fmtDish('丼', day.bowl, false)
+  ].filter(Boolean);
   const allergens = Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || day.lunchA?.allergens || '');
   return `<li class="cafeteria-menu-item">
     <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong>${day.isOpen ? '<span class="badge green">営業</span>' : ''}</div>
@@ -1165,6 +1241,7 @@ function cafeteria() {
   const hasDormKey = Object.prototype.hasOwnProperty.call(meta, 'dormitoryArticleUrl');
   const dormArticleUrl = normalizeAkashiUrl(hasDormKey ? meta.dormitoryArticleUrl : FALLBACK_CAFETERIA.meta?.dormitoryArticleUrl, '');
   const dormPdfUrl = normalizeAkashiUrl(Object.prototype.hasOwnProperty.call(meta, 'dormitoryPdfUrl') ? meta.dormitoryPdfUrl : FALLBACK_CAFETERIA.meta?.dormitoryPdfUrl, '');
+  const articleUrl = normalizeAkashiUrl(meta.articleUrl, '');
   const isTextExtracted = Boolean(meta.isTextExtracted);
   const weeklyMenus = Array.isArray(data.weeklyMenus) ? data.weeklyMenus : [];
   const legacyMenus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
@@ -1205,6 +1282,7 @@ function cafeteria() {
       ${menuContent}
       <div class="cafeteria-links" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">学生食堂 原本PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">学生食堂 原本PDF（未公開）</button>`}
+        ${articleUrl ? `<a class="button secondary" href="${escapeHTML(articleUrl)}" target="_blank" rel="noopener noreferrer">食堂メニュー案内記事</a>` : ''}
         <a class="button secondary" href="https://www.akashi.ac.jp/news_list/news2026.html" target="_blank" rel="noopener noreferrer">公式ニュース一覧へ</a>
       </div>
       <div class="dormitory-section" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
@@ -1257,7 +1335,7 @@ function linksView() {
   }).join('');
 
   const myLinks = loadMyLinks().filter(item => item && /^https?:\/\//i.test(String(item.url || '')));
-  const existingUrls = new Set(myLinks.map(item => item.url));
+  const existingUrls = new Set(myLinks.map(item => normalizeLinkUrl(item.url)));
   const myLinkItems = myLinks.length
     ? myLinks.map((item, idx) => `
         <div class="mylink-row" data-link-id="${escapeHTML(item.id)}">
@@ -1272,7 +1350,7 @@ function linksView() {
     : '<p class="hint">登録されたマイリンクはまだありません。</p>';
 
   const presetButtons = PRESET_LINKS.map(p => {
-    const added = existingUrls.has(p.url);
+    const added = existingUrls.has(normalizeLinkUrl(p.url));
     return `<button type="button" class="button secondary preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${escapeHTML(p.name)}${added ? '（追加済み）' : ''}</button>`;
   }).join('');
 
@@ -1302,7 +1380,7 @@ function linksView() {
         <div id="mylinks-list" class="mylinks-list">
           ${myLinkItems}
         </div>
-        <form id="mylink-form" class="mylink-form">
+        <form id="mylink-form" class="mylink-form" novalidate>
           <input type="text" id="mylink-name" name="name" placeholder="表示名（例: Gmail）" aria-label="リンク名" required>
           <input type="url" id="mylink-url" name="url" placeholder="https://..." aria-label="リンクURL" required>
           <button type="submit" id="mylink-add-btn" class="button">追加</button>
@@ -1388,7 +1466,7 @@ function timetable() {
     ? `<details class="room-legends-box" data-export-exclude><summary>教室略称・正式名称一覧（${legendEntries.length}件）</summary><div class="room-legends-grid">${legendEntries.map(([k, v]) => `<div><strong>${escapeHTML(k)}</strong>: ${escapeHTML(v)}</div>`).join('')}</div></details>`
     : '';
 
-  return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions">${themeToggleBtn()}<span class="demo-pill"><i></i>ベータ版</span></div>`)}
+  return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions">${themeToggleBtn()}</div>`)}
     ${renderTimetableBanners(new Date())}
     <details class="panel timetable-controls" id="filter-details" ${filterOpen ? 'open' : ''}>
       <summary class="panel-head filter-summary">
@@ -1917,6 +1995,12 @@ function render() {
     if (isActive) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
+  const footerMeta = document.getElementById('footer-meta');
+  if (footerMeta) {
+    const fyLabel = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
+    const termLabel = timetableMeta?.term || '後期';
+    footerMeta.textContent = `${fyLabel}${termLabel} キャンパスポータル`;
+  }
   const main = document.getElementById('main');
   if (main) {
     if (page === 'home') main.innerHTML = home();
@@ -2089,6 +2173,9 @@ function render() {
         if (id && dir) {
           reorderMyLink(id, dir);
           render();
+          const sameBtn = document.querySelector?.(`.mylink-move-btn[data-move-id="${id}"][data-dir="${dir}"]`);
+          const fallbackBtn = document.querySelector?.(`.mylink-move-btn[data-move-id="${id}"]`);
+          (sameBtn && !sameBtn.disabled ? sameBtn : fallbackBtn)?.focus?.({ preventScroll: true });
         }
       });
     });
@@ -2098,6 +2185,7 @@ function render() {
         if (id) {
           deleteMyLink(id);
           render();
+          document.getElementById('mylink-name')?.focus?.({ preventScroll: true });
         }
       });
     });
