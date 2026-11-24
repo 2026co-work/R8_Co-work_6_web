@@ -27,8 +27,36 @@ const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[name] || icons.info}"/></svg>`;
 document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));
 const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const dateKey = date => new Intl.DateTimeFormat('sv-SE', {timeZone:'Asia/Tokyo'}).format(date);
-const today = dateKey(new Date());
+const JST_WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+function getJstParts(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    return { dateStr: '2026-10-05', year: 2026, month: 10, day: 5, weekdayNum: 1, hour: 9, minute: 0 };
+  }
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const map = {};
+  for (const p of fmt.formatToParts(d)) {
+    if (p.type !== 'literal') map[p.type] = p.value;
+  }
+  const year = Number(map.year);
+  const month = Number(map.month);
+  const day = Number(map.day);
+  const hour = Number(map.hour) % 24;
+  const minute = Number(map.minute);
+  const weekdayNum = JST_WEEKDAYS[map.weekday] ?? 0;
+  const dateStr = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return { dateStr, year, month, day, weekdayNum, hour, minute };
+}
+const dateKey = date => getJstParts(date).dateStr;
 const longDate = date => new Intl.DateTimeFormat('ja-JP', {dateStyle:'full',timeZone:'Asia/Tokyo'}).format(new Date(`${date}T12:00:00+09:00`));
 const periods = [['09:00','10:30'],['10:40','12:10'],['13:00','14:30'],['14:40','16:10']];
 const DEFAULT_SELECTION = { grade: 1, department: 'M', classGroup: '1', studentType: 'regular', course: '', arts: 'music' };
@@ -414,22 +442,19 @@ function getSyllabusUrl(selection) {
 }
 
 function getAcademicWeek(date = new Date()) {
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) {
-    return { term: '後期', week: 1, label: '後期 第1週' };
-  }
-  const month = d.getMonth() + 1;
-  const isZenki = month >= 4 && month <= 9;
-  const termName = isZenki ? '前期' : '後期';
-  const startStr = isZenki
-    ? (calendarData.terms?.zenki?.startDate || '2026-04-06')
-    : (calendarData.terms?.kouki?.startDate || '2026-10-01');
-  const startDate = new Date(`${startStr}T00:00:00+09:00`);
-  const startDay = startDate.getDay();
-  const mondayOffset = (startDay + 6) % 7;
-  const weekOneMonday = new Date(startDate.getTime() - mondayOffset * 86400000);
-  const diffTime = d.getTime() - weekOneMonday.getTime();
-  const diffDays = Number.isFinite(diffTime) ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0;
+  const { dateStr, month } = getJstParts(date);
+  if (!dateStr) return { term: '後期', week: 1, label: '後期 第1週' };
+  const zenkiStart = calendarData.terms?.zenki?.classesStartDate || calendarData.terms?.zenki?.startDate || '2026-04-06';
+  const koukiStart = calendarData.terms?.kouki?.classesStartDate || calendarData.terms?.kouki?.startDate || '2026-09-24';
+  const isKouki = dateStr >= koukiStart || month <= 3;
+  const termName = isKouki ? '後期' : '前期';
+  const startStr = isKouki ? koukiStart : zenkiStart;
+  const startParts = getJstParts(new Date(`${startStr}T00:00:00+09:00`));
+  const mondayOffset = (startParts.weekdayNum + 6) % 7;
+  const weekOneMondayMs = new Date(`${startStr}T00:00:00+09:00`).getTime() - mondayOffset * 86400000;
+  const currentMidnightMs = new Date(`${dateStr}T00:00:00+09:00`).getTime();
+  const diffTime = currentMidnightMs - weekOneMondayMs;
+  const diffDays = Number.isFinite(diffTime) ? Math.floor(diffTime / 86400000) : 0;
   let weekNum = 1;
   if (diffDays >= 0) {
     weekNum = Math.min(15, Math.floor(diffDays / 7) + 1);
@@ -442,8 +467,7 @@ function getAcademicWeek(date = new Date()) {
 }
 
 function renderTodaySchedule(currentDate) {
-  const jsDay = currentDate.getDay();
-  const todayDateStr = dateKey(currentDate);
+  const { dateStr: todayDateStr, weekdayNum: jsDay } = getJstParts(currentDate);
   const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
 
   const sub = calendarData?.daySubstitutions?.find(item => item.date === todayDateStr);
@@ -613,14 +637,14 @@ function renderExamAlert() {
 }
 
 function renderCafeteriaSummary(currentDate) {
-  const todayDateStr = dateKey(currentDate);
+  const { dateStr: todayDateStr, weekdayNum } = getJstParts(currentDate);
   const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
   const holidayEv = events.find(e =>
     (e.type === 'holiday' || e.type === 'break' || e.hasClasses === false) &&
     e.type !== 'exam' &&
     (e.date === todayDateStr || (e.endDate && todayDateStr >= e.date && todayDateStr <= e.endDate))
   );
-  const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+  const isWeekend = weekdayNum === 0 || weekdayNum === 6;
   let todayMenu = null;
 
   if (cafeteriaData?.weeklyMenus) {
@@ -1007,19 +1031,26 @@ function calendar() {
     event: { cls: 'blue', label: '行事' }
   };
 
+  const koukiStart = data.terms?.kouki?.classesStartDate || data.terms?.kouki?.startDate || '2026-09-24';
+  const [curY, curM] = currentMonthPrefix.split('-').map(Number);
+  const lastDom = new Date(Date.UTC(curY, curM, 0)).getUTCDate();
+  const monthStart = `${currentMonthPrefix}-01`;
+  const monthEnd = `${currentMonthPrefix}-${String(lastDom).padStart(2, '0')}`;
+  const matchesPeriod = (startStr, endStr) => {
+    if (!startStr) return true;
+    const endSafe = endStr || startStr;
+    if (calendarFilterPeriod === 'current') return startStr <= monthEnd && endSafe >= monthStart;
+    if (calendarFilterPeriod === 'zenki') return startStr < koukiStart && Number(startStr.slice(5, 7)) >= 4;
+    if (calendarFilterPeriod === 'kouki') return endSafe >= koukiStart || Number(startStr.slice(5, 7)) <= 3;
+    return true;
+  };
+
   const sortedEvents = [...events]
     .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
     .filter(ev => {
       const start = String(ev.date || ev.startDate || '');
-      if (calendarFilterPeriod === 'current' && !start.startsWith(currentMonthPrefix)) return false;
-      if (calendarFilterPeriod === 'zenki') {
-        const m = Number(start.slice(5, 7));
-        if (m < 4 || m > 9) return false;
-      }
-      if (calendarFilterPeriod === 'kouki') {
-        const m = Number(start.slice(5, 7));
-        if (m >= 4 && m <= 9) return false;
-      }
+      const endSafe = String(ev.endDate || start);
+      if (!matchesPeriod(start, endSafe)) return false;
       if (calendarFilterCategory === 'holiday') {
         return ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false;
       }
@@ -1047,11 +1078,14 @@ function calendar() {
     </li>`;
   }).join('');
 
-  const subRows = subs.length
+  const filteredSubs = (calendarFilterCategory === 'holiday' || calendarFilterCategory === 'exam')
+    ? []
+    : subs.filter(s => s && matchesPeriod(String(s.date || ''), String(s.date || '')));
+  const subRows = filteredSubs.length
     ? `<div class="calendar-substitutions">
         <h3>授業振替実施日</h3>
         <ul class="calendar-timeline">
-          ${subs.map(s => `<li class="calendar-event-item" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`)}</strong>${s.note ? `<small class="calendar-event-note">${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
+          ${filteredSubs.map(s => `<li class="calendar-event-item" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`)}</strong>${s.note ? `<small class="calendar-event-note">${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
         </ul>
       </div>`
     : '';
@@ -1276,9 +1310,8 @@ function linksView() {
 }
 
 function renderTimetableBanners(date = new Date()) {
-  const d = new Date(date);
-  const dateStr = dateKey(d);
-  const weekInfo = getAcademicWeek(d);
+  const { dateStr, weekdayNum } = getJstParts(date);
+  const weekInfo = getAcademicWeek(date);
   const cal = calendarData || FALLBACK_CALENDAR;
   const events = Array.isArray(cal?.events) ? cal.events : [];
   let banners = `<div class="alert alert-info timetable-banner week-banner"><span class="badge blue">${escapeHTML(weekInfo.label)}</span> 今週は${escapeHTML(weekInfo.label)}です。</div>`;
@@ -1295,8 +1328,8 @@ function renderTimetableBanners(date = new Date()) {
     e.type !== 'exam' &&
     (e.date === dateStr || (e.endDate && dateStr >= e.date && dateStr <= e.endDate))
   );
-  if (!sub && (holidayEv || d.getDay() === 0 || d.getDay() === 6)) {
-    const label = holidayEv?.name || (d.getDay() === 0 || d.getDay() === 6 ? '週末・休業日' : '休業日（祝日）');
+  if (!sub && (holidayEv || weekdayNum === 0 || weekdayNum === 6)) {
+    const label = holidayEv?.title || holidayEv?.name || (weekdayNum === 0 || weekdayNum === 6 ? '週末・休業日' : '休業日（祝日）');
     banners += `<div class="alert alert-warning timetable-banner holiday-banner"><span class="badge yellow">祝日・休業日</span> 本日は${escapeHTML(label)}です。</div>`;
   }
 
@@ -1605,6 +1638,38 @@ function closeSizeAdjustModal() {
     lastModalTrigger = null;
   }
 }
+function getExpandedHolidayDates() {
+  const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
+  const dates = new Set();
+  for (const ev of events) {
+    if (!ev || !(ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false) || ev.type === 'exam') continue;
+    const startStr = ev.date || ev.startDate;
+    if (!startStr || !/^\d{4}-\d{2}-\d{2}$/.test(startStr)) continue;
+    const endStr = ev.endDate && /^\d{4}-\d{2}-\d{2}$/.test(ev.endDate) ? ev.endDate : startStr;
+    const cur = new Date(`${startStr}T00:00:00Z`);
+    const end = new Date(`${endStr}T00:00:00Z`);
+    if (Number.isNaN(cur.getTime()) || Number.isNaN(end.getTime())) continue;
+    let guard = 0;
+    while (cur <= end && guard < 120) {
+      dates.add(cur.toISOString().slice(0, 10));
+      cur.setUTCDate(cur.getUTCDate() + 1);
+      guard++;
+    }
+  }
+  return Array.from(dates);
+}
+function getActiveSemesterInfo() {
+  const term = timetableMeta?.term || '後期';
+  const fy = Number(timetableMeta?.fiscalYear) || 2026;
+  const termObj = term === '前期' ? calendarData?.terms?.zenki : calendarData?.terms?.kouki;
+  const until = termObj?.closingDate || termObj?.endDate || (term === '前期' ? `${fy}-08-07` : `${fy + 1}-02-28`);
+  return {
+    fiscalYear: fy,
+    term,
+    startDate: termObj?.classesStartDate || termObj?.startDate,
+    until
+  };
+}
 function openExportAdjustModal() {
   if (currentExportFormat === 'pdf' || currentExportFormat === 'png') {
     openSizeAdjustModal();
@@ -1703,12 +1768,11 @@ async function openDataPreviewModal(format) {
       title.textContent = 'iCal (.ics) 形式プレビュー';
       copyBtn.textContent = '📋 iCalをコピー';
       actionBtn.textContent = '💾 iCal保存 (.ics)';
-      const holidayDates = (calendarData?.events || [])
-        .filter(ev => ev && (ev.type === 'holiday' || ev.hasClasses === false) && ev.date)
-        .map(ev => ev.date);
+      const holidayDates = getExpandedHolidayDates();
       const ics = generateIcs(lessons, label, {
         fiscalYear,
         term,
+        semesterInfo: getActiveSemesterInfo(),
         holidays: holidayDates
       });
       body.innerHTML = `
@@ -1765,15 +1829,14 @@ async function downloadCurrentTimetable(action = 'download') {
   try {
     const { exportTimetable } = await import('./timetable-export.js');
     const scheduleResult = selectedSchedule();
-    const holidayDates = (calendarData?.events || [])
-      .filter(ev => ev && (ev.type === 'holiday' || ev.hasClasses === false) && ev.date)
-      .map(ev => ev.date);
+    const holidayDates = getExpandedHolidayDates();
     const result = await exportTimetable(snapshot, format, filename, {
       studentLabel: studentLabel(),
       selectedLessons: scheduleResult.selected || [],
       updated: timetableMeta?.updated || SOURCE?.updated || '2026-09-24',
       fiscalYear: timetableMeta?.fiscalYear || 2026,
       term: timetableMeta?.term || '後期',
+      semesterInfo: getActiveSemesterInfo(),
       holidays: holidayDates,
       sizeConfig: { ...exportSizeConfig },
       a4Mode: a4ModeEnabled,
@@ -1910,7 +1973,7 @@ function render() {
     const { exportCalendarIcs } = await import('./timetable-export.js');
     const cal = calendarData || FALLBACK_CALENDAR;
     const fy = timetableMeta?.fiscalYear || 2026;
-    exportCalendarIcs(cal, `akashi-calendar-${fy}.ics`);
+    exportCalendarIcs(cal, `akashi-calendar-${fy}`);
   });
 
   // 定期試験検索入力

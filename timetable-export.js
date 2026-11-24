@@ -164,6 +164,18 @@ function formatFiscalYearText(fy) {
   return `${fy}年度`;
 }
 
+const VTIMEZONE_TOKYO = [
+  'BEGIN:VTIMEZONE',
+  'TZID:Asia/Tokyo',
+  'BEGIN:STANDARD',
+  'DTSTART:19700101T000000',
+  'TZOFFSETFROM:+0900',
+  'TZOFFSETTO:+0900',
+  'TZNAME:JST',
+  'END:STANDARD',
+  'END:VTIMEZONE'
+].join('\r\n');
+
 /**
  * iCalendar (.ics) 生成
  */
@@ -172,8 +184,13 @@ export function generateIcs(selectedLessons, studentLabel, options = {}) {
 
   const escapeIcs = escapeIcsText;
   const untilStr = resolveIcsUntil(options);
-  const holidayDates = (Array.isArray(options?.holidays) ? options.holidays : [])
-    .map(h => formatDateIcs(h, 0))
+  const parsedHolidays = (Array.isArray(options?.holidays) ? options.holidays : [])
+    .map(h => {
+      const compact = formatDateIcs(h, 0);
+      if (!compact) return null;
+      const d = new Date(Date.UTC(Number(compact.slice(0, 4)), Number(compact.slice(4, 6)) - 1, Number(compact.slice(6, 8))));
+      return { compact, dow: d.getUTCDay() };
+    })
     .filter(Boolean);
   const calTitle = (options?.fiscalYear || options?.term)
     ? `明石高専 ${formatFiscalYearText(options?.fiscalYear || 2026)}${options?.term || '後期'} 時間割 (${escapeIcs(studentLabel)})`
@@ -197,6 +214,7 @@ export function generateIcs(selectedLessons, studentLabel, options = {}) {
     const location = escapeIcs(lesson.location || '');
     const periodText = `${lesson.period}${span > 1 ? `〜${lesson.period + span - 1}` : ''}限`;
     const description = escapeIcs(`担当: ${lesson.teacher || '未定'}\n時限: ${periodText}\n対象: ${studentLabel}${lesson.notes ? `\n備考: ${lesson.notes}` : ''}`);
+    const matchingHolidays = parsedHolidays.filter(h => h.dow === day).map(h => h.compact);
 
     events.push([
       'BEGIN:VEVENT',
@@ -207,7 +225,7 @@ export function generateIcs(selectedLessons, studentLabel, options = {}) {
       `DTSTART;TZID=Asia/Tokyo:${dateStr}T${startTime}`,
       `DTEND;TZID=Asia/Tokyo:${dateStr}T${endTime}`,
       `RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`,
-      holidayDates.length > 0 ? `EXDATE;TZID=Asia/Tokyo:${holidayDates.map(d => `${d}T${startTime}`).join(',')}` : '',
+      matchingHolidays.length > 0 ? `EXDATE;TZID=Asia/Tokyo:${matchingHolidays.map(d => `${d}T${startTime}`).join(',')}` : '',
       'TRANSP:OPAQUE',
       'STATUS:CONFIRMED',
       'END:VEVENT'
@@ -222,6 +240,7 @@ export function generateIcs(selectedLessons, studentLabel, options = {}) {
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${calTitle}`,
     'X-WR-TIMEZONE:Asia/Tokyo',
+    VTIMEZONE_TOKYO,
     ...events,
     'END:VCALENDAR'
   ].join('\r\n');
@@ -235,6 +254,7 @@ export function generateCalendarIcs(calendarData = {}, options = {}) {
   const vevents = [];
   const rawEvents = Array.isArray(calendarData?.events) ? calendarData.events : [];
   const rawSubs = Array.isArray(calendarData?.daySubstitutions) ? calendarData.daySubstitutions : [];
+  const subEventDates = new Set();
 
   rawEvents.forEach((ev, idx) => {
     if (!ev || !ev.date || !ev.title) return;
@@ -242,7 +262,11 @@ export function generateCalendarIcs(calendarData = {}, options = {}) {
 
     const start = formatDateIcs(ev.date, 0);
     if (!start) return;
+    if (ev.type === 'special' || /振替/.test(String(ev.title))) {
+      subEventDates.add(String(ev.date).trim());
+    }
     const end = ev.endDate ? formatDateIcs(ev.endDate, 1) : formatDateIcs(ev.date, 1);
+    const desc = ev.description || ev.note || '';
 
     vevents.push([
       'BEGIN:VEVENT',
@@ -250,7 +274,7 @@ export function generateCalendarIcs(calendarData = {}, options = {}) {
       `DTSTART;VALUE=DATE:${start}`,
       end ? `DTEND;VALUE=DATE:${end}` : '',
       `SUMMARY:${escapeIcsText(ev.title)}`,
-      ev.description ? `DESCRIPTION:${escapeIcsText(ev.description)}` : '',
+      desc ? `DESCRIPTION:${escapeIcsText(desc)}` : '',
       'STATUS:CONFIRMED',
       'END:VEVENT'
     ].filter(Boolean).join('\r\n'));
@@ -258,6 +282,7 @@ export function generateCalendarIcs(calendarData = {}, options = {}) {
 
   rawSubs.forEach((sub, idx) => {
     if (!sub || !sub.date) return;
+    if (subEventDates.has(String(sub.date).trim())) return;
     const start = formatDateIcs(sub.date, 0);
     if (!start) return;
     const end = formatDateIcs(sub.date, 1);
@@ -772,7 +797,8 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 export function exportCalendarIcs(calendarData, filename = 'akashi-kosen-calendar', options = {}) {
   const icsString = generateCalendarIcs(calendarData, options);
   const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
-  downloadBlob(blob, `${filename}.ics`);
+  const safeName = String(filename || 'akashi-kosen-calendar').replace(/\.ics$/i, '');
+  downloadBlob(blob, `${safeName}.ics`);
   return { success: true, message: '年間行事予定 (.ics) を保存しました。' };
 }
 
