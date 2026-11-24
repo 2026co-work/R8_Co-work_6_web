@@ -599,3 +599,16 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 [data-theme="dark"] .real-timetable td.is-today-col.schedule-empty{background:#1b202e}
 .export-sheet .real-timetable thead th.is-today-col{background:#f8f1f3;border-bottom-color:var(--line)}
 .export-sheet[data-theme="dark"] .real-timetable thead th.is-today-col{background:#251820;border-bottom-color:var(--line)}
+
+/* 時間割内ハイライト検索 & タップ対応教室凡例ポップオーバー */
+.timetable-search-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.timetable-search-bar input{width:100%;max-width:340px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:12.5px}
+[data-theme="dark"] .timetable-search-bar input{background:#131722;border-color:#323a4e;color:#e8eaf0}
+.lesson-location-btn{background:transparent;border:0;padding:0;font:inherit;text-align:left;cursor:pointer}
+.lesson-location-btn:hover{text-decoration:underline;text-underline-offset:2px}
+.export-sheet .lesson-location-btn{cursor:default;text-decoration:none}
+.room-legend-popover{margin-top:12px;margin-bottom:0;padding:10px 14px;font-size:12.5px;justify-content:space-between}
+.real-timetable td.schedule-cell.is-match{box-shadow:inset 0 0 0 2px var(--wine);background:#fdf2f4!important}
+[data-theme="dark"] .real-timetable td.schedule-cell.is-match{box-shadow:inset 0 0 0 2px #f4a8b8;background:#311e2b!important}
+.real-timetable td.schedule-cell.is-dimmed{opacity:.38}
+.real-timetable .lesson-card.is-dimmed{opacity:.35}

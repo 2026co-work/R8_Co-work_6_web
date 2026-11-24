@@ -310,6 +310,15 @@ function expandRoomLegend(loc) {
   const expanded = tokens.map(tok => activeRoomLegends[tok] ? `${tok}: ${activeRoomLegends[tok]}` : null).filter(Boolean);
   return expanded.length ? expanded.join(' / ') : raw;
 }
+function renderLocationTrigger(loc) {
+  const raw = String(loc || '').trim();
+  if (!raw) return '';
+  const expanded = expandRoomLegend(raw);
+  return `<button type="button" class="lesson-location lesson-location-btn" data-room-raw="${escapeHTML(raw)}" data-room-full="${escapeHTML(expanded)}" title="${escapeHTML(expanded)}" aria-label="教室 ${escapeHTML(raw)} の正式名称を表示">${icon('door')}${escapeHTML(raw)}</button>`;
+}
+function renderRoomPopoverBox() {
+  return `<div class="alert alert-info room-legend-popover" id="room-legend-popover" data-export-exclude role="status" aria-live="polite" hidden><span id="room-legend-popover-text"></span><button type="button" class="button subtle size-close-btn" id="room-legend-close" aria-label="教室情報を閉じる" style="min-height:26px;padding:0 10px;margin-left:auto;">✕</button></div>`;
+}
 
 function getTimetablePdfUrl() {
   const lessonPage = timetableLinksData?.pages?.find(p => p.id === 'lesson');
@@ -750,7 +759,7 @@ function renderTodaySchedule(currentDate) {
               ${liveBadge}
             </div>
             <div class="lesson-sub">
-              ${l.location ? `<span class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</span>` : ''}
+              ${l.location ? renderLocationTrigger(l.location) : ''}
               ${l.teacher ? `<span class="lesson-teacher">${escapeHTML(l.teacher)}</span>` : ''}
             </div>
             ${l.notes ? `<small class="lesson-notes">${escapeHTML(l.notes)}</small>` : ''}
@@ -774,6 +783,7 @@ function renderTodaySchedule(currentDate) {
       <div class="today-periods-list">
         ${periodRows}
       </div>
+      ${renderRoomPopoverBox()}
       <div class="panel-footer">
         <a class="text-link" href="#timetable">週間時間割へ${icon('arrow')}</a>
       </div>
@@ -1587,7 +1597,7 @@ function timetable() {
     const cell = day[p];
     if(cell.length===1 && cell[0].period-1<p && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id))) return '';
     const span = cell.length===1 && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id)) ? (cell[0].duration||1) : 1;
-    return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}${dIdx === todayDayIdx ? ' is-today-col' : ''}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
+    return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}${dIdx === todayDayIdx ? ' is-today-col' : ''}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?renderLocationTrigger(l.location):''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>`;
   const sourceUrl = normalizeAkashiUrl(timetableMeta?.sourceUrl || SOURCE?.url) || 'https://www.akashi.ac.jp/life/lesson.html';
   const sourcePdfUrl = getTimetablePdfUrl();
@@ -1615,7 +1625,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div>${error ? '' : '<p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>'}${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div>${error ? '' : '<div class="timetable-search-bar" data-export-exclude><input type="search" id="timetable-search-input" placeholder="科目名・教員名・教室名で検索ハイライト..." aria-label="時間割内検索"><span id="timetable-search-count" class="field-hint" hidden></span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。教室名をタップすると正式名称を確認できます。</p>'}${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -2229,6 +2239,64 @@ function render() {
     const cal = calendarData || FALLBACK_CALENDAR;
     const fy = timetableMeta?.fiscalYear || 2026;
     exportCalendarIcs(cal, `akashi-calendar-${fy}`);
+  });
+
+  // 時間割内ハイライト検索
+  document.getElementById('timetable-search-input')?.addEventListener('input', e => {
+    const q = String(e.target?.value || '').trim().toLowerCase();
+    const countEl = document.getElementById('timetable-search-count');
+    if (typeof document.querySelectorAll !== 'function') return;
+    const cards = Array.from(document.querySelectorAll('.real-timetable .lesson-card'));
+    const cells = Array.from(document.querySelectorAll('.real-timetable td.schedule-cell'));
+    if (!q) {
+      cards.forEach(c => c.classList?.remove('is-match', 'is-dimmed'));
+      cells.forEach(td => td.classList?.remove('is-match', 'is-dimmed'));
+      if (countEl) { countEl.hidden = true; countEl.textContent = ''; }
+      return;
+    }
+    let matches = 0;
+    cards.forEach(c => {
+      const extraRoom = c.querySelector?.('.lesson-location-btn')?.dataset?.roomFull || '';
+      const hit = `${c.textContent || ''} ${extraRoom}`.toLowerCase().includes(q);
+      c.classList?.toggle('is-match', hit);
+      c.classList?.toggle('is-dimmed', !hit);
+      if (hit) matches++;
+    });
+    cells.forEach(td => {
+      if (td.classList?.contains('schedule-empty')) {
+        td.classList?.remove('is-match');
+        td.classList?.add('is-dimmed');
+        return;
+      }
+      const cellCards = td.querySelectorAll ? Array.from(td.querySelectorAll('.lesson-card')) : [];
+      const anyHit = cellCards.some(c => c.classList?.contains('is-match'));
+      td.classList?.toggle('is-match', anyHit);
+      td.classList?.toggle('is-dimmed', !anyHit);
+    });
+    if (countEl) {
+      countEl.hidden = false;
+      countEl.textContent = `${matches}件の授業が一致`;
+    }
+  });
+
+  // 教室略称タップ展開ポップオーバー
+  if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('.lesson-location-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pop = document.getElementById('room-legend-popover');
+        const txt = document.getElementById('room-legend-popover-text');
+        const raw = btn.dataset?.roomRaw || '';
+        const full = btn.dataset?.roomFull || expandRoomLegend(raw);
+        if (pop && txt) {
+          txt.innerHTML = `<strong>教室情報 (${escapeHTML(raw)}):</strong> ${escapeHTML(full === raw ? `${raw}（特別略称なし）` : full)}`;
+          pop.hidden = false;
+        }
+      });
+    });
+  }
+  document.getElementById('room-legend-close')?.addEventListener('click', () => {
+    const pop = document.getElementById('room-legend-popover');
+    if (pop) pop.hidden = true;
   });
 
   // 定期試験検索入力
