@@ -989,36 +989,71 @@ function normalizeLinkUrl(u) {
   return String(u || '').trim().replace(/\/+$/, '').toLowerCase();
 }
 let myLinkSeq = 0;
+let editingMyLinkId = '';
+let lastDeletedMyLink = null;
+let toastTimer = null;
 
-function addMyLink(link) {
-  if (!link || typeof link !== 'object') return { success: false, error: '無効なリンクデータです。' };
+function validateMyLinkInput(link) {
+  if (!link || typeof link !== 'object') return { valid: false, error: '無効なリンクデータです。' };
   const name = String(link.name || '').trim();
   const url = String(link.url || '').trim();
-  if (!name || !url) return { success: false, error: '表示名とURLを両方入力してください。' };
-  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'URLは http:// または https:// で入力してください。' };
-  try {
-    const parsed = new URL(url);
-    if (!parsed.hostname) return { success: false, error: '有効なURL（例: https://example.com）を入力してください。' };
-  } catch {
-    return { success: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+  if (!name || !url) return { valid: false, error: '表示名とURLを両方入力してください。' };
+  if (!/^https?:\/\//i.test(url)) return { valid: false, error: 'URLは http:// または https:// で入力してください。' };
+  if (typeof URL === 'function') {
+    try {
+      const parsed = new URL(url);
+      if (!parsed.hostname) return { valid: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+    } catch {
+      return { valid: false, error: '有効なURL（例: https://example.com）を入力してください。' };
+    }
+  } else if (!/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(url)) {
+    return { valid: false, error: '有効なURL（例: https://example.com）を入力してください。' };
   }
-  const links = loadMyLinks();
-  if (!link.id && links.some(l => normalizeLinkUrl(l.url) === normalizeLinkUrl(url))) {
-    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
-  }
-  const newItem = { id: link.id || `custom-${Date.now()}-${++myLinkSeq}`, name, url, custom: true };
-  links.push(newItem);
+  return { valid: true, name, url };
+}
+
+function persistMyLinks(links) {
   try {
     const saved = saveMyLinks(links);
     if (saved === false || (saved && saved.success === false)) {
       return { success: false, error: (saved && saved.error) || 'リンクを保存できませんでした。' };
     }
+    return { success: true };
   } catch (err) {
     return { success: false, error: err?.message || 'ストレージ容量の上限に達しました。' };
   }
+}
+
+function addMyLink(link) {
+  const v = validateMyLinkInput(link);
+  if (!v.valid) return { success: false, error: v.error };
+  const links = loadMyLinks();
+  if (!link.id && links.some(l => normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
+    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
+  }
+  const newItem = { id: link.id || `custom-${Date.now()}-${++myLinkSeq}`, name: v.name, url: v.url, custom: true };
+  links.push(newItem);
+  const persisted = persistMyLinks(links);
+  if (!persisted.success) return persisted;
   return { success: true, item: newItem };
 }
 const addCustomLink = addMyLink;
+
+function updateMyLink(id, link) {
+  if (!id) return { success: false, error: '対象のリンクIDが見つかりません。' };
+  const v = validateMyLinkInput(link);
+  if (!v.valid) return { success: false, error: v.error };
+  const links = loadMyLinks();
+  const idx = links.findIndex(l => l.id === id);
+  if (idx === -1) return { success: false, error: '対象のマイリンクが見つかりませんでした。' };
+  if (links.some(l => l.id !== id && normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
+    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
+  }
+  links[idx] = { ...links[idx], name: v.name, url: v.url };
+  const persisted = persistMyLinks(links);
+  if (!persisted.success) return persisted;
+  return { success: true, item: links[idx], links };
+}
 
 function reorderMyLink(id, direction) {
   const links = loadMyLinks();
@@ -1044,6 +1079,65 @@ function deleteMyLink(id) {
   return links;
 }
 const removeMyLink = deleteMyLink;
+
+function restoreMyLink(item, index = 0) {
+  if (!item || typeof item !== 'object' || !item.id) return loadMyLinks();
+  const links = loadMyLinks();
+  if (links.some(l => l.id === item.id)) return links;
+  const insertAt = Math.max(0, Math.min(links.length, Number.isFinite(index) ? index : links.length));
+  links.splice(insertAt, 0, { ...item });
+  persistMyLinks(links);
+  return links;
+}
+
+function showToast(message, options = {}) {
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+  const body = document.body;
+  if (!body || typeof body.append !== 'function') return;
+  let toast = document.getElementById('portal-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'portal-toast';
+    toast.className = 'toast';
+    toast.setAttribute?.('role', 'status');
+    toast.setAttribute?.('aria-live', 'polite');
+    body.append(toast);
+  }
+  while (toast.firstChild && typeof toast.removeChild === 'function') {
+    toast.removeChild(toast.firstChild);
+  }
+  toast.textContent = '';
+  const msgSpan = document.createElement('span');
+  msgSpan.textContent = String(message || '');
+  toast.append?.(msgSpan);
+  if (options.undoLabel && typeof options.onUndo === 'function') {
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.className = 'toast-action';
+    actionBtn.textContent = options.undoLabel;
+    actionBtn.addEventListener?.('click', () => {
+      if (toastTimer && typeof clearTimeout === 'function') {
+        clearTimeout(toastTimer);
+        toastTimer = null;
+      }
+      toast.hidden = true;
+      options.onUndo();
+    });
+    toast.append?.(actionBtn);
+  }
+  toast.hidden = false;
+  if (toastTimer && typeof clearTimeout === 'function') {
+    clearTimeout(toastTimer);
+    toastTimer = null;
+  }
+  if (typeof setTimeout === 'function') {
+    const duration = Number(options.duration) > 0 ? Number(options.duration) : 4500;
+    toastTimer = setTimeout(() => {
+      toast.hidden = true;
+      toastTimer = null;
+    }, duration);
+  }
+}
 
 function renderQuickLinks() {
   const syllabusUrl = getSyllabusUrl(studentSelection);
@@ -1624,16 +1718,30 @@ function linksView() {
   const myLinks = loadMyLinks().filter(item => item && /^https?:\/\//i.test(String(item.url || '')));
   const existingUrls = new Set(myLinks.map(item => normalizeLinkUrl(item.url)));
   const myLinkItems = myLinks.length
-    ? myLinks.map((item, idx) => `
-        <div class="mylink-row" data-link-id="${escapeHTML(item.id)}">
+    ? myLinks.map((item, idx) => {
+        const isEditing = editingMyLinkId === item.id;
+        return `
+        <div class="mylink-row${isEditing ? ' is-editing' : ''}" data-link-id="${escapeHTML(item.id)}">
           <a class="button secondary mylink-anchor" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external')}${escapeHTML(item.name)}</a>
           <div class="mylink-reorder-btns">
             <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="up" aria-label="${escapeHTML(item.name)}を上へ移動" ${idx === 0 ? 'disabled' : ''}>↑</button>
             <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="down" aria-label="${escapeHTML(item.name)}を下へ移動" ${idx === myLinks.length - 1 ? 'disabled' : ''}>↓</button>
           </div>
+          <button type="button" class="button secondary mylink-edit-btn" data-edit-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を編集" aria-expanded="${isEditing ? 'true' : 'false'}">編集</button>
           <button type="button" class="button secondary mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除">削除</button>
+          ${isEditing ? `
+          <form class="mylink-edit-form" data-edit-form-id="${escapeHTML(item.id)}" novalidate>
+            <input type="text" class="mylink-edit-name" name="name" value="${escapeHTML(item.name)}" placeholder="表示名" aria-label="リンク名を編集">
+            <input type="url" class="mylink-edit-url" name="url" value="${escapeHTML(item.url)}" placeholder="https://..." aria-label="URLを編集">
+            <div class="mylink-edit-actions">
+              <button type="submit" class="button mylink-save-btn">保存</button>
+              <button type="button" class="button secondary mylink-cancel-btn">キャンセル</button>
+            </div>
+            <p class="mylink-edit-error info-note" role="alert" hidden></p>
+          </form>` : ''}
         </div>
-      `).join('')
+      `;
+      }).join('')
     : '<p class="hint">登録されたマイリンクはまだありません。</p>';
 
   const presetButtons = PRESET_LINKS.map(p => {
@@ -2231,6 +2339,13 @@ async function downloadCurrentTimetable(action = 'download') {
           ? '印刷・PDF保存画面を開きました。「PDFに保存」またはプリンターを選択してください。'
           : 'ファイルを作成しました。ブラウザーのダウンロードを確認してください。'));
     }
+    if (ok) {
+      showToast(action === 'copy'
+        ? '時間割をクリップボードにコピーしました。'
+        : (format === 'pdf' ? '印刷・PDF保存ダイアログを開きました。' : `${format.toUpperCase()}ファイルを保存しました。`));
+    } else {
+      showToast('出力に失敗しました。もう一度お試しください。');
+    }
   } catch (error) {
     console.error('Timetable export failed', error);
     ok = false;
@@ -2238,6 +2353,7 @@ async function downloadCurrentTimetable(action = 'download') {
       status.hidden = false;
       status.textContent = '処理を完了できませんでした。通信状態を確認して、もう一度お試しください。';
     }
+    showToast('出力に失敗しました。もう一度お試しください。');
   } finally {
     exportInProgress = false;
     const currentDL = document.getElementById('export-download');
@@ -2259,6 +2375,7 @@ let globalListenersBound = false;
 function render() {
   const rawHash = (location.hash.slice(1).split('?')[0].split('/')[0] || 'home').trim();
   const page = Object.hasOwn(names, rawHash) ? rawHash : 'home';
+  if (page !== 'links') editingMyLinkId = '';
   const breadcrumbEl = document.getElementById('breadcrumb');
   if (breadcrumbEl) breadcrumbEl.textContent = names[page];
   document.title = `${names[page]} — Campus`;
@@ -2371,6 +2488,7 @@ function render() {
     const cal = calendarData || FALLBACK_CALENDAR;
     const fy = timetableMeta?.fiscalYear || 2026;
     exportCalendarIcs(cal, `akashi-calendar-${fy}`);
+    showToast('年間行事予定 (.ics) を保存しました。');
   });
 
   // 時間割内ハイライト検索
@@ -2466,6 +2584,7 @@ function render() {
       return;
     }
     render();
+    showToast('マイリンクを追加しました。');
   });
   if (typeof document.querySelectorAll === 'function') {
     document.querySelectorAll('[data-dash-offset]').forEach(btn => {
@@ -2551,8 +2670,9 @@ function render() {
         const name = btn.dataset?.presetName || btn.textContent?.trim();
         const url = btn.dataset?.presetUrl || '';
         if (name && url) {
-          addMyLink({ name, url });
+          const res = addMyLink({ name, url });
           render();
+          if (res?.success) showToast(`「${name}」を追加しました。`);
         }
       });
     });
@@ -2569,13 +2689,67 @@ function render() {
         }
       });
     });
+    document.querySelectorAll('.mylink-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset?.editId || '';
+        if (!id) return;
+        editingMyLinkId = editingMyLinkId === id ? '' : id;
+        render();
+        if (editingMyLinkId) {
+          document.querySelector?.(`.mylink-edit-form[data-edit-form-id="${editingMyLinkId}"] .mylink-edit-name`)?.focus?.({ preventScroll: true });
+        }
+      });
+    });
+    document.querySelectorAll('.mylink-cancel-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingMyLinkId = '';
+        render();
+      });
+    });
+    document.querySelectorAll('.mylink-edit-form').forEach(form => {
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        const id = form.dataset?.editFormId || '';
+        const nameVal = form.querySelector?.('.mylink-edit-name')?.value;
+        const urlVal = form.querySelector?.('.mylink-edit-url')?.value;
+        const errEl = form.querySelector?.('.mylink-edit-error');
+        const res = updateMyLink(id, { name: nameVal, url: urlVal });
+        if (!res.success) {
+          if (errEl) {
+            errEl.textContent = res.error || 'リンクを更新できませんでした。';
+            errEl.hidden = false;
+          }
+          return;
+        }
+        editingMyLinkId = '';
+        render();
+        showToast('マイリンクを更新しました。');
+      });
+    });
     document.querySelectorAll('.mylink-remove-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset?.removeId;
         if (id) {
+          const prevLinks = loadMyLinks();
+          const idx = prevLinks.findIndex(l => l.id === id);
+          const removedItem = idx >= 0 ? { ...prevLinks[idx] } : null;
           deleteMyLink(id);
+          if (editingMyLinkId === id) editingMyLinkId = '';
           render();
           document.getElementById('mylink-name')?.focus?.({ preventScroll: true });
+          if (removedItem) {
+            lastDeletedMyLink = { item: removedItem, index: idx };
+            showToast(`「${removedItem.name}」を削除しました。`, {
+              undoLabel: '元に戻す',
+              onUndo: () => {
+                if (!lastDeletedMyLink) return;
+                restoreMyLink(lastDeletedMyLink.item, lastDeletedMyLink.index);
+                lastDeletedMyLink = null;
+                render();
+                showToast('削除を取り消しました。');
+              }
+            });
+          }
         }
       });
     });
@@ -2699,6 +2873,29 @@ function render() {
       if (e.key === 'Tab') {
         const openModal = getOpenModalEl();
         if (openModal) trapModalFocus(openModal, e);
+        return;
+      }
+      if (getOpenModalEl()) return;
+      const target = e.target || document.activeElement;
+      const tag = String(target?.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^[1-6]$/.test(String(e.key || ''))) {
+        const routes = ['home', 'timetable', 'exam', 'calendar', 'cafeteria', 'links'];
+        const nextRoute = routes[Number(e.key) - 1];
+        if (nextRoute) {
+          e.preventDefault?.();
+          location.hash = `#${nextRoute}`;
+        }
+        return;
+      }
+      if (e.key === '/' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        const searchEl = document.getElementById('timetable-search-input')
+          || document.getElementById('exam-search-input')
+          || document.getElementById('calendar-search-input');
+        if (searchEl && !searchEl.disabled && !searchEl.hidden && typeof searchEl.focus === 'function') {
+          e.preventDefault?.();
+          searchEl.focus();
+        }
       }
     });
     window.addEventListener('resize', () => {
