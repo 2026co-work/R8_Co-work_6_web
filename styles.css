@@ -410,27 +410,24 @@ body.size-modal-open{overflow:hidden}
 .raw-dataset-btn:hover{color:var(--wine)}
 [data-theme="dark"] .raw-dataset-btn:hover{color:#f4a8b8}
 
-/* ベクター印刷 / PDF出力（A方式：@media print） */
-.print-target-sheet{position:fixed;left:-9999px;top:0;width:1100px}
-@page{size:A4 landscape;margin:0}
+/* 印刷用スタイル（全タブ・複数ページ・インク節約対応） */
+@page{margin:12mm}
 @media print{
   *,*::before,*::after{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-  html,body{margin:0!important;padding:0!important;width:297mm;height:210mm;overflow:hidden;background:#ffffff!important}
-  html[data-theme="dark"],body[data-print-theme="dark"]{background:#171b26!important;color:#e8eaf0!important}
-  body.printing-timetable > *:not(.print-target-sheet){display:none!important}
-  body.printing-timetable .print-target-sheet{
-    position:static!important;
-    display:block!important;
-    width:100%!important;
-    min-height:210mm!important;
-    margin:0!important;
-    box-sizing:border-box!important;
-    page-break-inside:avoid!important;
-    break-inside:avoid!important;
+  html,body,html[data-theme="dark"],[data-theme="dark"] body{
+    background:#ffffff!important;
+    color:#111111!important;
+    --bg:#ffffff;--ink:#111111;--muted:#4b5563;--line:#d1d5db;--wine:#79182b;
+    width:auto!important;height:auto!important;overflow:visible!important;
+    margin:0!important;padding:0!important;
   }
-  .sidebar,.topbar,.skip-link,.menu-overlay,details.timetable-controls,.export-controls,.export-status,.size-overlay,.data-preview-overlay,footer,[data-export-exclude]{display:none!important}
+  .sidebar,.floating-menu-toggle,.theme-toggle,.topbar,.skip-link,.menu-overlay,details.timetable-controls,.export-controls,.export-status,.raw-dataset-row,.size-overlay,.data-preview-overlay,.profile-modal-overlay,.dashboard-date-nav,.calendar-filters,.exam-search-bar,.timetable-search-bar,.mylink-form,.preset-suggestions,.mylink-reorder-btns,.mylink-remove-btn,.mylink-edit-btn,.toast,footer,[data-export-exclude]{display:none!important}
   .workspace{margin:0!important}
-  main{max-width:none!important;padding:0!important;margin:0!important}
+  main{max-width:none!important;padding:0!important;margin:0!important;min-height:0!important}
+  .panel,.exam-card,.cafeteria-menu-item,.calendar-event-item{background:#ffffff!important;color:#111111!important;border-color:#d1d5db!important;box-shadow:none!important;break-inside:avoid;page-break-inside:avoid}
+  .real-timetable td,.real-timetable th,.real-timetable th:first-child{position:static!important;box-shadow:none!important;background:#ffffff!important;color:#111111!important}
+  .real-timetable thead th{background:#f3f4f6!important;color:#79182b!important}
+  .real-timetable td.schedule-cell:not(.schedule-empty){background:#fafafa!important}
 }
 
 /* ホーム「今日の概要ダッシュボード」レイアウト */
