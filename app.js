@@ -1364,14 +1364,14 @@ function timetable() {
     field('留学生の区分','studentType',[['regular','留学生ではない'],['international','留学生']],isAdvanced) +
     field('E科のコース（4・5年）','course',[['','選択してください'],['EJ',COURSE_LABELS.EJ],['ED',COURSE_LABELS.ED]],isAdvanced || !needsCourse, (isAdvanced || !needsCourse) ? '※4・5年E科のみ選択可' : '') +
     (!isAdvanced && s.grade===1 ? field('芸術選択','arts',[['music','音楽'],['art','美術']]) : '');
-  const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の後期時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
+  const fyText = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
+  const termText = timetableMeta?.term || '後期';
+  const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の${escapeHTML(fyText)}${escapeHTML(termText)}時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
     const cell = day[p];
     if(cell.length===1 && cell[0].period-1<p && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id))) return '';
     const span = cell.length===1 && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id)) ? (cell[0].duration||1) : 1;
     return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>`;
-  const fyText = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
-  const termText = timetableMeta?.term || '後期';
   const sourceUrl = normalizeAkashiUrl(timetableMeta?.sourceUrl || SOURCE?.url) || 'https://www.akashi.ac.jp/life/lesson.html';
   const sourcePdfUrl = getTimetablePdfUrl();
   const updatedText = timetableMeta?.updated || (timetableMeta?.updatedAt ? String(timetableMeta.updatedAt).slice(0, 10) : '') || SOURCE?.updated || '2026-09-24';
@@ -1398,7 +1398,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div>${error ? '' : '<p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。</p>'}${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -1597,16 +1597,19 @@ function openSizeAdjustModal() {
   paper.classList.toggle('a4-mode', a4ModeEnabled);
   clone.querySelector('.panel-head')?.remove();
   clone.querySelector('.timetable-source')?.remove();
+  const fyLabel = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
+  const termLabel = timetableMeta?.term || '後期';
+  const updatedText = timetableMeta?.updated || SOURCE?.updated || '2026-09-24';
   const headerRow = document.createElement('div');
   headerRow.className = 'export-header-row';
   headerRow.innerHTML = `
     <div class="export-header-main">
-      <div class="export-title" role="heading" aria-level="2">明石高専 後期時間割</div>
+      <div class="export-title" role="heading" aria-level="2">明石高専 ${escapeHTML(fyLabel)}${escapeHTML(termLabel)}時間割</div>
       <span class="export-badge-tag">${escapeHTML(studentLabel())}</span>
       <span class="export-team-tag">Co+work 6班</span>
     </div>
     <div class="export-header-sub">
-      <small class="export-pdf-date">PDF参照: ${escapeHTML(SOURCE?.updated || '2026-09-24')}</small>
+      <small class="export-pdf-date">PDF参照: ${escapeHTML(updatedText)}</small>
     </div>
   `;
   clone.prepend(headerRow);
@@ -1631,8 +1634,6 @@ function closeSizeAdjustModal() {
   if (modal) modal.hidden = true;
   setModalBackdropInert(false);
   document.body.classList.remove('size-modal-open');
-  const panel = document.getElementById('timetable-sheet');
-  if (panel) applyLiveSheetSize(panel);
   if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
     lastModalTrigger.focus();
     lastModalTrigger = null;
@@ -1695,97 +1696,111 @@ async function openDataPreviewModal(format) {
 
   const { generateCsv, generateText, generateJson, generateIcs } = await import('./timetable-export.js');
 
-  const updatePreview = () => {
+  const computePreviewText = () => {
     if (format === 'text') {
-      title.textContent = 'テキスト出力のプレビュー＆設定';
-      copyBtn.textContent = '📋 テキストをコピー';
-      actionBtn.textContent = '💾 テキスト保存';
-      const txt = generateText(lessons, label, { ...textExportOptions, includeEmpty: exportIncludeEmpty, fiscalYear, term });
-      body.innerHTML = `
-        <div class="data-preview-options">
-          <label><input type="checkbox" id="text-opt-location" ${textExportOptions.includeLocation ? 'checked' : ''}> 教室名を含める</label>
-          <label><input type="checkbox" id="text-opt-teacher" ${textExportOptions.includeTeacher ? 'checked' : ''}> 担当教員を含める</label>
-          <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
-        </div>
-        <pre class="preview-code-block">${escapeHTML(txt)}</pre>
-      `;
-      document.getElementById('text-opt-location')?.addEventListener('change', e => {
-        textExportOptions.includeLocation = e.target.checked;
-        updatePreview();
-      });
-      document.getElementById('text-opt-teacher')?.addEventListener('change', e => {
-        textExportOptions.includeTeacher = e.target.checked;
-        updatePreview();
-      });
-      document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
-        exportIncludeEmpty = e.target.checked;
-        updatePreview();
-      });
-    } else if (format === 'csv') {
-      title.textContent = 'CSV形式プレビュー';
-      copyBtn.textContent = '📋 CSVをコピー';
-      actionBtn.textContent = '💾 CSVダウンロード';
-      const csv = generateCsv(lessons, label, { includeEmpty: exportIncludeEmpty, fiscalYear, term });
-      body.innerHTML = `
-        <div class="data-preview-options">
-          <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
-        </div>
-        <pre class="preview-code-block">${escapeHTML(csv)}</pre>
-      `;
-      document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
-        exportIncludeEmpty = e.target.checked;
-        updatePreview();
-      });
-    } else if (format === 'json') {
-      title.textContent = 'JSONデータプレビュー';
-      copyBtn.textContent = '📋 JSONをコピー';
-      actionBtn.textContent = '💾 JSONダウンロード';
-      const json = generateJson(lessons, label, updatedDate, { includeEmpty: exportIncludeEmpty, fiscalYear, term });
-      body.innerHTML = `
-        <div class="data-preview-options" style="margin-bottom:8px;">
-          <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
-        </div>
-        <div class="data-schema-doc">
-          <div class="schema-doc-title">データ構造（配列形式）</div>
-          <p style="margin:0 0 8px;font-size:11px;color:var(--muted);">※各授業を独立したイベントとして扱うことで、カレンダー連携やプログラムでの集計・検索が容易な設計です。</p>
-          <ul class="schema-doc-list">
-            <li><code>meta</code>: 学期、対象所属、元データ更新日(sourceUpdated)、合計コマ数(totalPeriods)、科目数</li>
-            <li><code>lessons[ ]</code>: 授業イベントの配列</li>
-            <li><code>dayOfWeek</code>: 曜日（1:月〜5:金）</li>
-            <li><code>period</code> / <code>duration</code>: 開始時限 / コマ数</li>
-            <li><code>subjectName</code>: 科目名</li>
-            <li><code>location</code> / <code>teacher</code>: 教室 / 担当教員</li>
-            <li><code>notes</code>: 備考</li>
-          </ul>
-        </div>
-        <pre class="preview-code-block" style="margin-top:10px;">${escapeHTML(json)}</pre>
-      `;
-      document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
-        exportIncludeEmpty = e.target.checked;
-        updatePreview();
-      });
-    } else if (format === 'ics') {
-      title.textContent = 'iCal (.ics) 形式プレビュー';
-      copyBtn.textContent = '📋 iCalをコピー';
-      actionBtn.textContent = '💾 iCal保存 (.ics)';
+      return generateText(lessons, label, { ...textExportOptions, includeEmpty: exportIncludeEmpty, fiscalYear, term });
+    }
+    if (format === 'csv') {
+      return generateCsv(lessons, label, { includeEmpty: exportIncludeEmpty, fiscalYear, term });
+    }
+    if (format === 'json') {
+      return generateJson(lessons, label, updatedDate, { includeEmpty: exportIncludeEmpty, fiscalYear, term });
+    }
+    if (format === 'ics') {
       const holidayDates = getExpandedHolidayDates();
-      const ics = generateIcs(lessons, label, {
+      return generateIcs(lessons, label, {
         fiscalYear,
         term,
         semesterInfo: getActiveSemesterInfo(),
         holidays: holidayDates
       });
-      body.innerHTML = `
-        <div class="data-preview-options">
-          <span class="badge blue">Google Calendar / Apple Calendar 対応 (.ics)</span>
-        </div>
-        <pre class="preview-code-block">${escapeHTML(ics)}</pre>
-      `;
     }
+    return '';
   };
 
+  const refreshPreviewCode = () => {
+    const codeEl = document.getElementById('data-preview-code');
+    if (codeEl) codeEl.textContent = computePreviewText();
+  };
+
+  if (format === 'text') {
+    title.textContent = 'テキスト出力のプレビュー＆設定';
+    copyBtn.textContent = '📋 テキストをコピー';
+    actionBtn.textContent = '💾 テキスト保存';
+    body.innerHTML = `
+      <div class="data-preview-options">
+        <label><input type="checkbox" id="text-opt-location" ${textExportOptions.includeLocation ? 'checked' : ''}> 教室名を含める</label>
+        <label><input type="checkbox" id="text-opt-teacher" ${textExportOptions.includeTeacher ? 'checked' : ''}> 担当教員を含める</label>
+        <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
+      </div>
+      <pre class="preview-code-block" id="data-preview-code">${escapeHTML(computePreviewText())}</pre>
+    `;
+    document.getElementById('text-opt-location')?.addEventListener('change', e => {
+      textExportOptions.includeLocation = e.target.checked;
+      refreshPreviewCode();
+    });
+    document.getElementById('text-opt-teacher')?.addEventListener('change', e => {
+      textExportOptions.includeTeacher = e.target.checked;
+      refreshPreviewCode();
+    });
+    document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
+      exportIncludeEmpty = e.target.checked;
+      refreshPreviewCode();
+    });
+  } else if (format === 'csv') {
+    title.textContent = 'CSV形式プレビュー';
+    copyBtn.textContent = '📋 CSVをコピー';
+    actionBtn.textContent = '💾 CSVダウンロード';
+    body.innerHTML = `
+      <div class="data-preview-options">
+        <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
+      </div>
+      <pre class="preview-code-block" id="data-preview-code">${escapeHTML(computePreviewText())}</pre>
+    `;
+    document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
+      exportIncludeEmpty = e.target.checked;
+      refreshPreviewCode();
+    });
+  } else if (format === 'json') {
+    title.textContent = 'JSONデータプレビュー';
+    copyBtn.textContent = '📋 JSONをコピー';
+    actionBtn.textContent = '💾 JSONダウンロード';
+    body.innerHTML = `
+      <div class="data-preview-options" style="margin-bottom:8px;">
+        <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
+      </div>
+      <div class="data-schema-doc">
+        <div class="schema-doc-title">データ構造（配列形式）</div>
+        <p style="margin:0 0 8px;font-size:11px;color:var(--muted);">※各授業を独立したイベントとして扱うことで、カレンダー連携やプログラムでの集計・検索が容易な設計です。</p>
+        <ul class="schema-doc-list">
+          <li><code>meta</code>: 学期、対象所属、元データ更新日(sourceUpdated)、合計コマ数(totalPeriods)、科目数</li>
+          <li><code>lessons[ ]</code>: 授業イベントの配列</li>
+          <li><code>dayOfWeek</code>: 曜日（1:月〜5:金）</li>
+          <li><code>period</code> / <code>duration</code>: 開始時限 / コマ数</li>
+          <li><code>subjectName</code>: 科目名</li>
+          <li><code>location</code> / <code>teacher</code>: 教室 / 担当教員</li>
+          <li><code>notes</code>: 備考</li>
+        </ul>
+      </div>
+      <pre class="preview-code-block" id="data-preview-code" style="margin-top:10px;">${escapeHTML(computePreviewText())}</pre>
+    `;
+    document.getElementById('preview-opt-empty')?.addEventListener('change', e => {
+      exportIncludeEmpty = e.target.checked;
+      refreshPreviewCode();
+    });
+  } else if (format === 'ics') {
+    title.textContent = 'iCal (.ics) 形式プレビュー';
+    copyBtn.textContent = '📋 iCalをコピー';
+    actionBtn.textContent = '💾 iCal保存 (.ics)';
+    body.innerHTML = `
+      <div class="data-preview-options">
+        <span class="badge blue">Google Calendar / Apple Calendar 対応 (.ics)</span>
+      </div>
+      <pre class="preview-code-block" id="data-preview-code">${escapeHTML(computePreviewText())}</pre>
+    `;
+  }
+
   lastModalTrigger = document.activeElement || null;
-  updatePreview();
   modal.hidden = false;
   setModalBackdropInert(true, modal);
   document.body.classList.add('size-modal-open');
@@ -1803,13 +1818,15 @@ function closeDataPreviewModal() {
   }
 }
 async function downloadCurrentTimetable(action = 'download') {
-  if (exportInProgress || selectedSchedule().error) return;
+  if (exportInProgress || selectedSchedule().error) return false;
   const panel = document.getElementById('timetable-sheet');
-  if (!panel) return;
+  if (!panel) return false;
   // 非同期処理中に画面や選択条件が変わっても、押した時点の時間割を保存する。
   const snapshot = panel.cloneNode(true);
   const format = document.getElementById('export-format')?.value || currentExportFormat;
-  const filename = `R8後期時間割-${studentShortLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
+  const fyLabel = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
+  const termLabel = timetableMeta?.term || '後期';
+  const filename = `${fyLabel}${termLabel}時間割-${studentShortLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
   const downloadBtn = document.getElementById('export-download');
   const copyBtn = document.getElementById('export-copy');
   const status = document.getElementById('export-status');
@@ -1826,6 +1843,7 @@ async function downloadCurrentTimetable(action = 'download') {
     status.hidden = false;
     status.textContent = action === 'copy' ? 'クリップボードにコピーしています…' : `${format.toUpperCase()}を作成しています…`;
   }
+  let ok = false;
   try {
     const { exportTimetable } = await import('./timetable-export.js');
     const scheduleResult = selectedSchedule();
@@ -1845,6 +1863,7 @@ async function downloadCurrentTimetable(action = 'download') {
       includeEmpty: exportIncludeEmpty,
       action: action
     });
+    ok = result?.success !== false;
     if (status) {
       status.hidden = false;
       status.textContent = result?.message || (action === 'copy'
@@ -1855,6 +1874,7 @@ async function downloadCurrentTimetable(action = 'download') {
     }
   } catch (error) {
     console.error('Timetable export failed', error);
+    ok = false;
     if (status) {
       status.hidden = false;
       status.textContent = '処理を完了できませんでした。通信状態を確認して、もう一度お試しください。';
@@ -1874,6 +1894,7 @@ async function downloadCurrentTimetable(action = 'download') {
     const select = document.getElementById('export-format');
     if (select) select.disabled = Boolean(selectedSchedule().error);
   }
+  return ok;
 }
 let globalListenersBound = false;
 function render() {
@@ -1945,12 +1966,16 @@ function render() {
   document.getElementById('data-preview-close')?.addEventListener('click', closeDataPreviewModal);
   document.getElementById('data-preview-cancel')?.addEventListener('click', closeDataPreviewModal);
   document.getElementById('data-preview-copy')?.addEventListener('click', async () => {
-    await downloadCurrentTimetable('copy');
+    const ok = await downloadCurrentTimetable('copy');
     const previewCopy = document.getElementById('data-preview-copy');
     if (previewCopy) {
       const orig = previewCopy.textContent;
-      previewCopy.textContent = '✅ コピー完了！';
-      previewCopy.classList?.add('btn-success');
+      if (ok) {
+        previewCopy.textContent = '✅ コピー完了！';
+        previewCopy.classList?.add('btn-success');
+      } else {
+        previewCopy.textContent = '⚠️ コピー失敗';
+      }
       const timer = setTimeout(() => {
         previewCopy.textContent = orig;
         previewCopy.classList?.remove('btn-success');

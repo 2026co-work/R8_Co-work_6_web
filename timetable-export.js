@@ -443,7 +443,10 @@ export function generateText(selectedLessons, studentLabel, options = {}) {
         const startTime = PERIOD_TIMES[l.period - 1]?.startTime || '';
         const endTime = PERIOD_TIMES[l.period + span - 2]?.endTime || '';
         const locText = includeLocation && l.location ? ` [${l.location}]` : '';
-        const teacherText = includeTeacher && l.teacher ? ` (${l.teacher})` : '';
+        const rawTeacher = String(l.teacher || '').trim();
+        const teacherText = includeTeacher && rawTeacher
+          ? ((/^\(.*\)$/.test(rawTeacher) || /^（.*）$/.test(rawTeacher)) ? ` ${rawTeacher}` : ` (${rawTeacher})`)
+          : '';
         lines.push(`  ${pText} (${startTime}-${endTime}) ${l.subjectName}${locText}${teacherText}`);
       }
     } else {
@@ -458,7 +461,10 @@ export function generateText(selectedLessons, studentLabel, options = {}) {
             const startTime = PERIOD_TIMES[lesson.period - 1]?.startTime || '';
             const endTime = PERIOD_TIMES[lesson.period + span - 2]?.endTime || '';
             const locText = includeLocation && lesson.location ? ` [${lesson.location}]` : '';
-            const teacherText = includeTeacher && lesson.teacher ? ` (${lesson.teacher})` : '';
+            const rawTeacher = String(lesson.teacher || '').trim();
+            const teacherText = includeTeacher && rawTeacher
+              ? ((/^\(.*\)$/.test(rawTeacher) || /^（.*）$/.test(rawTeacher)) ? ` ${rawTeacher}` : ` (${rawTeacher})`)
+              : '';
             lines.push(`  ${pText} (${startTime}-${endTime}) ${lesson.subjectName}${locText}${teacherText}`);
           }
         } else {
@@ -547,6 +553,10 @@ export function formatStudentShortBadge(label) {
   return label.replace(/\s+/g, '');
 }
 
+function escapeHtmlSimple(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 export function prepareExportSnapshot(snapshot, options = {}) {
   snapshot.querySelectorAll('[data-export-exclude]').forEach(node => node.remove());
   snapshot.removeAttribute('id');
@@ -560,33 +570,20 @@ export function prepareExportSnapshot(snapshot, options = {}) {
   const updated = options.updated || '2026-09-24';
   const termLabel = options.term || options.semesterInfo?.term || '後期';
   const fyLabel = formatFiscalYearText(options.fiscalYear || options.semesterInfo?.fiscalYear);
-  const shortBadge = formatStudentShortBadge(label);
 
-  const headH2 = snapshot.querySelector('.panel-head h2');
-  if (headH2) {
-    headH2.classList.add('export-head-title');
-    headH2.innerHTML = '';
+  snapshot.querySelector('.panel-head')?.remove?.();
+  snapshot.querySelector('.timetable-source')?.remove?.();
 
-    const badgeSpan = document.createElement('span');
-    badgeSpan.className = 'export-badge-short';
-    badgeSpan.textContent = shortBadge;
-    headH2.append(badgeSpan);
-
-    const fullSpan = document.createElement('span');
-    fullSpan.className = 'export-badge-full';
-    fullSpan.textContent = label;
-    headH2.append(fullSpan);
-  }
   const headerRow = document.createElement('div');
   headerRow.className = 'export-header-row';
   headerRow.innerHTML = `
     <div class="export-header-main">
-      <h1 class="export-title">明石高専 ${fyLabel}${termLabel}時間割</h1>
-      <span class="export-badge-tag">${label}</span>
+      <div class="export-title" role="heading" aria-level="2">明石高専 ${escapeHtmlSimple(fyLabel)}${escapeHtmlSimple(termLabel)}時間割</div>
+      <span class="export-badge-tag">${escapeHtmlSimple(label)}</span>
       <span class="export-team-tag">Co+work 6班</span>
     </div>
     <div class="export-header-sub">
-      <small class="export-pdf-date">PDF参照: ${updated}</small>
+      <small class="export-pdf-date">PDF参照: ${escapeHtmlSimple(updated)}</small>
     </div>
   `;
   snapshot.prepend(headerRow);
@@ -735,7 +732,7 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   try {
     await document.fonts.ready;
     canvas = await html2canvas(snapshot, {
-      backgroundColor: bgColor, scale: 3.5, logging: false,
+      backgroundColor: bgColor, scale: 2.5, logging: false,
       windowWidth: 1100, windowHeight: isA4 ? a4H : Math.max(600, snapshot.scrollHeight),
       scrollX: 0, scrollY: 0, useCORS: true,
     });
