@@ -583,3 +583,19 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .profile-modal-card{max-width:600px}
 .profile-modal-card .student-filters{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:4px}
 @media(max-width:520px){.profile-modal-card .student-filters{grid-template-columns:1fr}}
+
+/* ライブ授業ステータス & 時間割の当日強調 */
+.subject-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dashboard-period.is-current{border-left:4px solid var(--red);background:#fff5f5;border-color:#efc7c8}
+[data-theme="dark"] .dashboard-period.is-current{border-left-color:#fca5a5;background:#2a191e;border-color:#592831}
+.dashboard-period.is-next{border-left:4px solid var(--blue);background:#f3f7fe;border-color:#cfe0fa}
+[data-theme="dark"] .dashboard-period.is-next{border-left-color:#93c5fd;background:#162234;border-color:#2a4365}
+.real-timetable thead th.is-today-col{background:#f0dce1;border-bottom:2px solid var(--wine)}
+.real-timetable td.is-today-col.schedule-cell:not(.schedule-empty){background:#f8eff2}
+.real-timetable td.is-today-col.schedule-empty{background:#fbf9fa}
+.today-col-tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:var(--wine);color:#fff;margin-left:4px;vertical-align:middle}
+[data-theme="dark"] .real-timetable thead th.is-today-col{background:#341c27;border-bottom-color:#f4a8b8}
+[data-theme="dark"] .real-timetable td.is-today-col.schedule-cell:not(.schedule-empty){background:#291f2e}
+[data-theme="dark"] .real-timetable td.is-today-col.schedule-empty{background:#1b202e}
+.export-sheet .real-timetable thead th.is-today-col{background:#f8f1f3;border-bottom-color:var(--line)}
+.export-sheet[data-theme="dark"] .real-timetable thead th.is-today-col{background:#251820;border-bottom-color:var(--line)}

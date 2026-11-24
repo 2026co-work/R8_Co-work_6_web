@@ -551,7 +551,7 @@ function getAcademicWeek(date = new Date()) {
 }
 
 function renderTodaySchedule(currentDate) {
-  const { dateStr: todayDateStr, weekdayNum: jsDay } = getJstParts(currentDate);
+  const { dateStr: todayDateStr, weekdayNum: jsDay, hour: jstHour, minute: jstMinute } = getJstParts(currentDate);
   const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
 
   const sub = calendarData?.daySubstitutions?.find(item => item.date === todayDateStr);
@@ -611,6 +611,30 @@ function renderTodaySchedule(currentDate) {
     `;
   }
 
+  const examEv = !isSubstituted ? events.find(e =>
+    e.type === 'exam' &&
+    (e.date === todayDateStr || (e.endDate && todayDateStr >= e.date && todayDateStr <= e.endDate))
+  ) : null;
+  if (examEv) {
+    const examLabel = examEv.title || examEv.name || '定期試験期間';
+    return subBanner + `
+      <section class="panel today-schedule" id="today-schedule">
+        <div class="panel-head">
+          <h2>${icon('calendar')}今日の時間割</h2>
+          <div class="panel-head-meta">
+            ${navControls}
+            <span class="badge red">${escapeHTML(examLabel)}</span>
+            <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
+          </div>
+        </div>
+        <div class="dashboard-rest-card">
+          <p><strong>${escapeHTML(todayDateStr)}</strong> は<strong>${escapeHTML(examLabel)}</strong>期間です。通常授業の代わりに試験時間割をご確認ください。</p>
+          <a class="button" href="#exam">${icon('document')}試験時間割を見る</a>
+        </div>
+      </section>
+    `;
+  }
+
   const dayIdx = effectiveDay - 1;
   const { grid, error: schedError } = selectedSchedule();
   if (schedError) {
@@ -652,6 +676,37 @@ function renderTodaySchedule(currentDate) {
     `;
   }
 
+  const isLiveToday = dashboardOffsetDays === 0;
+  const nowMinutes = jstHour * 60 + jstMinute;
+  const toMinutes = hhmm => {
+    const [h, m] = String(hhmm || '0:0').split(':').map(Number);
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+  };
+  let currentLessonKey = null;
+  let nextLessonKey = null;
+  let lastClassEndMin = -1;
+  if (isLiveToday) {
+    const scanIds = new Set();
+    for (let pIdx = 0; pIdx < periods.length; pIdx++) {
+      const slot = dayLessons[pIdx] || [];
+      for (const l of slot) {
+        const key = l.id || `${l.subjectName}-${l.period}`;
+        if (scanIds.has(key)) continue;
+        scanIds.add(key);
+        const span = l.duration || 1;
+        const startMin = toMinutes(periods[pIdx]?.[0]);
+        const endMin = toMinutes(periods[Math.min(periods.length - 1, pIdx + span - 1)]?.[1] || periods[pIdx]?.[1]);
+        if (endMin > lastClassEndMin) lastClassEndMin = endMin;
+        if (!currentLessonKey && nowMinutes >= startMin && nowMinutes < endMin) {
+          currentLessonKey = key;
+        } else if (!nextLessonKey && nowMinutes < startMin) {
+          nextLessonKey = key;
+        }
+      }
+    }
+  }
+  const allDoneToday = isLiveToday && lastClassEndMin >= 0 && nowMinutes >= lastClassEndMin;
+
   const renderedLessonIds = new Set();
   const periodRows = periods.map((time, p) => {
     const cell = dayLessons[p] || [];
@@ -671,18 +726,29 @@ function renderTodaySchedule(currentDate) {
     });
     if (freshLessons.length === 0) return '';
     return freshLessons.map(l => {
+      const key = l.id || `${l.subjectName}-${l.period}`;
       const span = l.duration || 1;
       const endPeriodIdx = Math.min(periods.length - 1, p + span - 1);
       const endTime = periods[endPeriodIdx]?.[1] || time[1];
+      const startMin = toMinutes(time[0]);
+      const endMin = toMinutes(endTime);
+      const isCurrent = isLiveToday && currentLessonKey === key;
+      const isNext = isLiveToday && !isCurrent && nextLessonKey === key;
+      const liveBadge = isCurrent
+        ? `<span class="badge red live-status-badge">授業中・残り${Math.max(1, endMin - nowMinutes)}分</span>`
+        : (isNext ? `<span class="badge blue live-status-badge">次の授業・あと${Math.max(1, startMin - nowMinutes)}分</span>` : '');
       return `
-        <div class="dashboard-period active">
+        <div class="dashboard-period active${isCurrent ? ' is-current' : ''}${isNext ? ' is-next' : ''}">
           <div class="period-meta">
             <span class="period-num">${span > 1 ? `${p + 1}〜${p + span}限` : `${p + 1}限`}</span>
             <span class="period-time">${time[0]}〜${endTime}</span>
             ${span > 1 ? `<span class="badge gray">${span}コマ連続</span>` : ''}
           </div>
           <div class="lesson-info">
-            <strong class="subject-title">${escapeHTML(l.subjectName)}</strong>
+            <div class="subject-title-row">
+              <strong class="subject-title">${escapeHTML(l.subjectName)}</strong>
+              ${liveBadge}
+            </div>
             <div class="lesson-sub">
               ${l.location ? `<span class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</span>` : ''}
               ${l.teacher ? `<span class="lesson-teacher">${escapeHTML(l.teacher)}</span>` : ''}
@@ -700,6 +766,7 @@ function renderTodaySchedule(currentDate) {
         <h2>${icon('calendar')}今日の時間割</h2>
         <div class="panel-head-meta">
           ${navControls}
+          ${allDoneToday ? '<span class="badge gray">本日の授業終了</span>' : ''}
           <span class="badge">${DAYS[dayIdx]}曜日</span>
           <span class="badge gray">${escapeHTML(studentShortLabel())}</span>
         </div>
@@ -1514,11 +1581,13 @@ function timetable() {
   const controls = buildStudentFilterControls(s, 'student', 'data-student');
   const fyText = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
   const termText = timetableMeta?.term || '後期';
-  const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の${escapeHTML(fyText)}${escapeHTML(termText)}時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map(d=>`<th scope="col">${d}曜日</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map(day=>{
+  const { weekdayNum: todayWeekdayNum } = getJstParts(new Date());
+  const todayDayIdx = (todayWeekdayNum >= 1 && todayWeekdayNum <= 5) ? (todayWeekdayNum - 1) : -1;
+  const table = `<div class="table-scroll" tabindex="0" role="region" aria-label="週間時間割。左右にスクロールできます"><table class="real-timetable"><caption class="sr-only">${escapeHTML(studentLabel())}の${escapeHTML(fyText)}${escapeHTML(termText)}時間割</caption><thead><tr><th scope="col">時限</th>${DAYS.map((d, dIdx)=>`<th scope="col" class="${dIdx === todayDayIdx ? 'is-today-col' : ''}">${d}曜日${dIdx === todayDayIdx ? ' <span class="today-col-tag" data-export-exclude>今日</span>' : ''}</th>`).join('')}</tr></thead><tbody>${periods.map((time,p)=>`<tr><th scope="row">${p+1}限<small>${time[0]}<br>${time[1]}</small></th>${grid.map((day, dIdx)=>{
     const cell = day[p];
     if(cell.length===1 && cell[0].period-1<p && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id))) return '';
     const span = cell.length===1 && !day.some(items=>items.length>1 && items.some(l=>l.id===cell[0].id)) ? (cell[0].duration||1) : 1;
-    return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
+    return `<td rowspan="${span}" class="schedule-cell ${cell.length?'':'schedule-empty'}${dIdx === todayDayIdx ? ' is-today-col' : ''}">${cell.length ? cell.map(l=>`<div class="lesson-card"><strong>${escapeHTML(l.subjectName)}</strong>${l.location?`<small class="lesson-location" title="${escapeHTML(expandRoomLegend(l.location))}">${icon('door')}${escapeHTML(l.location)}</small>`:''}<small>${escapeHTML(l.teacher)}</small>${span>1?`<span class="badge gray">${l.period}〜${l.period+span-1}限</span>`:''}${l.notes?`<small>${escapeHTML(l.notes)}</small>`:''}</div>`).join('') : '<span>空き</span>'}${cell.length>1?'<span class="badge red">授業の重複</span>':''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table></div>`;
   const sourceUrl = normalizeAkashiUrl(timetableMeta?.sourceUrl || SOURCE?.url) || 'https://www.akashi.ac.jp/life/lesson.html';
   const sourcePdfUrl = getTimetablePdfUrl();
@@ -2072,6 +2141,13 @@ function render() {
       if (sheetEl && !sheetEl.parentElement) {
         const m = main.innerHTML.match(/<section[^>]*id="timetable-sheet"[^>]*>([\s\S]*?)<\/section>/);
         if (m) sheetEl.innerHTML = m[1];
+      }
+      if (typeof window !== 'undefined' && typeof window.innerWidth === 'number' && window.innerWidth <= 760) {
+        const scroller = document.querySelector?.('.table-scroll');
+        const todayCol = document.querySelector?.('.real-timetable thead th.is-today-col');
+        if (scroller && todayCol && typeof todayCol.offsetLeft === 'number') {
+          scroller.scrollLeft = Math.max(0, todayCol.offsetLeft - 72);
+        }
       }
     }
     else if (page === 'exam') main.innerHTML = exam() + renderProfileSwitcherModal();
