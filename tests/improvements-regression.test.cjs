@@ -50,6 +50,7 @@ test('IMP-03: styles.css includes dark mode overrides, focus suppression, no siz
   assert.match(css, /\.size-paper\.a4-mode\s+\.real-timetable\{height:auto!important\}/);
   assert.doesNotMatch(css, /\.size-paper-wrap[^{]*\{[^}]*zoom\s*:/);
   assert.match(css, /@media print\{[\s\S]*\.toast[\s\S]*display:none!important/);
+  assert.match(css, /\[data-theme="dark"\]\s*\.export-sheet\[data-theme="light"\]\s*\.real-timetable\s+thead\s+th\.is-today-col/);
 });
 
 test('IMP-04: 3-way system/light/dark theme cycle and decoupled export theme work independently', () => {
@@ -204,8 +205,9 @@ test('IMP-10: timetable search/room trigger, exam countdown, calendar search/mon
   assert.match(ttHtml, /lesson-location-btn/, 'room trigger buttons render inside timetable');
 
   const sizeModal = ttApp.document.getElementById('export-size-modal');
-  ttApp.click('#open-size-modal');
-  assert.equal(sizeModal?.hidden, false, 'size modal opens');
+  sizeModal.hidden = true;
+  ttApp.document.getElementById('export-adjust-open').click();
+  assert.equal(sizeModal?.hidden, false, 'size modal opens via #export-adjust-open');
   ttApp.context.closeSizeAdjustModal();
   const sheetStyle = ttApp.document.getElementById('timetable-sheet')?.style || {};
   assert.equal(sheetStyle['--exp-cell-h'], undefined, 'closing size modal does not mutate live timetable-sheet style');
