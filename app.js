@@ -619,6 +619,7 @@ function renderExamAlert() {
     ? '定期試験時間割が公開されています。試験科目・教室・監督配置を確認してください。'
     : (meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。');
   const selfStudyRule = meta.selfStudyRule || '試験は2限から開始しますが、9時に登校し自習することを原則とします。JRの遅延などが生じた場合、9時に登校していることを前提として対応します。';
+  const showSeparateRule = selfStudyRule && !noticeText.includes('9時に登校');
   return `
     <section class="panel exam-alert" id="exam-alert">
       <div class="panel-head">
@@ -627,7 +628,7 @@ function renderExamAlert() {
       </div>
       <div class="exam-alert-body">
         <p class="exam-notice"><strong>${escapeHTML(noticeText)}</strong></p>
-        <p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>
+        ${showSeparateRule ? `<p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>` : ''}
       </div>
       <div class="panel-footer">
         <a class="text-link" href="#exam">定期試験の詳細へ${icon('arrow')}</a>
@@ -879,6 +880,8 @@ function extractExamEntries(data, selection) {
   const selCourse = selection?.course ? String(selection.course) : '';
   const targetClassDash = `${selGrade}-${selDept}`;
   const targetClassFlat = `${selGrade}${selDept}`;
+  const targetAdvDash = Number(selGrade) >= 6 ? `専${Number(selGrade) - 5}-${selDept}` : '';
+  const targetAdvFlat = Number(selGrade) >= 6 ? `専${Number(selGrade) - 5}${selDept}` : '';
 
   let list = [];
   if (Array.isArray(raw)) {
@@ -898,6 +901,8 @@ function extractExamEntries(data, selection) {
   } else if (raw && typeof raw === 'object') {
     if (Array.isArray(raw[targetClassDash])) list = raw[targetClassDash];
     else if (Array.isArray(raw[targetClassFlat])) list = raw[targetClassFlat];
+    else if (targetAdvDash && Array.isArray(raw[targetAdvDash])) list = raw[targetAdvDash];
+    else if (targetAdvFlat && Array.isArray(raw[targetAdvFlat])) list = raw[targetAdvFlat];
     else list = Object.values(raw).flat().filter(Boolean);
   }
 
@@ -911,7 +916,7 @@ function extractExamEntries(data, selection) {
     const course = entry.course ? String(entry.course) : '';
     if (!c && !d && !g) return true;
     if (course && selCourse && course !== selCourse) return false;
-    if (c && (c === targetClassDash || c === targetClassFlat)) return true;
+    if (c && (c === targetClassDash || c === targetClassFlat || (targetAdvDash && (c === targetAdvDash || c === targetAdvFlat)))) return true;
     if (d && g && d === selDept && g === selGrade) return true;
     if (d && !g && d === selDept) return true;
     if (!d && g && g === selGrade) return true;
@@ -925,14 +930,17 @@ function exam() {
   const isPublished = meta.status === 'published';
   const notice = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。（10日前の正午発表）';
   const selfStudyRule = meta.selfStudyRule || '試験は2限から開始しますが、9時に登校し自習することを原則とします。';
+  const showSeparateRule = selfStudyRule && !notice.includes('9時に登校');
   const sourcePdfUrl = normalizeAkashiUrl(meta.sourcePdfUrl, '');
   const notesPdfUrl = meta.notesPdfUrl === null ? '' : (normalizeAkashiUrl(meta.notesPdfUrl, '') || 'https://www.akashi.ac.jp/life/syotyui.pdf');
   const prevPdfUrl = meta.previousExamPdfUrl === null ? '' : normalizeAkashiUrl(meta.previousExamPdfUrl, '');
   const returnPdfUrl = meta.returnPdfUrl ? normalizeAkashiUrl(meta.returnPdfUrl, '') : '';
   const deptCode = studentSelection.department || studentSelection.dept || 'M';
-  const classCode = (studentSelection.grade >= 4 && deptCode === 'E' && studentSelection.course)
-    ? `${studentSelection.grade}-${studentSelection.course}`
-    : `${studentSelection.grade}-${deptCode}`;
+  const classCode = studentSelection.grade >= 6
+    ? `専${studentSelection.grade - 5}${deptCode}`
+    : ((studentSelection.grade >= 4 && deptCode === 'E' && studentSelection.course)
+      ? `${studentSelection.grade}-${studentSelection.course}`
+      : `${studentSelection.grade}-${deptCode}`);
   const entries = extractExamEntries(examData, studentSelection);
   const syllabusUrl = getSyllabusUrl(studentSelection);
   const examPeriods = (Array.isArray(examData?.periods) && examData.periods.length)
@@ -971,7 +979,7 @@ function exam() {
           <span>${isPublished ? '試験なし' : '10日前の正午発表'}</span>
         </div>
         <h3>${escapeHTML(studentLabel())} の${isPublished ? '該当試験はありません（試験なし）' : '試験時間割は未公開です'}</h3>
-        <p class="exam-card-meta">公開時に科目・時間・試験教室・監督（<span class="exam-supervisor">supervisor</span>配置）が表示されます。</p>
+        <p class="exam-card-meta">公開時に科目・時間・試験教室・監督配置が表示されます。</p>
       </article>`;
 
   return `${heading('定期試験', '定期試験時間割・注意事項', actions)}
@@ -981,8 +989,8 @@ function exam() {
         <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '未公開'}</span>
       </div>
       <p class="exam-notice"><strong>${escapeHTML(notice)}</strong></p>
-      <p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>
-      <div class="exam-period-chips">${periodChipsHtml}</div>
+      ${showSeparateRule ? `<p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>` : ''}
+      <div class="exam-period-chips" aria-label="試験時間帯一覧"><span class="field-hint" style="margin:0 4px 0 0;display:inline;font-weight:600;">試験時間帯:</span>${periodChipsHtml}</div>
       <div class="exam-links-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${isPublished && sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">公式試験時間割PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">公式試験時間割PDF（未公開）</button>`}
         ${notesPdfUrl ? `<a class="button secondary" href="${escapeHTML(notesPdfUrl)}" target="_blank" rel="noopener noreferrer">受験上の諸注意PDF</a>` : ''}
@@ -995,14 +1003,15 @@ function exam() {
     <section class="panel exam-schedule" id="exam-schedule" data-status="${isPublished ? 'published' : 'unpublished'}">
       <div class="panel-head">
         <h2>${icon('calendar')}試験時間割（${escapeHTML(classCode)}）</h2>
-        <span class="badge">${entries.length}件</span>
+        <span class="badge" id="exam-count-badge" data-total="${entries.length}">${entries.length}件</span>
       </div>
-      <div class="exam-search-bar">
+      <div class="exam-search-bar"${entries.length === 0 ? ' hidden' : ''}>
         <input type="search" id="exam-search-input" placeholder="科目名・教室・監督名で絞り込み..." aria-label="定期試験科目検索">
       </div>
       <div class="exam-timetable" id="exam-timetable">
         ${scheduleCards}
       </div>
+      <p id="exam-search-empty" class="info-note" role="status" hidden>該当する試験科目はありません。</p>
     </section>`;
 }
 function examView() { return exam(); }
@@ -1333,8 +1342,7 @@ function renderTimetableBanners(date = new Date()) {
     banners += `<div class="alert alert-warning timetable-banner holiday-banner"><span class="badge yellow">祝日・休業日</span> 本日は${escapeHTML(label)}です。</div>`;
   }
 
-  const isExam = events.some(e => e.type === 'exam' && dateStr >= e.date && (!e.endDate || dateStr <= e.endDate)) ||
-    (dateStr >= '2026-11-20' && dateStr <= '2026-11-26');
+  const isExam = events.some(e => e.type === 'exam' && dateStr >= e.date && (!e.endDate || dateStr <= e.endDate));
   if (isExam) {
     banners += `<div class="alert alert-warning timetable-banner exam-period-banner"><span class="badge red">定期試験期間</span> 現在は定期試験期間です。<a class="text-link" href="#exam">試験時間割を確認 →</a></div>`;
   }
@@ -2004,11 +2012,20 @@ function render() {
   // 定期試験検索入力
   document.getElementById('exam-search-input')?.addEventListener('input', e => {
     const q = String(e.target?.value || '').trim().toLowerCase();
+    const badgeEl = document.getElementById('exam-count-badge');
+    const emptyEl = document.getElementById('exam-search-empty');
     if (typeof document.querySelectorAll === 'function') {
-      document.querySelectorAll('.exam-card').forEach(card => {
+      const cards = Array.from(document.querySelectorAll('.exam-card:not(.exam-card-empty)'));
+      let visibleCount = 0;
+      cards.forEach(card => {
         const txt = String(card.textContent || '').toLowerCase();
-        if (card.style) card.style.display = (!q || txt.includes(q)) ? '' : 'none';
+        const show = !q || txt.includes(q);
+        if (card.style) card.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
       });
+      const totalCount = Number(badgeEl?.dataset?.total || cards.length);
+      if (badgeEl) badgeEl.textContent = q ? `${visibleCount}/${totalCount}件` : `${totalCount}件`;
+      if (emptyEl) emptyEl.hidden = !(q && cards.length > 0 && visibleCount === 0);
     }
   });
 

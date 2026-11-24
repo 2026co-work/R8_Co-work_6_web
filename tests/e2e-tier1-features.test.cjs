@@ -608,7 +608,7 @@ test('F11-T1-04: National holiday banner displays on school holidays', async (t)
 });
 
 test('F11-T1-05: Regular exam period banner renders during scheduled exam weeks', async (t) => {
-  const app = createAppInstance({ mockDate: '2026-11-20T09:00:00+09:00' });
+  const app = createAppInstance({ mockDate: '2027-02-03T09:00:00+09:00' });
   const ready = read('app.js').includes('定期試験期間') || read('app.js').includes('exam');
   if (!requireOrSkip(t, ready, 'Exam period banner', 'M3')) return;
 
