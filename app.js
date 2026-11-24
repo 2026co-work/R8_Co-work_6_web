@@ -2118,7 +2118,7 @@ function setupNavigation() {
   return ()=>setOpen(false,false);
 }
 const closeNavigation=setupNavigation();
-window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});document.querySelector?.('.topbar')?.classList?.remove('topbar-hidden');});
+window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});document.querySelector?.('.topbar')?.classList?.remove('topbar-hidden');document.getElementById('menu-toggle')?.classList?.remove('topbar-hidden');});
 
 const THEME_COOKIE = 'campus-theme';
 function getOsTheme() {
@@ -2229,6 +2229,8 @@ function setupTheme() {
 }
 function setupMobileHeaderScroll() {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  const menuToggleEl = typeof document.getElementById === 'function' ? document.getElementById('menu-toggle') : null;
+  menuToggleEl?.addEventListener?.('focus', () => menuToggleEl.classList?.remove('topbar-hidden'));
   let lastY = 0;
   let ticking = false;
   const raf = typeof window.requestAnimationFrame === 'function'
