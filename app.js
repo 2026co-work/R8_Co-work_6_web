@@ -2820,11 +2820,16 @@ function render() {
     document.body.classList.add('size-modal-open');
     document.getElementById('modal-student-grade')?.focus?.();
   };
-  if (typeof document.querySelectorAll === 'function') {
-    document.querySelectorAll('.profile-switch-trigger').forEach(btn => {
-      btn.addEventListener('click', openProfileModal);
-    });
-  }
+  const profileTriggers = new Set([
+    ...(typeof document.querySelectorAll === 'function' ? document.querySelectorAll('.profile-switch-trigger') : []),
+    document.getElementById('open-profile-switcher'),
+    document.getElementById('onboarding-switch-btn')
+  ].filter(Boolean));
+  profileTriggers.forEach(btn => {
+    if (btn.dataset?.profileOpenBound) return;
+    if (btn.dataset) btn.dataset.profileOpenBound = '1';
+    btn.addEventListener?.('click', openProfileModal);
+  });
   document.getElementById('onboarding-dismiss')?.addEventListener('click', () => {
     onboardingDismissed = true;
     render();

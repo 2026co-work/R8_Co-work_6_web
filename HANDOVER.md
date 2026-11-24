@@ -1,9 +1,9 @@
 # 開発引き継ぎドキュメント (HANDOVER.md)
 
-最終更新: 2026-11-17 00:54 JST  
+最終更新: 2026-11-25 01:20 JST  
 対象リポジトリ: `C:\Users\ko\.gemini\antigravity\scratch\R8_Co-work_6_web` (branch: `main`)
 
-全マイルストーン（M1〜M5, E2E, M_FINAL）および [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) で特定された全57件のバグ・UI/UX課題・未連携データ項目の改修・検証が完了した最新記録ドキュメントです。
+全マイルストーン（M1〜M5, E2E, M_FINAL）、[`AUDIT_REPORT.md`](./AUDIT_REPORT.md) の57件対応、およびライブブラウザ・コードベース監査に基づくv2テーマ・レスポンシブ・バグ修正・UX機能強化・回帰テスト検証が完了した最新記録ドキュメントです。
 
 ---
 
@@ -33,6 +33,24 @@
    - 未連携データのUI接続（D5, D7, D8, D9, D11, D12）: 答案返却PDF・前期/後期行事PDF・`timetable-links.json` 公式PDFアーカイブ・時間割原本PDF直リンク・`roomLegends` ツールチップ/一覧・神姫バスリンクの統合
    - スクレイパー強化（B11, D1, D3, D4, D6）: `fetch-cafeteria.mjs`（週別メニュー表・寮生食堂PDF解析）、`fetch-exam.mjs`（試験PDF解析 `parseExamPdf`）、`fetch-calendar.mjs`（HTML行事抽出 `extractCalendarEventsFromHtml`）を実装（取得不能時は安全にベースラインへフォールバック）
    - E2E アサーション強化（B14）: `tests/e2e-harness.cjs` の `.click()` / ボタン問い合わせ対応と `F10-T1-04`, `F13-T1-03`, `F13-T1-04`, `F18-T1-05`, `F22-T1-04` の実質検証強化
+5. **`fix/theme-and-color-system`（v2 テーマシステム＆ダークモード配線 → `main` マージ済み）**
+   - `index.html` / `portal.html` / `app.js`: FOUC 防止初期化スクリプト統一、`color-scheme`・動的 `theme-color` メタ追加、`system` / `light` / `dark` の 3モード循環および `matchMedia` / `storage` イベント同期を実装
+   - `styles.css`: ダークモード面階層・`color-scheme: dark`・`.alert-info` / `.badge` 視認性・コーナー固定セル・スキップリンク・無効ボタンの WCAG AA コントラストを修正
+   - エクスポート分離: サイズ調整モーダルに独立した出力テーマ切替（`#size-modal-theme-toggle`）を設け、アプリ全体テーマとの混線を解消
+6. **`fix/responsive-layout-and-a11y`（v2 レスポンシブ・モーダル・A11y・印刷改修 → `main` マージ済み）**
+   - モバイル＆表幅修正: 390px 幅の `#home` ヘッダー溢れ解消、タブ遷移時の `#menu-toggle` 復元、デスクトップ/タブレット時間割フィット改善
+   - サイズ調整モーダル: `.size-paper-wrap` の `zoom` 二重縮小を廃止し実サイズ基準の単一スケール計算に統一、コントロールバー折り返し溢れを解消
+   - A11y＆印刷: `#main` フォーカス枠抑制、全モーダル共通のフォーカストラップ・`inert`・`Escape` 閉じ・`focus-visible`、フォントフォールバック補強、`@media print` 全タブ印刷対応
+7. **`fix/core-logic-export-and-data`（v2 ロジック・iCal・出力・フォーム・データ連携修正 → `main` マージ済み）**
+   - iCal＆出力修正: 年間行事 `.ics.ics` 二重拡張子解消、`VTIMEZONE (Asia/Tokyo)`・JST曜日整合・授業振替日重複排除・`calendar.json` `2026-10-14` 水曜振替整備、プレビュー/テキスト出力二重括弧修正、モーダル閉鎖時のライブパネル CSS 変数汚染を除去
+   - 試験＆バナー＆データ連携: `app.js` 内のハードコード試験期間（11/20–26）撤去（`F11-T1-05` モック日を実予定の `2027-02-03` に整合）、試験規定重複除去、`専1ME` バッジ・空検索表示・MyLinks `novalidate`/重複URL検証・学食 `notice`/`bowl`/`details` 表示・WebClass SAML連携・`loadDistData` 一括更新・動的ブランド表記を修正
+8. **`feat/portal-ux-and-features`（v2 UX強化・新機能・PWA対応 → `main` マージ済み）**
+   - プロフィール＆授業進行: 全タブ右上＆オンボーディングからの所属クイック切替モーダル（`#profile-switcher-modal`）、`#home` リアルタイム授業中/次の授業カウントダウン＆ `#timetable` 当日列ハイライト
+   - 各タブ操作性向上: 時間割ハイライト検索＋教室コードタップ詳細ポップオーバー、試験カウントダウンバー、年間予定検索・過去非表示・本日ジャンプ・月間カレンダー切替、学食本日強調＆アレルゲン警告フィルタ＋更新日時表示
+   - PWA＆操作性: `manifest.webmanifest`（`vite.config.mjs` による `dist/manifest.webmanifest` ミラーリング対応）、MyLinks インライン編集＆削除Undo付きトースト（`#portal-toast`）、出力トースト、キーボード操作（`Alt+1`〜`6`・`/` 検索フォーカス）を追加
+9. **`test/verify-all-improvements`（v2 回帰テスト＆ドキュメント更新 → `main` マージ済み）**
+   - `tests/improvements-regression.test.cjs`: 上記すべての修正・新機能を検証する12件の回帰テスト（`IMP-01`〜`IMP-12`）を追加
+   - `HANDOVER.md`: 改修ブランチ履歴および最新ビルド・テスト結果を反映
 
 ---
 
@@ -44,11 +62,11 @@
 
 ### 3.2 本番ビルド検証 (`npm run build`)
 - **結果**: **成功 (exit code 0)**
-- `vite build` により `dist/` へバンドル出力され、`dist-data/` → `dist/dist-data/` および `timetable-standalone.html` → `dist/timetable-standalone.html` が自動ミラーリングされました。
+- `vite build` により `dist/` へバンドル出力され、`dist-data/` → `dist/dist-data/`、`timetable-standalone.html` → `dist/timetable-standalone.html`、および `manifest.webmanifest` → `dist/manifest.webmanifest` が自動ミラーリングされました。
 
 ### 3.3 全テストスイート (`npm test`)
 - **実行コマンド**: `npm test` (`node --test tests/*.test.cjs`)
-- **結果**: **tests 316 / pass 316 / fail 0 / skipped 0**（既存単体テスト36件 + E2E 280件 すべてパス）
+- **結果**: **tests 328 / pass 328 / fail 0 / skipped 0**（既存単体テスト36件 + E2E 280件 + 改善回帰テスト12件 すべてパス）
 
 ---
 
