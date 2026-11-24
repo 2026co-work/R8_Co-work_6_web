@@ -18,6 +18,7 @@ const icons = {
   plus:'M12 5v14M5 12h14',
   moon:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z',
   sun:'M12 3v2m0 14v2M3 12h2m14 0h2m-3.5-6.5-1.4 1.4M6.9 17.1l-1.4 1.4m13-1.4-1.4-1.4M6.9 6.9 5.5 5.5M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z',
+  monitor:'M3 5h18v12H3Zm5 16h8m-4-4v4',
   utensils:'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Zm4-6v3m4-3v3m4-3v3',
   link:'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   external:'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3',
@@ -284,10 +285,19 @@ function getTimetablePdfUrl() {
   return normalizeAkashiUrl(matched?.url || timetableMeta?.sourcePdfUrl, 'https://www.akashi.ac.jp/o7en060000000d0c-att/R8_koukijikanwari_20260924-2.pdf');
 }
 
+function getThemeButtonMeta(mode = currentTheme) {
+  const eff = resolveEffectiveTheme(mode);
+  const nextMode = getNextThemeMode(mode);
+  const iconName = mode === 'system' ? 'monitor' : (eff === 'dark' ? 'sun' : 'moon');
+  const label = nextMode === 'system'
+    ? 'OS設定連動（自動）に戻す'
+    : (nextMode === 'dark' ? 'ダークモードに切り替える' : 'ライトモードに切り替える');
+  return { eff, nextMode, iconName, label };
+}
+
 function themeToggleBtn() {
-  const isDark = currentTheme === 'dark';
-  const label = isDark ? 'ライトモードに切り替える' : 'ダークモードに切り替える';
-  return `<button id="theme-toggle" class="theme-toggle" type="button" aria-label="${label}" title="${label}"><span class="theme-icon" data-icon="${isDark ? 'sun' : 'moon'}">${icon(isDark ? 'sun' : 'moon')}</span></button>${isOfflineFallback ? '<span id="network-status-badge" class="badge yellow network-status-badge" title="内蔵フォールバックデータを表示中">オフライン表示</span>' : ''}`;
+  const { iconName, label } = getThemeButtonMeta(currentTheme);
+  return `<button id="theme-toggle" class="theme-toggle" type="button" data-theme-mode="${escapeHTML(currentTheme)}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}"><span class="theme-icon" data-icon="${iconName}">${icon(iconName)}</span></button>${isOfflineFallback ? '<span id="network-status-badge" class="badge yellow network-status-badge" title="内蔵フォールバックデータを表示中">オフライン表示</span>' : ''}`;
 }
 
 function fetchDistJson(url, onSuccess) {
@@ -1368,7 +1378,7 @@ function timetable() {
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
-            <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="テーマ切り替え">${currentTheme === 'dark' ? '☀️ ライト' : '🌙 ダーク'}</button>
+            <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="テーマ切り替え">${resolveEffectiveTheme(currentTheme) === 'dark' ? '☀️ ライト' : '🌙 ダーク'}</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <button type="button" class="button" id="size-modal-save-btn">💾 このサイズで保存</button>
@@ -2047,6 +2057,7 @@ function render() {
   }));
 }
 
+let navMediaQuery = null;
 function setupNavigation() {
   const sidebar=document.getElementById('sidebar');
   const toggle=document.getElementById('menu-toggle');
@@ -2055,6 +2066,7 @@ function setupNavigation() {
   const workspace=document.querySelector('.workspace');
   const skip=document.querySelector('.skip-link');
   const mobile=window.matchMedia('(max-width: 760px)');
+  navMediaQuery = mobile;
   let isOpen=false;
   function setOpen(open, returnFocus=true) {
     isOpen=mobile.matches && open;
@@ -2102,62 +2114,106 @@ const closeNavigation=setupNavigation();
 window.addEventListener('hashchange',()=>{closeNavigation();render();window.scrollTo(0,0);document.getElementById('main').focus({preventScroll:true});document.querySelector?.('.topbar')?.classList?.remove('topbar-hidden');});
 
 const THEME_COOKIE = 'campus-theme';
+function getOsTheme() {
+  try {
+    return (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)')?.matches) ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+function resolveEffectiveTheme(mode = currentTheme) {
+  if (mode === 'dark' || mode === 'light') return mode;
+  return getOsTheme();
+}
+function getNextThemeMode(mode = currentTheme) {
+  const os = getOsTheme();
+  if (mode === 'system') return os === 'dark' ? 'light' : 'dark';
+  if (mode === 'dark') return os === 'dark' ? 'system' : 'light';
+  return os === 'light' ? 'system' : 'dark';
+}
 function getInitialTheme() {
   try {
     const entry = document.cookie.split(';').map(s=>s.trim()).find(s=>s.startsWith(`${THEME_COOKIE}=`));
     if (entry) {
       const val = decodeURIComponent(entry.slice(THEME_COOKIE.length+1));
-      if (val === 'dark' || val === 'light') return val;
+      if (val === 'dark' || val === 'light' || val === 'system') return val;
     }
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem(THEME_COOKIE);
-      if (saved === 'dark' || saved === 'light') return saved;
+      if (saved === 'dark' || saved === 'light' || saved === 'system') return saved;
     }
   } catch {}
-  return (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  return 'system';
 }
 let currentTheme = getInitialTheme();
-function updateThemeUI(theme) {
+function updateThemeUI(mode = currentTheme) {
   if (typeof document === 'undefined') return;
-  if (document.documentElement) {
-    if (theme === 'dark') {
+  const { eff: effective, iconName, label } = getThemeButtonMeta(mode);
+  if (document.documentElement?.setAttribute) {
+    if (effective === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
   }
+  const themeMeta = document.querySelector?.('meta[name="theme-color"]');
+  if (themeMeta?.setAttribute) {
+    themeMeta.setAttribute('content', effective === 'dark' ? '#11141c' : '#79182b');
+  }
   const btn = document.getElementById('theme-toggle');
   if (btn) {
-    const isDark = theme === 'dark';
-    btn.setAttribute('aria-label', isDark ? 'ライトモードに切り替える' : 'ダークモードに切り替える');
-    btn.title = isDark ? 'ライトモードに切り替える' : 'ダークモードに切り替える';
+    btn.setAttribute?.('data-theme-mode', mode);
+    if (btn.dataset) btn.dataset.themeMode = mode;
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
     const iconEl = (typeof btn.querySelector === 'function' ? btn.querySelector('.theme-icon') : null) || btn;
-    iconEl.innerHTML = icon(isDark ? 'sun' : 'moon');
+    if (iconEl.setAttribute) iconEl.setAttribute('data-icon', iconName);
+    if (iconEl.dataset) iconEl.dataset.icon = iconName;
+    iconEl.innerHTML = icon(iconName);
   }
   const sizePaper = document.getElementById('size-modal-paper');
-  if (sizePaper) sizePaper.setAttribute('data-theme', theme);
-  const sizeSheet = document.querySelector('#size-modal-paper .export-sheet');
-  if (sizeSheet) sizeSheet.setAttribute('data-theme', theme);
+  if (sizePaper) sizePaper.setAttribute('data-theme', effective);
+  const sizeSheet = document.querySelector?.('#size-modal-paper .export-sheet');
+  if (sizeSheet) sizeSheet.setAttribute('data-theme', effective);
   const modalThemeBtn = document.getElementById('size-modal-theme-toggle');
-  if (modalThemeBtn) modalThemeBtn.textContent = theme === 'dark' ? '☀️ ライト' : '🌙 ダーク';
+  if (modalThemeBtn) modalThemeBtn.textContent = effective === 'dark' ? '☀️ ライト' : '🌙 ダーク';
 }
 function setTheme(theme) {
-  currentTheme = theme;
-  updateThemeUI(theme);
-  try { localStorage.setItem('campus-theme', theme); } catch {}
+  currentTheme = (theme === 'dark' || theme === 'light' || theme === 'system') ? theme : 'system';
+  updateThemeUI(currentTheme);
+  try { localStorage.setItem('campus-theme', currentTheme); } catch {}
   try {
     const path = location.pathname.slice(0,location.pathname.lastIndexOf('/')+1) || '/';
-    document.cookie = `${THEME_COOKIE}=${encodeURIComponent(theme)}; Path=${path}; Max-Age=31536000; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
+    document.cookie = `${THEME_COOKIE}=${encodeURIComponent(currentTheme)}; Path=${path}; Max-Age=31536000; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
   } catch {}
 }
 function setupTheme() {
   updateThemeUI(currentTheme);
   document.addEventListener('click', e => {
-    const btn = e.target.closest('#theme-toggle');
+    const btn = e.target?.closest?.('#theme-toggle');
     if (btn) {
-      setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+      setTheme(getNextThemeMode(currentTheme));
     }
   });
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    const themeMql = window.matchMedia('(prefers-color-scheme: dark)');
+    if (themeMql && themeMql !== navMediaQuery && typeof themeMql.addEventListener === 'function') {
+      themeMql.addEventListener('change', () => {
+        if (currentTheme === 'system') updateThemeUI('system');
+      });
+    }
+  }
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('storage', e => {
+      if (e && e.key === THEME_COOKIE) {
+        const next = e.newValue;
+        if (next === 'dark' || next === 'light' || next === 'system') {
+          currentTheme = next;
+          updateThemeUI(currentTheme);
+        }
+      }
+    });
+  }
 }
 function setupMobileHeaderScroll() {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
