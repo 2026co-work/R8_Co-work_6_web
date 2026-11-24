@@ -1955,18 +1955,23 @@ function updateSizeModalScale() {
   const naturalH = a4ModeEnabled ? 778 : Math.max(520, paper?.offsetHeight || paper?.scrollHeight || 720);
   const targetW = 1100;
   const fitScale = Math.min(availW / targetW, availH / naturalH, 1);
-  wrap.style.setProperty('--sheet-scale', String(fitScale.toFixed(3)));
-  wrap.style.setProperty('--sheet-height', `${naturalH}px`);
+  setCssVar(wrap, '--sheet-scale', String(fitScale.toFixed(3)));
+  setCssVar(wrap, '--sheet-height', `${naturalH}px`);
+}
+function setCssVar(el, prop, value) {
+  if (!el?.style) return;
+  if (typeof el.style.setProperty === 'function') el.style.setProperty(prop, value);
+  else el.style[prop] = value;
 }
 function applyLiveSheetSize(sheet) {
   if (!sheet) return;
   const pad = exportSizeConfig.padding;
   const cellH = exportSizeConfig.cellHeight;
   const scale = exportSizeConfig.fontScale / 100;
-  sheet.style.setProperty('--export-pad', `${pad}px`);
-  sheet.style.setProperty('--export-cell-h', `${cellH}px`);
-  sheet.style.setProperty('--export-font-scale', String(scale));
-  sheet.style.padding = `${pad}px`;
+  setCssVar(sheet, '--export-pad', `${pad}px`);
+  setCssVar(sheet, '--export-cell-h', `${cellH}px`);
+  setCssVar(sheet, '--export-font-scale', String(scale));
+  if (sheet.style) sheet.style.padding = `${pad}px`;
 }
 function getOpenModalEl() {
   if (typeof document === 'undefined') return null;
@@ -2079,7 +2084,9 @@ function openSizeAdjustModal() {
       <small class="export-pdf-date">PDF参照: ${escapeHTML(updatedText)}</small>
     </div>
   `;
-  clone.prepend(headerRow);
+  if (typeof clone.prepend === 'function') clone.prepend(headerRow);
+  else if (typeof clone.insertBefore === 'function') clone.insertBefore(headerRow, clone.firstChild || null);
+  else clone.append?.(headerRow);
 
   const scroller = clone.querySelector('.table-scroll');
   if (scroller) scroller.style.cssText = 'overflow:visible;width:100%;max-height:none;';

@@ -662,3 +662,30 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .toast-action{appearance:none;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
 .toast-action:hover{background:rgba(255,255,255,.22)}
 @media(max-width:760px){.toast{left:16px;right:16px;bottom:16px;justify-content:space-between}}
+
+/* ダークモードUI内でもライトテーマ出力プレビューの色を完全に独立維持 */
+.export-sheet .today-col-tag{display:none}
+[data-theme="dark"] .size-paper[data-theme="light"]{background:#ffffff}
+[data-theme="dark"] .export-sheet[data-theme="light"]{background:#ffffff;color:#252b39;border-color:#e7e7ea}
+[data-theme="dark"] .export-sheet[data-theme="light"] .export-header-row{border-bottom-color:#e7e7ea}
+[data-theme="dark"] .export-sheet[data-theme="light"] .export-title{color:#79182b}
+[data-theme="dark"] .export-sheet[data-theme="light"] .export-badge-tag{background:rgba(121,24,43,0.08);color:#252b39}
+[data-theme="dark"] .export-sheet[data-theme="light"] .export-team-tag,
+[data-theme="dark"] .export-sheet[data-theme="light"] .export-pdf-date{color:#5e6573}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable thead th,
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable thead th:first-child,
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable thead th.is-today-col{background:#f8f1f3;color:#79182b;border-bottom-color:#e7e7ea;box-shadow:none}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable tbody th,
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable tbody th:first-child{background:#ffffff;color:#79182b;border-bottom-color:#e7e7ea;box-shadow:none}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable tbody th small{color:#5e6573}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable td,
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable td.schedule-empty,
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable td.is-today-col.schedule-empty{background:#ffffff;color:#5e6573;border-color:#e7e7ea}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable td.schedule-cell:not(.schedule-empty),
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable td.is-today-col.schedule-cell:not(.schedule-empty){background:#fcf9fa}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable .lesson-card strong{color:#252b39}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable .lesson-card small{color:#5e6573}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable .lesson-location,
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable .lesson-location-btn{color:#79182b}
+[data-theme="dark"] .export-sheet[data-theme="light"] .real-timetable .lesson-card+.lesson-card{border-top-color:#e7e7ea}
+[data-theme="dark"] .export-sheet[data-theme="light"] .badge.gray{background:#f4f4f6;color:#555b69;border-color:#e0e0e6}
