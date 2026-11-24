@@ -302,6 +302,11 @@ let calendarFilterCategory = 'all';
 let selectedCafeteriaWeekIdx = -1;
 let lastModalTrigger = null;
 let onboardingDismissed = false;
+let calendarSearchQuery = '';
+let calendarHidePast = false;
+let calendarViewMode = 'list';
+let calendarMonthOffset = 0;
+let selectedAllergenFilter = '';
 
 function expandRoomLegend(loc) {
   const raw = String(loc || '').trim();
@@ -791,6 +796,45 @@ function renderTodaySchedule(currentDate) {
   `;
 }
 
+function getExamCountdownInfo() {
+  const { dateStr: todayStr } = getJstParts(new Date());
+  const meta = examData?.meta || {};
+  let startStr = meta.examStartDate || '';
+  let endStr = meta.examEndDate || '';
+  let title = meta.title || '定期試験';
+  if (!startStr || (endStr && endStr < todayStr) || (!endStr && startStr < todayStr)) {
+    const events = Array.isArray(calendarData?.events) ? calendarData.events : [];
+    const nextExam = [...events]
+      .filter(e => e && e.type === 'exam' && (e.endDate || e.date || '') >= todayStr)
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))[0];
+    if (nextExam?.date) {
+      startStr = nextExam.date;
+      endStr = nextExam.endDate || nextExam.date;
+      title = nextExam.title || nextExam.name || title;
+    }
+  }
+  if (!startStr || !/^\d{4}-\d{2}-\d{2}$/.test(startStr)) return null;
+  const startMs = new Date(`${startStr}T00:00:00Z`).getTime();
+  const todayMs = new Date(`${todayStr}T00:00:00Z`).getTime();
+  const daysUntil = Math.round((startMs - todayMs) / 86400000);
+  const pubDate = new Date(startMs - 10 * 86400000);
+  const pubStr = `${pubDate.getUTCFullYear()}-${String(pubDate.getUTCMonth() + 1).padStart(2, '0')}-${String(pubDate.getUTCDate()).padStart(2, '0')}`;
+  const inExam = todayStr >= startStr && (!endStr || todayStr <= endStr);
+  return { startStr, endStr, title, daysUntil, publishDateStr: pubStr, inExam };
+}
+
+function renderExamCountdownBar() {
+  const info = getExamCountdownInfo();
+  if (!info) return '';
+  if (info.inExam) {
+    return `<div class="exam-countdown-bar"><span class="badge red">試験実施中</span><span class="hint" style="margin:0;">${escapeHTML(info.startStr)}${info.endStr && info.endStr !== info.startStr ? `〜${escapeHTML(info.endStr)}` : ''}</span></div>`;
+  }
+  if (info.daysUntil >= 0) {
+    return `<div class="exam-countdown-bar"><span class="badge blue">試験開始まであと ${info.daysUntil}日</span><span class="hint" style="margin:0;">期間: ${escapeHTML(info.startStr)}${info.endStr ? `〜${escapeHTML(info.endStr.slice(5))}` : ''} / 時間割発表目安: ${escapeHTML(info.publishDateStr)} 正午</span></div>`;
+  }
+  return '';
+}
+
 function renderExamAlert() {
   const meta = examData?.meta || {};
   const isPublished = meta.status === 'published';
@@ -806,6 +850,7 @@ function renderExamAlert() {
         <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '試験情報'}</span>
       </div>
       <div class="exam-alert-body">
+        ${renderExamCountdownBar()}
         <p class="exam-notice"><strong>${escapeHTML(noticeText)}</strong></p>
         ${showSeparateRule ? `<p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>` : ''}
       </div>
@@ -1205,12 +1250,14 @@ function exam() {
         <p class="exam-card-meta">公開時に科目・時間・試験教室・監督配置が表示されます。</p>
       </article>`;
 
+  const updatedDate = meta.updatedAt ? String(meta.updatedAt).slice(0, 10) : '';
   return `${heading('定期試験', '定期試験時間割・注意事項', actions)}
     <section class="panel exam-panel">
       <div class="panel-head">
         <h2>${icon('document')}定期試験案内</h2>
         <span class="badge ${isPublished ? 'green' : 'yellow'}">${isPublished ? '公開中' : '未公開'}</span>
       </div>
+      ${renderExamCountdownBar()}
       <p class="exam-notice"><strong>${escapeHTML(notice)}</strong></p>
       ${showSeparateRule ? `<p class="exam-rules"><small>${escapeHTML(selfStudyRule)}</small></p>` : ''}
       <div class="exam-period-chips" aria-label="試験時間帯一覧"><span class="field-hint" style="margin:0 4px 0 0;display:inline;font-weight:600;">試験時間帯:</span>${periodChipsHtml}</div>
@@ -1222,6 +1269,7 @@ function exam() {
         <a class="button secondary" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">${icon('book')}${escapeHTML(studentShortLabel())} シラバス</a>
         <a class="text-link" href="https://www.akashi.ac.jp/life/examtimetable.html" target="_blank" rel="noopener noreferrer">公式試験日程ページへ${icon('arrow')}</a>
       </div>
+      ${updatedDate ? `<p class="hint" style="margin:10px 0 0;">データ取得: ${escapeHTML(updatedDate)}</p>` : ''}
     </section>
     <section class="panel exam-schedule" id="exam-schedule" data-status="${isPublished ? 'published' : 'unpublished'}">
       <div class="panel-head">
@@ -1238,6 +1286,50 @@ function exam() {
     </section>`;
 }
 function examView() { return exam(); }
+
+function renderCalendarMonthGrid(events, subs, todayStr) {
+  const [baseY, baseM] = todayStr.slice(0, 7).split('-').map(Number);
+  const firstOfTarget = new Date(Date.UTC(baseY, (baseM - 1) + calendarMonthOffset, 1));
+  const y = firstOfTarget.getUTCFullYear();
+  const m = firstOfTarget.getUTCMonth() + 1;
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const firstDow = firstOfTarget.getUTCDay();
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<div class="cal-month-cell is-pad"></div>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayEvents = events.filter(ev => {
+      const s = ev.date || ev.startDate || '';
+      const e = ev.endDate || s;
+      return s && ds >= s && ds <= e;
+    });
+    const subDay = subs.find(s => s && s.date === ds);
+    const pills = [
+      ...dayEvents.slice(0, 2).map(ev => {
+        const cls = ev.type === 'exam' ? 'is-exam' : ((ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false) ? 'is-holiday' : 'is-event');
+        return `<span class="cal-month-pill ${cls}" title="${escapeHTML(ev.title || ev.name || '')}">${escapeHTML(ev.title || ev.name || '')}</span>`;
+      }),
+      ...(subDay ? [`<span class="cal-month-pill is-sub">${escapeHTML(String(subDay.substituteDay || '月').replace(/曜日$/, ''))}曜授業</span>`] : [])
+    ].slice(0, 3);
+    const extraCount = dayEvents.length + (subDay ? 1 : 0) - pills.length;
+    cells.push(`<div class="cal-month-cell${ds === todayStr ? ' is-today' : ''}${dayEvents.some(e => e.type === 'holiday' || e.type === 'vacation') ? ' is-rest' : ''}">
+      <span class="cal-month-daynum">${d}</span>
+      <div class="cal-month-pills">${pills.join('')}${extraCount > 0 ? `<span class="cal-month-more">+${extraCount}</span>` : ''}</div>
+    </div>`);
+  }
+  return `<div class="calendar-month-view" id="calendar-month-view">
+    <div class="cal-month-nav">
+      <button type="button" class="button secondary" data-cal-month="-1" aria-label="前の月">← 前月</button>
+      <strong>${y}年 ${m}月</strong>
+      <button type="button" class="button secondary" data-cal-month="0">今月</button>
+      <button type="button" class="button secondary" data-cal-month="1" aria-label="次の月">翌月 →</button>
+    </div>
+    <div class="cal-month-grid">
+      ${['日', '月', '火', '水', '木', '金', '土'].map(w => `<div class="cal-month-head">${w}</div>`).join('')}
+      ${cells.join('')}
+    </div>
+  </div>`;
+}
 
 function calendar() {
   const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
@@ -1276,6 +1368,7 @@ function calendar() {
     if (calendarFilterPeriod === 'kouki') return endSafe >= koukiStart || Number(startStr.slice(5, 7)) <= 3;
     return true;
   };
+  const qLower = calendarSearchQuery.trim().toLowerCase();
 
   const sortedEvents = [...events]
     .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
@@ -1283,6 +1376,7 @@ function calendar() {
       const start = String(ev.date || ev.startDate || '');
       const endSafe = String(ev.endDate || start);
       if (!matchesPeriod(start, endSafe)) return false;
+      if (calendarHidePast && endSafe && endSafe < todayStr) return false;
       if (calendarFilterCategory === 'holiday') {
         return ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false;
       }
@@ -1293,6 +1387,7 @@ function calendar() {
       return true;
     });
 
+  let visibleCount = 0;
   const eventRows = sortedEvents.map(ev => {
     const start = ev.date || ev.startDate || '';
     const endRaw = ev.endDate || start;
@@ -1301,7 +1396,10 @@ function calendar() {
     const b = badgeMap[ev.type] || { cls: 'blue', label: ev.hasClasses === false ? '休業' : '予定' };
     const isToday = start && (todayStr >= start && todayStr <= endRaw);
     const isPast = !isToday && endRaw && endRaw < todayStr;
-    return `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}">
+    const textForSearch = `${start} ${endRaw} ${title} ${ev.note || ''} ${b.label}`.toLowerCase();
+    const hiddenBySearch = Boolean(qLower && !textForSearch.includes(qLower));
+    if (!hiddenBySearch) visibleCount++;
+    return `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}"${hiddenBySearch ? ' style="display:none;"' : ''}>
       <span class="calendar-event-date">${escapeHTML(start + end)}</span>
       ${isToday ? '<span class="badge red">本日</span>' : ''}
       <span class="badge ${b.cls}">${escapeHTML(b.label)}</span>
@@ -1312,12 +1410,12 @@ function calendar() {
 
   const filteredSubs = (calendarFilterCategory === 'holiday' || calendarFilterCategory === 'exam')
     ? []
-    : subs.filter(s => s && matchesPeriod(String(s.date || ''), String(s.date || '')));
+    : subs.filter(s => s && matchesPeriod(String(s.date || ''), String(s.date || '')) && (!calendarHidePast || String(s.date || '') >= todayStr));
   const subRows = filteredSubs.length
     ? `<div class="calendar-substitutions">
         <h3>授業振替実施日</h3>
         <ul class="calendar-timeline">
-          ${filteredSubs.map(s => `<li class="calendar-event-item" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`)}</strong>${s.note ? `<small class="calendar-event-note">${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
+          ${filteredSubs.map(s => `<li class="calendar-event-item${s.date < todayStr ? ' is-past' : ''}${s.date === todayStr ? ' is-today' : ''}" data-date="${escapeHTML(s.date)}"><span class="calendar-event-date">${escapeHTML(s.date)}</span><span class="badge blue">授業振替</span><strong>${escapeHTML(`${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`)}</strong>${s.note ? `<small class="calendar-event-note">${escapeHTML(s.note)}</small>` : ''}</li>`).join('')}
         </ul>
       </div>`
     : '';
@@ -1327,6 +1425,11 @@ function calendar() {
   const zenkiPdfUrl = normalizeAkashiUrl(data.meta?.zenkiPdfUrl, '');
   const koukiPdfUrl = normalizeAkashiUrl(data.meta?.koukiPdfUrl, '');
   const calSourceUrl = normalizeAkashiUrl(data.meta?.sourceUrl, 'https://www.akashi.ac.jp/life/calendar.html');
+  const updatedDate = data.meta?.updatedAt ? String(data.meta.updatedAt).slice(0, 10) : '';
+
+  const mainBodyHtml = calendarViewMode === 'month'
+    ? renderCalendarMonthGrid(sortedEvents, subs, todayStr)
+    : `${subRows}<div class="calendar-events" id="calendar-events"><ul class="calendar-timeline" id="calendar-timeline-list">${eventRows || '<li class="calendar-event-item"><span class="calendar-event-title">該当する行事はありません。</span></li>'}</ul></div>`;
 
   return `${heading('年間予定', '行事予定・授業日程・週番号', actions)}
     <section class="panel calendar-panel">
@@ -1340,28 +1443,34 @@ function calendar() {
         ${zenkiPdfUrl ? `<a class="button secondary" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期行事予定PDF</a>` : ''}
         ${koukiPdfUrl ? `<a class="button secondary" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期行事予定PDF</a>` : ''}
         <a class="text-link" href="${escapeHTML(calSourceUrl)}" target="_blank" rel="noopener noreferrer">公式行事予定ページへ${icon('arrow')}</a>
-        <span class="badge">${sortedEvents.length}件の行事</span>
+        <span class="badge" id="calendar-count-badge" data-total="${sortedEvents.length}">${visibleCount}件の行事</span>
         ${subDates.size ? `<span class="badge blue">授業振替 ${subDates.size}日</span>` : ''}
       </div>
       <div class="calendar-filters" role="group" aria-label="年間予定絞り込み">
         <div class="filter-group">${periodChip('all', '通年')}${periodChip('current', '今月')}${periodChip('zenki', '前期')}${periodChip('kouki', '後期')}</div>
         <div class="filter-group">${catChip('all', 'すべて')}${catChip('holiday', '祝日・休業')}${catChip('exam', '定期試験')}${catChip('event', '学校行事')}</div>
+        <div class="filter-group">
+          <button type="button" class="chip${calendarViewMode === 'list' ? ' active' : ''}" data-cal-view="list" aria-pressed="${calendarViewMode === 'list' ? 'true' : 'false'}">リスト表示</button>
+          <button type="button" class="chip${calendarViewMode === 'month' ? ' active' : ''}" data-cal-view="month" aria-pressed="${calendarViewMode === 'month' ? 'true' : 'false'}">月間カレンダー</button>
+          <button type="button" class="chip${calendarHidePast ? ' active' : ''}" id="calendar-hide-past-btn" aria-pressed="${calendarHidePast ? 'true' : 'false'}">今後の予定のみ</button>
+          <button type="button" class="chip" id="calendar-jump-today">今日へジャンプ</button>
+        </div>
       </div>
-      ${subRows}
-      <div class="calendar-events" id="calendar-events">
-        <ul class="calendar-timeline">
-          ${eventRows || '<li class="calendar-event-item"><span class="calendar-event-title">該当する行事はありません。</span></li>'}
-        </ul>
+      <div class="exam-search-bar"${calendarViewMode === 'month' ? ' hidden' : ''}>
+        <input type="search" id="calendar-search-input" value="${escapeHTML(calendarSearchQuery)}" placeholder="行事名・日付・備考で検索..." aria-label="年間予定検索">
       </div>
+      ${mainBodyHtml}
+      ${updatedDate ? `<p class="hint" style="margin:12px 0 0;">データ取得: ${escapeHTML(updatedDate)}</p>` : ''}
     </section>`;
 }
 function calendarView() { return calendar(); }
 
-function renderCafeteriaDayCard(day) {
+function renderCafeteriaDayCard(day, todayStr = '', allergenAlert = '') {
   const dateTitle = [day.date, day.dayOfWeek ? `(${day.dayOfWeek})` : ''].filter(Boolean).join(' ');
+  const isToday = Boolean(todayStr && day.date === todayStr);
   if (day.isOpen === false) {
-    return `<li class="cafeteria-menu-item is-closed">
-      <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '休業日')}</strong><span class="badge gray">休業</span></div>
+    return `<li class="cafeteria-menu-item is-closed${isToday ? ' is-today' : ''}">
+      <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '休業日')}</strong>${isToday ? '<span class="badge red">本日</span>' : ''}<span class="badge gray">休業</span></div>
       <p>${escapeHTML(day.closedReason || day.notice || '学生食堂休業日')}</p>
     </li>`;
   }
@@ -1378,9 +1487,17 @@ function renderCafeteriaDayCard(day) {
     fmtDish('麺類', day.noodle, false),
     fmtDish('丼', day.bowl, false)
   ].filter(Boolean);
+  const rawAllergens = [
+    Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || ''),
+    day.lunchA?.allergens,
+    day.lunchB?.allergens,
+    day.noodle?.allergens,
+    day.bowl?.allergens
+  ].filter(Boolean).join(' ');
   const allergens = Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || day.lunchA?.allergens || '');
-  return `<li class="cafeteria-menu-item">
-    <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong>${day.isOpen ? '<span class="badge green">営業</span>' : ''}</div>
+  const hasAllergenAlert = Boolean(allergenAlert && rawAllergens.includes(allergenAlert));
+  return `<li class="cafeteria-menu-item${isToday ? ' is-today' : ''}${hasAllergenAlert ? ' has-allergen-alert' : ''}">
+    <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong><span class="panel-head-meta">${isToday ? '<span class="badge red">本日</span>' : ''}${hasAllergenAlert ? `<span class="badge red">⚠ ${escapeHTML(allergenAlert)}を含む</span>` : ''}${day.isOpen ? '<span class="badge green">営業</span>' : ''}</span></div>
     <div class="cafeteria-day-dishes">${dishRows.join('') || `<span>${escapeHTML(day.name || day.menu || '')}</span>`}</div>
     ${allergens ? `<p class="allergens">アレルゲン: ${escapeHTML(allergens)}</p>` : ''}
   </li>`;
@@ -1388,6 +1505,7 @@ function renderCafeteriaDayCard(day) {
 
 function cafeteria() {
   const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
+  const todayStr = dateKey(new Date());
   const data = cafeteriaData || FALLBACK_CAFETERIA;
   const meta = data.meta || FALLBACK_CAFETERIA.meta || {};
   const hasSourceKey = Object.prototype.hasOwnProperty.call(meta, 'sourcePdfUrl');
@@ -1401,6 +1519,14 @@ function cafeteria() {
   const weeklyMenus = Array.isArray(data.weeklyMenus) ? data.weeklyMenus : [];
   const legacyMenus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
   const hasMenuData = weeklyMenus.some(w => Array.isArray(w?.days) && w.days.length > 0) || legacyMenus.length > 0;
+  const allergenChoices = ['小麦', '卵', '乳', '牛肉', '豚肉', '鶏肉', '大豆', 'ごま'];
+  const allergenChipsHtml = hasMenuData && isTextExtracted
+    ? `<div class="cafeteria-allergen-filter" role="group" aria-label="アレルゲン注意ハイライト">
+        <span class="field-hint" style="margin:0;display:inline;font-weight:600;">アレルゲン確認:</span>
+        ${allergenChoices.map(al => `<button type="button" class="chip${selectedAllergenFilter === al ? ' active' : ''}" data-allergen-chip="${al}" aria-pressed="${selectedAllergenFilter === al ? 'true' : 'false'}">${al}</button>`).join('')}
+        ${selectedAllergenFilter ? '<button type="button" class="chip" data-allergen-chip="">解除</button>' : ''}
+      </div>`
+    : '';
 
   let weekTabsHtml = '';
   let menuContent = `<p class="info-note" data-extracted="false">今月の日替わりランチ詳細はPDFからのテキスト抽出が未対応のため（テキスト未抽出）、原本PDFまたは公式ニュースでご確認ください。</p>`;
@@ -1410,7 +1536,10 @@ function cafeteria() {
       if (weeklyMenus.length > 1) {
         weekTabsHtml = `<div class="cafeteria-week-tabs" role="group" aria-label="週切り替え">
           <button type="button" class="cafeteria-week-tab${validWeekIdx === -1 ? ' active' : ''}" data-cafe-week="-1" aria-pressed="${validWeekIdx === -1 ? 'true' : 'false'}">全週</button>
-          ${weeklyMenus.map((w, idx) => `<button type="button" class="cafeteria-week-tab${validWeekIdx === idx ? ' active' : ''}" data-cafe-week="${idx}" aria-pressed="${validWeekIdx === idx ? 'true' : 'false'}">${escapeHTML(w.weekLabel || `第${idx + 1}週`)} ${w.weekRange ? `(${escapeHTML(w.weekRange)})` : ''}</button>`).join('')}
+          ${weeklyMenus.map((w, idx) => {
+            const includesToday = Array.isArray(w?.days) && w.days.some(d => d?.date === todayStr);
+            return `<button type="button" class="cafeteria-week-tab${validWeekIdx === idx ? ' active' : ''}" data-cafe-week="${idx}" aria-pressed="${validWeekIdx === idx ? 'true' : 'false'}">${escapeHTML(w.weekLabel || `第${idx + 1}週`)} ${w.weekRange ? `(${escapeHTML(w.weekRange)})` : ''}${includesToday ? '・今週' : ''}</button>`;
+          }).join('')}
         </div>`;
       }
       const visibleWeeks = validWeekIdx === -1 ? weeklyMenus : [weeklyMenus[validWeekIdx]];
@@ -1418,13 +1547,14 @@ function cafeteria() {
         const days = Array.isArray(week?.days) ? week.days : [];
         return `<div class="cafeteria-week-block" data-week-idx="${validWeekIdx === -1 ? idx : validWeekIdx}">
           ${week.weekRange ? `<h3 class="cafeteria-week-heading">${escapeHTML(week.weekRange)}</h3>` : ''}
-          <ul class="cafeteria-menu-list">${days.map(renderCafeteriaDayCard).join('')}</ul>
+          <ul class="cafeteria-menu-list">${days.map(d => renderCafeteriaDayCard(d, todayStr, selectedAllergenFilter)).join('')}</ul>
         </div>`;
       }).join('');
     } else {
       menuContent = `<ul class="cafeteria-menu-list">${legacyMenus.map(m => `<li class="cafeteria-menu-item"><strong>${escapeHTML(m.date || m.day || '本日')}</strong>: ${escapeHTML(m.name || m.menu || m.lunch || '')}${m.price ? ` <span class="badge">${escapeHTML(String(m.price))}円</span>` : ''}</li>`).join('')}</ul>`;
     }
   }
+  const updatedDate = meta.updatedAt ? String(meta.updatedAt).slice(0, 10) : '';
 
   return `${heading('食堂メニュー', '今週・本日の学生食堂ランチメニュー', actions)}
     <section class="panel cafeteria-panel cafeteria-view" id="cafeteria-view" data-text-extracted="${isTextExtracted ? 'true' : 'false'}">
@@ -1434,12 +1564,14 @@ function cafeteria() {
       </div>
       <p>学生食堂の日替わり定食・ランチメニューおよび寮生食堂の月間献立案内です。</p>
       ${weekTabsHtml}
+      ${allergenChipsHtml}
       ${menuContent}
       <div class="cafeteria-links" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">学生食堂 原本PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">学生食堂 原本PDF（未公開）</button>`}
         ${articleUrl ? `<a class="button secondary" href="${escapeHTML(articleUrl)}" target="_blank" rel="noopener noreferrer">食堂メニュー案内記事</a>` : ''}
         <a class="button secondary" href="https://www.akashi.ac.jp/news_list/news2026.html" target="_blank" rel="noopener noreferrer">公式ニュース一覧へ</a>
       </div>
+      ${updatedDate ? `<p class="hint" style="margin:10px 0 0;">データ取得: ${escapeHTML(updatedDate)}</p>` : ''}
       <div class="dormitory-section" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
         <h3>寮生食堂メニュー（Dormitory）</h3>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
@@ -2355,6 +2487,26 @@ function render() {
         render();
       });
     });
+    document.querySelectorAll('[data-cal-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        calendarViewMode = btn.dataset?.calView === 'month' ? 'month' : 'list';
+        render();
+      });
+    });
+    document.querySelectorAll('[data-cal-month]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const delta = Number(btn.dataset?.calMonth);
+        calendarMonthOffset = delta === 0 ? 0 : (calendarMonthOffset + delta);
+        render();
+      });
+    });
+    document.querySelectorAll('[data-allergen-chip]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset?.allergenChip || '';
+        selectedAllergenFilter = (val && selectedAllergenFilter === val) ? '' : val;
+        render();
+      });
+    });
     document.querySelectorAll('[data-cafe-week]').forEach(btn => {
       btn.addEventListener('click', () => {
         const w = Number(btn.dataset?.cafeWeek);
@@ -2362,6 +2514,38 @@ function render() {
         render();
       });
     });
+  }
+  document.getElementById('calendar-hide-past-btn')?.addEventListener('click', () => {
+    calendarHidePast = !calendarHidePast;
+    render();
+  });
+  document.getElementById('calendar-jump-today')?.addEventListener('click', () => {
+    if (calendarViewMode === 'month') {
+      calendarMonthOffset = 0;
+      render();
+      return;
+    }
+    const list = document.getElementById('calendar-timeline-list');
+    if (!list?.querySelector) return;
+    const todayStr = dateKey(new Date());
+    const todayItem = list.querySelector('.calendar-event-item.is-today')
+      || Array.from(list.querySelectorAll('.calendar-event-item[data-date]')).find(li => (li.dataset?.date || '') >= todayStr && li.style?.display !== 'none');
+    todayItem?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  });
+  document.getElementById('calendar-search-input')?.addEventListener('input', e => {
+    calendarSearchQuery = String(e.target?.value || '');
+    const q = calendarSearchQuery.trim().toLowerCase();
+    const badgeEl = document.getElementById('calendar-count-badge');
+    const items = Array.from(document.querySelectorAll('#calendar-timeline-list .calendar-event-item'));
+    let shown = 0;
+    items.forEach(item => {
+      const hit = !q || String(item.textContent || '').toLowerCase().includes(q);
+      if (item.style) item.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    if (badgeEl) badgeEl.textContent = `${shown}件の行事`;
+  });
+  if (typeof document.querySelectorAll === 'function') {
     document.querySelectorAll('.preset-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const name = btn.dataset?.presetName || btn.textContent?.trim();
