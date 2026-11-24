@@ -46,9 +46,10 @@
 .export-sheet .export-team-tag{font-size:calc(12px * var(--export-font-scale,1.05));color:var(--muted);font-weight:600}
 .export-sheet .export-header-sub{text-align:right;flex-shrink:0}
 .export-sheet .export-pdf-date{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
-[data-theme="dark"] .export-sheet .export-badge-tag{background:rgba(244,168,184,0.15);color:#f4a8b8}
-[data-theme="dark"] .export-sheet .export-header-row{border-bottom-color:#2a3040}
+.export-sheet[data-theme="dark"] .export-badge-tag{background:rgba(244,168,184,0.15);color:#f4a8b8}
+.export-sheet[data-theme="dark"] .export-header-row{border-bottom-color:#2a3040}
 .export-sheet .real-timetable{min-width:0}
+.export-sheet .real-timetable th:first-child{position:static;box-shadow:none}
 .export-sheet .real-timetable th{font-size:calc(12.5px * var(--export-font-scale,1.05))}
 .export-sheet .real-timetable .lesson-card{display:flex;flex-direction:column;gap:2px;justify-content:flex-start;height:auto;margin-bottom:8px}
 .export-sheet .real-timetable .lesson-card strong{font-size:calc(13px * var(--export-font-scale,1.05))}
@@ -58,10 +59,30 @@
 .export-sheet .real-timetable td[rowspan="3"]{height:calc(var(--export-cell-h,172px) * 3)}
 .export-sheet .panel-head{flex-wrap:wrap}
 
-/* エクスポートシートは表示版のカラーテーマ（ライト/ダーク）と完全一致させる */
-.export-sheet[data-theme="light"]{background:#ffffff;color:#252b39}
-.export-sheet[data-theme="dark"]{background:#171b26;color:#e8eaf0}
+/* エクスポートシートは表示/選択されたカラーテーマ（ライト/ダーク）で完全に独立描画する */
+.export-sheet[data-theme="light"]{--wine:#79182b;--wine-dark:#641224;--ink:#252b39;--muted:#5e6573;--line:#e7e7ea;--bg:#ffffff;color-scheme:light;background:#ffffff;color:#252b39}
+.export-sheet[data-theme="light"] .export-header-row{border-bottom-color:#e7e7ea}
+.export-sheet[data-theme="light"] .export-title{color:#79182b}
+.export-sheet[data-theme="light"] .export-badge-tag{background:rgba(121,24,43,0.08);color:#252b39}
+.export-sheet[data-theme="light"] .export-team-tag,.export-sheet[data-theme="light"] .export-pdf-date{color:#5e6573}
+.export-sheet[data-theme="light"] .real-timetable thead th{background:#f8f1f3;color:#79182b;border-bottom-color:#e7e7ea}
+.export-sheet[data-theme="light"] .real-timetable tbody th{background:#ffffff;color:#79182b;border-bottom-color:#e7e7ea}
+.export-sheet[data-theme="light"] .real-timetable tbody th small{color:#5e6573}
+.export-sheet[data-theme="light"] .real-timetable td{background:#ffffff;border-left-color:#e7e7ea;border-bottom-color:#e7e7ea}
+.export-sheet[data-theme="light"] .real-timetable td.schedule-cell:not(.schedule-empty){background:#fcf9fa}
+.export-sheet[data-theme="light"] .real-timetable .lesson-card strong{color:#252b39}
+.export-sheet[data-theme="light"] .real-timetable .lesson-card small{color:#5e6573}
+.export-sheet[data-theme="light"] .real-timetable .lesson-location{color:#79182b}
+.export-sheet[data-theme="light"] .real-timetable .lesson-card+.lesson-card{border-top-color:#e7e7ea}
+.export-sheet[data-theme="light"] .real-timetable .schedule-empty{background:#ffffff;color:#5e6573}
+.export-sheet[data-theme="light"] .badge{background:#f2f8f3;color:#327458;border-color:#cce3d5}
+.export-sheet[data-theme="light"] .badge.gray{background:#f4f4f6;color:#555b69;border-color:#e0e0e6}
+.export-sheet[data-theme="light"] .badge.red{background:#fff1f0;color:#a12f2e;border-color:#f1cecd}
+.export-sheet[data-theme="dark"]{--wine:#b83851;--wine-dark:#96293f;--ink:#e8eaf0;--muted:#a8b2c4;--line:#2b3142;--bg:#171b26;color-scheme:dark;background:#171b26;color:#e8eaf0}
 .export-sheet[data-theme="dark"] .export-title{color:#f4a8b8}
+.export-sheet[data-theme="dark"] .export-team-tag,.export-sheet[data-theme="dark"] .export-pdf-date{color:#a8b2c4}
+.export-sheet[data-theme="dark"] .real-timetable thead th:first-child{background:#251820}
+.export-sheet[data-theme="dark"] .real-timetable tbody th:first-child{background:#171b26}
 @media(max-width:480px){.export-controls .field,.export-controls .button{width:100%}}
 
 .selection-status{font-size:11px;color:var(--red);margin:0 0 12px}

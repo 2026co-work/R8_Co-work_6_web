@@ -54,6 +54,10 @@ let exportSizeMode = 'web';
 let exportSizeConfig = { ...EXPORT_MODES.web };
 let a4ModeEnabled = false;
 let exportIncludeEmpty = false;
+let exportThemeOverride = null;
+function getExportTheme() {
+  return exportThemeOverride || resolveEffectiveTheme(currentTheme);
+}
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { copyLabel: null, downloadLabel: '💾 PDFダウンロード', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '📋 画像をコピー', downloadLabel: '💾 PNG保存', adjustLabel: 'レイアウト調整' },
@@ -1378,7 +1382,7 @@ function timetable() {
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
-            <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="テーマ切り替え">${resolveEffectiveTheme(currentTheme) === 'dark' ? '☀️ ライト' : '🌙 ダーク'}</button>
+            <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="出力用テーマ切り替え（サイト本体には影響しません）">${getExportTheme() === 'dark' ? '☀️ 白背景で出力' : '🌙 暗背景で出力'}</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <button type="button" class="button" id="size-modal-save-btn">💾 このサイズで保存</button>
@@ -1504,9 +1508,11 @@ function openSizeAdjustModal() {
   const clone = panel.cloneNode(true);
   clone.querySelectorAll('[data-export-exclude]').forEach(n => n.remove());
   clone.removeAttribute('id');
+  const expTheme = getExportTheme();
   clone.classList.add('export-sheet');
-  clone.setAttribute('data-theme', currentTheme);
-  paper.setAttribute('data-theme', currentTheme);
+  clone.setAttribute('data-theme', expTheme);
+  paper.setAttribute('data-theme', expTheme);
+  syncExportThemeUI();
   paper.classList.toggle('a4-mode', a4ModeEnabled);
   clone.querySelector('.panel-head')?.remove();
   clone.querySelector('.timetable-source')?.remove();
@@ -1719,7 +1725,7 @@ async function downloadCurrentTimetable(action = 'download') {
       holidays: holidayDates,
       sizeConfig: { ...exportSizeConfig },
       a4Mode: a4ModeEnabled,
-      theme: currentTheme,
+      theme: getExportTheme(),
       textOptions: { ...textExportOptions },
       includeEmpty: exportIncludeEmpty,
       action: action
@@ -1813,7 +1819,8 @@ function render() {
   downloadBtn?.addEventListener('click', () => downloadCurrentTimetable('download'));
   adjustBtn?.addEventListener('click', openExportAdjustModal);
   document.getElementById('size-modal-theme-toggle')?.addEventListener('click', () => {
-    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    exportThemeOverride = getExportTheme() === 'dark' ? 'light' : 'dark';
+    syncExportThemeUI();
   });
   document.getElementById('export-size-close')?.addEventListener('click', closeSizeAdjustModal);
   document.getElementById('size-modal-save-btn')?.addEventListener('click', () => {
@@ -2146,6 +2153,16 @@ function getInitialTheme() {
   return 'system';
 }
 let currentTheme = getInitialTheme();
+function syncExportThemeUI() {
+  if (typeof document === 'undefined') return;
+  const expTheme = getExportTheme();
+  const sizePaper = document.getElementById('size-modal-paper');
+  if (sizePaper) sizePaper.setAttribute('data-theme', expTheme);
+  const sizeSheet = document.querySelector?.('#size-modal-paper .export-sheet');
+  if (sizeSheet) sizeSheet.setAttribute('data-theme', expTheme);
+  const modalThemeBtn = document.getElementById('size-modal-theme-toggle');
+  if (modalThemeBtn) modalThemeBtn.textContent = expTheme === 'dark' ? '☀️ 白背景で出力' : '🌙 暗背景で出力';
+}
 function updateThemeUI(mode = currentTheme) {
   if (typeof document === 'undefined') return;
   const { eff: effective, iconName, label } = getThemeButtonMeta(mode);
@@ -2171,12 +2188,7 @@ function updateThemeUI(mode = currentTheme) {
     if (iconEl.dataset) iconEl.dataset.icon = iconName;
     iconEl.innerHTML = icon(iconName);
   }
-  const sizePaper = document.getElementById('size-modal-paper');
-  if (sizePaper) sizePaper.setAttribute('data-theme', effective);
-  const sizeSheet = document.querySelector?.('#size-modal-paper .export-sheet');
-  if (sizeSheet) sizeSheet.setAttribute('data-theme', effective);
-  const modalThemeBtn = document.getElementById('size-modal-theme-toggle');
-  if (modalThemeBtn) modalThemeBtn.textContent = effective === 'dark' ? '☀️ ライト' : '🌙 ダーク';
+  syncExportThemeUI();
 }
 function setTheme(theme) {
   currentTheme = (theme === 'dark' || theme === 'light' || theme === 'system') ? theme : 'system';
