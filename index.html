@@ -3,18 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#79182b">
   <meta name="description" content="あなたの学年・学科に合わせた時間割を確認できるキャンパスポータル。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2379182b'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%23fff' font-family='sans-serif' font-weight='700'%3EA%3C/text%3E%3C/svg%3E">
   <title>Campus — キャンパスポータル</title>
   <link rel="stylesheet" href="./styles.css">
   <script>
     (function() {
       try {
         var m = document.cookie.match(/(?:^|; )campus-theme=([^;]*)/);
-        var saved = '';
-        try { saved = localStorage.getItem('campus-theme') || ''; } catch (e) {}
-        var t = m ? decodeURIComponent(m[1]) : (saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        var cv = m ? decodeURIComponent(m[1]) : '';
+        var ls = '';
+        try { ls = localStorage.getItem('campus-theme') || ''; } catch (e) {}
+        var mode = (cv === 'dark' || cv === 'light' || cv === 'system') ? cv
+          : ((ls === 'dark' || ls === 'light' || ls === 'system') ? ls : 'system');
+        var eff = mode === 'system'
+          ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : mode;
+        if (eff === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', '#11141c');
+        }
       } catch (e) {}
     })();
   </script>
