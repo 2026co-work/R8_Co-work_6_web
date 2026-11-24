@@ -1447,13 +1447,16 @@ function getPresetConfig(mode, isA4) {
 function updateSizeModalScale() {
   const viewport = document.getElementById('size-overlay-viewport');
   const wrap = document.getElementById('size-paper-wrap');
+  const paper = document.getElementById('size-modal-paper');
   if (!viewport || !wrap) return;
-  const availW = Math.max(280, (viewport.clientWidth || 360) - 48);
-  const availH = Math.max(280, (viewport.clientHeight || 500) - 48);
-  const targetW = 1100 + 32;
-  const targetH = (a4ModeEnabled ? 778 : Math.max(600, (document.getElementById('size-modal-paper')?.scrollHeight || 778))) + 32;
-  const fitScale = Math.min(availW / targetW, availH / targetH, 1);
+  const pad = (typeof window !== 'undefined' && window.innerWidth <= 680) ? 20 : 40;
+  const availW = Math.max(260, (viewport.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 360)) - pad);
+  const availH = Math.max(220, (viewport.clientHeight || 480) - pad);
+  const naturalH = a4ModeEnabled ? 778 : Math.max(520, paper?.offsetHeight || paper?.scrollHeight || 720);
+  const targetW = 1100;
+  const fitScale = Math.min(availW / targetW, availH / naturalH, 1);
   wrap.style.setProperty('--sheet-scale', String(fitScale.toFixed(3)));
+  wrap.style.setProperty('--sheet-height', `${naturalH}px`);
 }
 function applyLiveSheetSize(sheet) {
   if (!sheet) return;
