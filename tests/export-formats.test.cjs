@@ -82,7 +82,7 @@ test('generateText generates clean human-readable schedule lines', () => {
   assert.ok(text.includes('1〜2限 (09:00-12:10) 機械工学実習ⅠB/工作実習ⅠB [工場・情2・情3] (加藤・大森)'));
   assert.ok(text.includes('【火曜日】\n  （授業なし）'));
   assert.ok(text.includes('【金曜日】'));
-  assert.ok(text.includes('3限 (13:00-14:30) 音楽-2 [福研] ((泉))'));
+  assert.ok(text.includes('3限 (13:00-14:30) 音楽-2 [福研] (泉)'));
 });
 
 test('generateCsv, generateText, and generateJson handle includeEmpty option properly', () => {
