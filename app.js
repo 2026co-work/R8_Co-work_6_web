@@ -229,53 +229,12 @@ const FALLBACK_CAFETERIA = {
     articleUrl: 'https://www.akashi.ac.jp/news/2026/20261026gak001.html',
     sourcePdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/2026.11.pdf',
     dormitoryArticleUrl: 'https://www.akashi.ac.jp/news/2026/20261020ryo001.html',
-    dormitoryPdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/menyu.pdf',
-    isTextExtracted: true,
+    dormitoryPdfUrl: 'https://www.akashi.ac.jp/news/biub2r0000001vxh-att/menyu.pdf',
+    isTextExtracted: false,
     month: 11,
     fiscalYear: 2026
   },
-  weeklyMenus: [
-    {
-      weekRange: '11/04 - 11/08',
-      days: [
-        {
-          date: '2026-11-04',
-          dayOfWeek: '水',
-          isOpen: true,
-          lunchA: { name: '豚肉の生姜焼き', price: 450, allergens: '小麦 大豆' },
-          lunchB: { name: '白身魚のフライ', price: 450, allergens: '小麦 卵' },
-          noodle: { name: 'きつねうどん', price: 320 },
-          bowl: { name: '親子丼', price: 420 },
-          allergens: '小麦 卵 大豆'
-        }
-      ]
-    },
-    {
-      weekRange: '11/09 - 11/13',
-      days: [
-        {
-          date: '2026-11-11',
-          dayOfWeek: '水',
-          isOpen: true,
-          lunchA: { name: '豚肉の生姜焼き', price: 430, allergens: '小麦 卵 乳 豚肉 大豆' },
-          lunchB: { name: '牛肉コロッケ＆ミンチカツ', price: 430 },
-          noodle: { name: '担々麺 / きつねうどん・そば', price: 400 },
-          bowl: { name: 'カツ丼', price: 450 },
-          allergens: '小麦 卵 乳 豚肉 大豆'
-        },
-        {
-          date: '2026-11-13',
-          dayOfWeek: '金',
-          isOpen: true,
-          lunchA: { name: 'チキン南蛮定食', price: 480, allergens: '小麦 卵 乳 鶏肉 大豆' },
-          lunchB: { name: '特製ビーフカレー', price: 450 },
-          noodle: { name: '醤油ラーメン / きつねうどん・そば', price: 380 },
-          bowl: { name: '温玉豚カルビ丼', price: 450 },
-          allergens: '小麦 卵 乳 鶏肉 大豆'
-        }
-      ]
-    }
-  ]
+  weeklyMenus: []
 };
 
 let calendarData = { ...FALLBACK_CALENDAR };

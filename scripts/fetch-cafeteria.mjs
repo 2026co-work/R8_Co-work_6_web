@@ -263,7 +263,7 @@ export async function runFetchCafeteria() {
     }
 
     let isTextExtracted = false;
-    let weeklyMenus = baseline.weeklyMenus;
+    let weeklyMenus = [];
     let dormitoryMenus = [];
 
     if (sourcePdfUrl) {
@@ -272,17 +272,18 @@ export async function runFetchCafeteria() {
         if (pdfRes.ok) {
           const buffer = Buffer.from(await pdfRes.arrayBuffer());
           const parsed = await parseCafeteriaPdf(buffer);
-          isTextExtracted = parsed.isTextExtracted;
-          if (isTextExtracted) {
+          if (parsed.isTextExtracted) {
             console.log(` -> PDFテキスト抽出成功 (${parsed.textsCount} items)`);
             const extractedMenus = parseWeeklyMenuTable(parsed.pages, baseline.meta.fiscalYear || 2026);
             if (extractedMenus.length > 0) {
               weeklyMenus = extractedMenus;
+              isTextExtracted = true;
               console.log(` -> 表解析成功: ${extractedMenus.length}週分のメニューを抽出`);
+            } else {
+              console.log(' -> 表解析0件のためPDFリンク案内のみにします');
             }
           } else {
             console.log(` -> PDFは画像スキャンのためテキスト抽出不可 (テキスト数: ${parsed.textsCount})`);
-            weeklyMenus = [];
           }
         }
       } catch (e) {
@@ -326,22 +327,10 @@ export async function runFetchCafeteria() {
     console.warn(`[WARN] 食堂情報取得失敗: ${err.message}`);
     if (previousData && previousData.meta && Array.isArray(previousData.weeklyMenus)) {
       console.log(' -> 既存の有効な cafeteria.json を保持・再利用します');
-      result = {
-        ...previousData,
-        meta: {
-          ...previousData.meta,
-          updatedAt: new Date().toISOString()
-        }
-      };
+      result = previousData;
     } else {
       console.log(' -> ベースラインフォールバックを使用します');
-      result = {
-        ...baseline,
-        meta: {
-          ...baseline.meta,
-          updatedAt: new Date().toISOString()
-        }
-      };
+      result = baseline;
     }
   }
 
