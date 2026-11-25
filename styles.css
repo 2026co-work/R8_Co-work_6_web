@@ -88,11 +88,11 @@
 .selection-status{font-size:11px;color:var(--red);margin:0 0 12px}
 
 /* 条件選択 details / summary スタイル */
-details.timetable-controls{border:1px solid var(--line);border-radius:var(--radius);padding:20px 23px;background:white;margin-bottom:22px;transition:box-shadow .2s}
+details.timetable-controls{border:1px solid var(--line);border-radius:var(--radius);padding:12px 18px;background:var(--surface,#fff);margin-bottom:16px;transition:box-shadow .2s}
 details.timetable-controls[open]{box-shadow:0 3px 12px rgba(0,0,0,0.04)}
 .filter-summary{list-style:none;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0}
 .filter-summary::-webkit-details-marker{display:none}
-details.timetable-controls[open] .filter-summary{margin-bottom:19px;border-bottom:1px solid var(--line);padding-bottom:15px}
+details.timetable-controls[open] .filter-summary{margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:12px}
 .filter-summary-info{display:flex;align-items:center;gap:10px}
 .filter-summary-info .current-badge{font-size:12px;padding:4px 10px;font-weight:600;background:#fbf1f3;color:var(--wine);border-color:#ecc9d1}
 .filter-toggle-label{font-size:12px;color:var(--wine);font-weight:600;white-space:nowrap}
@@ -501,34 +501,38 @@ body.size-modal-open{overflow:hidden}
 [data-theme="dark"] .dashboard-date-nav .button.subtle.active{background:#e8eaf0;color:#11141c;border-color:#e8eaf0}
 
 /* 定期試験ビュー */
-.exam-period-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.exam-period-chip{font-size:11px}
+.exam-period-strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 14px;margin-top:12px;background:var(--surface-subtle,#faf9f8);border:1px solid var(--line);border-radius:8px;font-size:11.5px;font-variant-numeric:tabular-nums}
+[data-theme="dark"] .exam-period-strip{background:var(--surface-subtle,#1d2230);border-color:var(--line)}
+.strip-label{font-weight:700;color:var(--muted);font-size:11px;margin-right:2px}
+.exam-period-item{display:inline-flex;gap:5px;color:var(--muted)}
+.exam-period-item strong{color:var(--ink)}
+.empty-inline{padding:14px 0;color:var(--muted);font-size:13px;margin:0}
 .exam-search-bar{margin:12px 0}
 .exam-search-bar input{width:100%;max-width:360px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:13px}
 [data-theme="dark"] .exam-search-bar input{background:#131722;border-color:#323a4e;color:#e8eaf0}
 .exam-timetable{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:16px}
-.exam-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 2px 4px rgba(0,0,0,0.03)}
+.exam-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:none}
 [data-theme="dark"] .exam-card{background:#1c2130;border-color:#2b3142}
 .exam-card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .exam-card h3{font-size:15px;font-weight:700;margin:6px 0;color:var(--ink)}
 .exam-card-meta{font-size:12px;color:var(--muted);margin:0}
 
 /* 年間予定ビュー */
-.calendar-filters{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 4px}
+.calendar-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.calendar-filters{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 4px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .calendar-filters .filter-group{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s}
 .chip:hover{border-color:var(--wine)}
 .chip.active{background:#252b39;color:#fff;border-color:#252b39}
 [data-theme="dark"] .chip{background:#1c2130;border-color:#2b3142;color:#e8eaf0}
 [data-theme="dark"] .chip.active{background:#e8eaf0;color:#11141c;border-color:#e8eaf0}
-.calendar-substitutions{margin-top:16px}
-.calendar-substitutions h3{margin-bottom:8px;font-size:14px}
-.calendar-events{margin-top:16px}
-.calendar-timeline{list-style:none;padding:0;margin:10px 0;display:flex;flex-direction:column;gap:10px}
-.calendar-event-item{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border:1px solid var(--line);border-radius:10px;flex-wrap:wrap}
-[data-theme="dark"] .calendar-event-item{background:#1c2130;border-color:#2b3142}
+.calendar-events{margin-top:8px}
+.calendar-timeline{list-style:none;padding:0;margin:4px 0;display:flex;flex-direction:column;gap:0}
+.calendar-event-item{display:flex;align-items:center;gap:10px;padding:10px 8px;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;flex-wrap:wrap}
+.calendar-event-item:last-child{border-bottom:0}
+[data-theme="dark"] .calendar-event-item{background:transparent;border-color:var(--line)}
 .calendar-event-item.is-past{opacity:.58}
-.calendar-event-item.is-today{border-left:4px solid var(--wine);background:#fdf6f7}
+.calendar-event-item.is-today{border-left:3px solid var(--wine);background:#fdf6f7;border-radius:6px;padding-left:10px}
 [data-theme="dark"] .calendar-event-item.is-today{background:#251920;border-left-color:#f4a8b8}
 .calendar-event-date{font-size:12px;font-weight:700;min-width:110px;color:var(--ink);font-variant-numeric:tabular-nums}
 .calendar-event-title{font-size:13.5px;flex:1}
@@ -537,13 +541,13 @@ body.size-modal-open{overflow:hidden}
 /* 食堂メニュービュー */
 .cafeteria-week-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 .cafeteria-week-tab{border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
-.cafeteria-week-tab.active{background:var(--wine);color:#fff;border-color:var(--wine)}
+.cafeteria-week-tab.active{background:#252b39;color:#fff;border-color:#252b39}
 [data-theme="dark"] .cafeteria-week-tab{background:#1c2130;border-color:#2b3142;color:#e8eaf0}
-[data-theme="dark"] .cafeteria-week-tab.active{background:var(--wine);color:#fff;border-color:var(--wine)}
+[data-theme="dark"] .cafeteria-week-tab.active{background:#e8eaf0;color:#11141c;border-color:#e8eaf0}
 .cafeteria-week-heading{margin:14px 0 8px;font-size:13.5px;color:var(--wine)}
 [data-theme="dark"] .cafeteria-week-heading{color:#f4a8b8}
-.cafeteria-menu-list{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-.cafeteria-menu-item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 2px 4px rgba(0,0,0,0.02);display:flex;flex-direction:column;gap:8px}
+.cafeteria-menu-list{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:14px}
+.cafeteria-menu-item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:none;display:flex;flex-direction:column;gap:8px}
 [data-theme="dark"] .cafeteria-menu-item{background:#1c2130;border-color:#2b3142}
 .cafeteria-menu-item.is-closed{opacity:.7}
 .cafeteria-day-head{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-bottom:6px}
@@ -551,14 +555,18 @@ body.size-modal-open{overflow:hidden}
 .cafeteria-menu-item .price{font-size:12px;font-weight:700;color:var(--wine);margin-left:4px}
 [data-theme="dark"] .cafeteria-menu-item .price{color:#f4a8b8}
 .cafeteria-menu-item .allergens{font-size:11px;color:var(--muted);margin:0}
-.cafeteria-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.cafeteria-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
 .dormitory-section{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.dormitory-section h3{margin-bottom:4px;font-size:14px}
 
 /* 公式リンク＆マイリンクビュー */
-.links-category-section{margin-bottom:14px}
+.links-category-section{margin-bottom:16px}
 .links-category-title{font-size:12px;color:var(--muted);margin:0 0 8px}
-.mylinks-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
-.mylink-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:0!important}
+.official-links-group{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px}
+.official-links-group .button.secondary{justify-content:flex-start;padding:9px 12px;width:100%;font-size:12.5px}
+.mylinks-list{display:flex;flex-direction:column;gap:0;margin:10px 0}
+.mylink-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:0!important}
+.mylink-row:last-child{border-bottom:0}
 .mylink-anchor{flex:1;min-width:180px;justify-content:flex-start}
 .mylink-reorder-btns{display:inline-flex;gap:4px}
 .mylink-move-btn{min-width:34px;padding:8px 10px}
@@ -606,9 +614,11 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .export-sheet[data-theme="dark"] .real-timetable thead th.is-today-col{background:#251820;border-bottom-color:var(--line)}
 
 /* 時間割内ハイライト検索 & タップ対応教室凡例ポップオーバー */
-.timetable-search-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
-.timetable-search-bar input{width:100%;max-width:340px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:12.5px}
+.timetable-head-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+.timetable-search-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0}
+.timetable-search-bar input{width:220px;max-width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:12px}
 [data-theme="dark"] .timetable-search-bar input{background:#131722;border-color:#323a4e;color:#e8eaf0}
+@media(max-width:640px){.timetable-head-right,.timetable-search-bar,.timetable-search-bar input{width:100%}}
 .lesson-location-btn{background:transparent;border:0;padding:0;font:inherit;text-align:left;cursor:pointer}
 .lesson-location-btn:hover{text-decoration:underline;text-underline-offset:2px}
 .export-sheet .lesson-location-btn{cursor:default;text-decoration:none}
