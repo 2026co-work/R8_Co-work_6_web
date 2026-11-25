@@ -539,9 +539,10 @@ test('F7-T2-03: Weekday with zero classes displays informative empty state', asy
   const ready = read('app.js').includes('today-schedule') || read('app.js').includes('renderTodayOverview');
   if (!requireOrSkip(t, ready, 'Today schedule widget on #home', 'M2')) return;
 
+  app.run('activeLessons = []; render();');
   app.navigate('#home');
   const mainHtml = app.elements.main.innerHTML;
-  assert.ok(mainHtml.includes('予定') || mainHtml.includes('コマ') || mainHtml.includes('空き'));
+  assert.ok(mainHtml.includes('予定') && mainHtml.includes('授業予定なし'), 'Empty weekday displays informative 授業予定なし state');
 });
 
 test('F7-T2-04: Weekend / Sunday friendly rest notice with action link to timetable', async (t) => {

@@ -1,9 +1,9 @@
 # 開発引き継ぎドキュメント (HANDOVER.md)
 
-最終更新: 2026-11-25 01:20 JST  
+最終更新: 2026-11-25 11:45 JST  
 対象リポジトリ: `C:\Users\ko\.gemini\antigravity\scratch\R8_Co-work_6_web` (branch: `main`)
 
-全マイルストーン（M1〜M5, E2E, M_FINAL）、[`AUDIT_REPORT.md`](./AUDIT_REPORT.md) の57件対応、およびライブブラウザ・コードベース監査に基づくv2テーマ・レスポンシブ・バグ修正・UX機能強化・回帰テスト検証が完了した最新記録ドキュメントです。
+全マイルストーン（M1〜M5, E2E, M_FINAL）、[`AUDIT_REPORT.md`](./AUDIT_REPORT.md) の57件対応、v2テーマ・レスポンシブ・機能改修、および v3 データ誠実性修正・冗長文言/絵文字削減・ミニマルUI刷新と回帰テスト検証が完了した最新記録ドキュメントです。
 
 ---
 
@@ -51,6 +51,17 @@
 9. **`test/verify-all-improvements`（v2 回帰テスト＆ドキュメント更新 → `main` マージ済み）**
    - `tests/improvements-regression.test.cjs`: 上記すべての修正・新機能を検証する12件の回帰テスト（`IMP-01`〜`IMP-12`）を追加
    - `HANDOVER.md`: 改修ブランチ履歴および最新ビルド・テスト結果を反映
+10. **`fix/honest-data-and-scrapers`（v3 データ誠実性修正・誤リンク修正 → `main` マージ済み）**
+    - 架空の食堂日替わりメニュー10日分を完全撤去（`weeklyMenus: []`, `isTextExtracted: false`）し、寮生食堂PDF URLを正規 `biub2r0000001vxh-att/menyu.pdf` へ修正、`fetch-cafeteria.mjs` / `fetch-calendar.mjs` / `fetch-exam.mjs` で取得失敗時に既存/基準データの `updatedAt` を捏造上書きしないよう修正
+    - `FALLBACK_CALENDAR` を `dist-data/calendar.json` と完全同期（架空の11/20–26中間試験・11/25授業振替を削除、10/14 水曜振替・後期9/24開始・冬季1/4終了・`totalWeeks: 15` を整備）、`FALLBACK_EXAM.meta.sourcePdfUrl` 空化＆未確認 `syotyui.pdf`/推定公開日表示撤去、時間割原本PDF URL（`d0c-att` → `c2u-att`）修正
+11. **`refactor/prune-annotations-and-copy`（v3 冗長文言・英語表記・OS絵文字・空欄表記削減 → `main` マージ済み）**
+    - ブランディング刷新（`明石高専 学生ポータル` / フッター簡素化 / `.nav-dot` 削除）、全OS絵文字をモノクロSVGアイコンへ統一
+    - 注釈・AI調説明文・同語反復バッジ・英語表記（`Campus`, `Dormitory`）・空時限文字列（`空きコマ` / `空き`）・重複ステータス・非省略教室の不要クリックボタン・重複授業振替セクション（年予定本表へ時系列統合）を削減し、全学科原本JSONボタンをJSONプレビューモーダル内へ移設
+12. **`feat/ui-minimal-redesign`（v3 サイト全体ミニマルUI刷新＆配色階層改善 → `main` マージ済み）**
+    - `styles.css`: サイドバーサブタイトルの視認性バグ（`rgba(255,255,255,0.78)` 指定）を修正し、プライマリCTA以外の選択状態・週表示・オンボーディングを穏やかな無彩色・ヘアラインリスト基調へ刷新
+    - `#home` 右列優先順位（クイックリンク2列グリッド → 試験 → 食堂）および全タブ（`#timetable` 内検索バーヘッダー統合、`#exam` 時間帯ストリップ、`#calendar` ヘアラインタイムライン、`#cafeteria` 2列・PDF案内整理、`#links` 均等グリッド）を洗練
+13. **`test/align-tests-with-overhaul`（v3 テスト整合・回帰テスト追加・引き継ぎ更新 → `main` マージ済み）**
+    - `tests/e2e-tier1-features.test.cjs`（`F8-T1-01`, `F18-T1-05`）・`tests/e2e-tier2-boundaries.test.cjs`（`F7-T2-03`）・`tests/e2e-tier4-scenarios.test.cjs`（`S-03`）・`tests/improvements-regression.test.cjs`（`IMP-10` 抽出モック化＋`IMP-13` v3誠実性/絵文字ゼロ/リンク/コントラスト不変条件追加）を更新
 
 ---
 
@@ -65,8 +76,8 @@
 - `vite build` により `dist/` へバンドル出力され、`dist-data/` → `dist/dist-data/`、`timetable-standalone.html` → `dist/timetable-standalone.html`、および `manifest.webmanifest` → `dist/manifest.webmanifest` が自動ミラーリングされました。
 
 ### 3.3 全テストスイート (`npm test`)
-- **実行コマンド**: `npm test` (`node --test tests/*.test.cjs`)
-- **結果**: **tests 328 / pass 328 / fail 0 / skipped 0**（既存単体テスト36件 + E2E 280件 + 改善回帰テスト12件 すべてパス）
+- **実行コマンド**: `$env:STRICT_E2E='1'; npm test` (`node --test tests/*.test.cjs`)
+- **結果**: **tests 329 / pass 329 / fail 0 / skipped 0**（既存単体テスト36件 + E2E 280件 + 改善回帰テスト13件 すべてパス）
 
 ---
 

@@ -201,9 +201,9 @@ test('S-03: First-Year Morning Dashboard Check (F6, F7, F8, F18, F20, F21, F22)'
     assert.ok(!mainHtml.includes(ng), `Dashboard must not contain non-goal: ${ng}`);
   }
 
-  // Step 4: Cafeteria widget summary
+  // Step 4: Cafeteria widget summary (honest unextracted PDF link by default)
   if (mainHtml.includes('食堂') || mainHtml.includes('メニュー') || mainHtml.includes('学食')) {
-    assert.ok(mainHtml.includes('豚肉') || mainHtml.includes('生姜焼き') || mainHtml.includes('定食') || mainHtml.includes('ランチ'), 'Displays today lunch menu');
+    assert.ok(mainHtml.includes('PDF') || mainHtml.includes('.pdf') || mainHtml.includes('食堂メニュー'), 'Displays honest cafeteria PDF or summary link');
   }
 
   // Step 5: Syllabus deep link for 1年 M -> department_id=11
