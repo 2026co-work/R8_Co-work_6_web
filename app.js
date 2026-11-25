@@ -178,45 +178,45 @@ function formatFiscalYear(fy) {
 }
 
 const FALLBACK_CALENDAR = {
-  meta: { title: '令和8年度 年間行事予定表', fiscalYear: 2026 },
+  meta: { title: '令和8年度 行事予定表', fiscalYear: 2026 },
   terms: {
-    zenki: { startDate: '2026-04-06', endDate: '2026-07-31', totalWeeks: 15 },
-    kouki: { startDate: '2026-10-01', endDate: '2027-02-12', totalWeeks: 15 }
+    zenki: { startDate: '2026-04-01', classesStartDate: '2026-04-07', totalWeeks: 15 },
+    kouki: { startDate: '2026-09-24', classesStartDate: '2026-09-24', winterVacationEnd: '2027-01-04', examStartDate: '2027-02-02', examEndDate: '2027-02-08', totalWeeks: 15 }
   },
   daySubstitutions: [
-    { date: '2026-04-08', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 1, reason: '月曜日授業振替', note: '水曜日に月曜授業を実施' },
-    { date: '2026-10-14', originalDay: 2, effectiveDay: 1, substituteDay: '月', weekNumber: 3, reason: '月曜日授業振替', note: '火曜日に月曜授業を実施' },
-    { date: '2026-11-04', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 5, reason: '月曜日授業振替', note: '水曜日に月曜授業を実施' },
-    { date: '2026-11-25', originalDay: 3, effectiveDay: 5, substituteDay: '金', weekNumber: 8, reason: '金曜日授業振替', note: '水曜日に金曜授業を実施' },
-    { date: '2027-01-12', originalDay: 2, effectiveDay: 1, substituteDay: '月', weekNumber: 13, reason: '月曜日授業振替', note: '火曜日に月曜授業を実施' }
+    { date: '2026-04-08', substituteDay: '月', weekNumber: 1, note: '水曜日に月曜授業を実施' },
+    { date: '2026-10-14', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 3, note: '水曜日に月曜授業を実施' },
+    { date: '2026-11-04', substituteDay: '月', weekNumber: 5, note: '水曜日に月曜授業を実施' },
+    { date: '2027-01-12', substituteDay: '月', weekNumber: 13, note: '火曜日に月曜授業を実施' }
   ],
   events: [
     { date: '2026-04-03', title: '入学式', hasClasses: false, type: 'ceremony' },
     { date: '2026-04-07', title: '前期授業開始・全校集会', hasClasses: true, type: 'academic' },
-    { date: '2026-04-23', title: '開校記念日', hasClasses: true, type: 'ceremony' },
+    { date: '2026-04-23', title: '開校記念日', hasClasses: true, type: 'academic' },
     { date: '2026-07-30', endDate: '2026-08-05', title: '前期期末試験', hasClasses: false, type: 'exam' },
     { date: '2026-08-08', endDate: '2026-09-23', title: '夏季休業', hasClasses: false, type: 'vacation' },
-    { date: '2026-10-01', title: '後期始業・第1週', hasClasses: true, type: 'ceremony' },
+    { date: '2026-09-24', title: '後期授業開始・全校集会', hasClasses: true, type: 'academic' },
     { date: '2026-10-12', title: 'スポーツの日', hasClasses: false, type: 'holiday' },
-    { date: '2026-10-14', title: '月曜日授業振替（火曜）', hasClasses: true, type: 'special' },
-    { date: '2026-10-31', endDate: '2026-11-01', title: '高専祭', hasClasses: false, type: 'school_event' },
-    { date: '2026-11-20', endDate: '2026-11-26', title: '後期中間試験', hasClasses: false, type: 'exam' },
-    { date: '2026-12-26', endDate: '2027-01-05', title: '冬季休業', hasClasses: false, type: 'vacation' },
-    { date: '2027-02-02', endDate: '2027-02-08', title: '後期期末試験（学年末試験）', hasClasses: false, type: 'exam' },
-    { date: '2027-03-01', endDate: '2027-03-31', title: '春季休業', hasClasses: false, type: 'vacation' }
+    { date: '2026-10-31', endDate: '2026-11-01', title: '高専祭', hasClasses: false, type: 'event' },
+    { date: '2026-12-26', endDate: '2027-01-04', title: '冬季休業', hasClasses: false, type: 'vacation' },
+    { date: '2027-02-02', endDate: '2027-02-08', title: '学年末試験（後期期末試験）', hasClasses: false, type: 'exam' },
+    { date: '2027-03-01', endDate: '2027-03-31', title: '学年末休業', hasClasses: false, type: 'vacation' }
   ]
 };
 
 const FALLBACK_EXAM = {
   meta: {
-    title: '令和8年度後期定期試験時間割',
+    title: '令和8年度学年末試験（後期期末試験）時間割',
     term: '後期',
-    status: 'unreleased',
+    status: 'scheduled',
     noticeText: '定期試験時間割は、試験開始10日前の正午にこちらで発表します。',
     selfStudyRule: '試験は2限から開始しますが、9時に登校し自習することを原則とします。JRの遅延などが生じた場合、9時に登校していることを前提として対応します。',
-    sourcePdfUrl: 'https://www.akashi.ac.jp/life/examtimetable.html',
+    sourceUrl: 'https://www.akashi.ac.jp/life/examtimetable.html',
+    sourcePdfUrl: '',
     notesPdfUrl: 'https://www.akashi.ac.jp/o7en060000000car-att/syotyuiR70522.pdf',
-    previousExamPdfUrl: 'https://www.akashi.ac.jp/o7en060000000car-att/R8zenkishiken0728.pdf'
+    previousExamPdfUrl: 'https://www.akashi.ac.jp/o7en060000000car-att/R8zenkishiken0728.pdf',
+    examStartDate: '2027-02-02',
+    examEndDate: '2027-02-08'
   },
   periods: [],
   schedule: []
@@ -288,7 +288,7 @@ function getTimetablePdfUrl() {
   const lessonPage = timetableLinksData?.pages?.find(p => p.id === 'lesson');
   const term = timetableMeta?.term || '後期';
   const matched = lessonPage?.items?.find(i => i.term === term) || lessonPage?.items?.[0];
-  return normalizeAkashiUrl(matched?.url || timetableMeta?.sourcePdfUrl, 'https://www.akashi.ac.jp/o7en060000000d0c-att/R8_koukijikanwari_20260924-2.pdf');
+  return normalizeAkashiUrl(matched?.url || timetableMeta?.sourcePdfUrl, 'https://www.akashi.ac.jp/o7en060000000c2u-att/R8_koukijikanwari_20260924-2.pdf');
 }
 
 function getThemeButtonMeta(mode = currentTheme) {
@@ -776,10 +776,8 @@ function getExamCountdownInfo() {
   const startMs = new Date(`${startStr}T00:00:00Z`).getTime();
   const todayMs = new Date(`${todayStr}T00:00:00Z`).getTime();
   const daysUntil = Math.round((startMs - todayMs) / 86400000);
-  const pubDate = new Date(startMs - 10 * 86400000);
-  const pubStr = `${pubDate.getUTCFullYear()}-${String(pubDate.getUTCMonth() + 1).padStart(2, '0')}-${String(pubDate.getUTCDate()).padStart(2, '0')}`;
   const inExam = todayStr >= startStr && (!endStr || todayStr <= endStr);
-  return { startStr, endStr, title, daysUntil, publishDateStr: pubStr, inExam };
+  return { startStr, endStr, title, daysUntil, inExam };
 }
 
 function renderExamCountdownBar() {
@@ -789,7 +787,7 @@ function renderExamCountdownBar() {
     return `<div class="exam-countdown-bar"><span class="badge red">試験実施中</span><span class="hint" style="margin:0;">${escapeHTML(info.startStr)}${info.endStr && info.endStr !== info.startStr ? `〜${escapeHTML(info.endStr)}` : ''}</span></div>`;
   }
   if (info.daysUntil >= 0) {
-    return `<div class="exam-countdown-bar"><span class="badge blue">試験開始まであと ${info.daysUntil}日</span><span class="hint" style="margin:0;">期間: ${escapeHTML(info.startStr)}${info.endStr ? `〜${escapeHTML(info.endStr.slice(5))}` : ''} / 時間割発表目安: ${escapeHTML(info.publishDateStr)} 正午</span></div>`;
+    return `<div class="exam-countdown-bar"><span class="badge blue">試験開始まであと ${info.daysUntil}日</span><span class="hint" style="margin:0;">${escapeHTML(info.startStr)}${info.endStr ? `〜${escapeHTML(info.endStr.slice(5))}` : ''}</span></div>`;
   }
   return '';
 }
@@ -1253,9 +1251,10 @@ function exam() {
   const selfStudyRule = meta.selfStudyRule || '試験は2限から開始しますが、9時に登校し自習することを原則とします。';
   const showSeparateRule = selfStudyRule && !notice.includes('9時に登校');
   const sourcePdfUrl = normalizeAkashiUrl(meta.sourcePdfUrl, '');
-  const notesPdfUrl = meta.notesPdfUrl === null ? '' : (normalizeAkashiUrl(meta.notesPdfUrl, '') || 'https://www.akashi.ac.jp/life/syotyui.pdf');
+  const notesPdfUrl = meta.notesPdfUrl ? normalizeAkashiUrl(meta.notesPdfUrl, '') : '';
   const prevPdfUrl = meta.previousExamPdfUrl === null ? '' : normalizeAkashiUrl(meta.previousExamPdfUrl, '');
   const returnPdfUrl = meta.returnPdfUrl ? normalizeAkashiUrl(meta.returnPdfUrl, '') : '';
+  const isPrevReturnPdf = Boolean(returnPdfUrl && !isPublished && (/20260805|zenki/i.test(returnPdfUrl) || (meta.term === '後期' && !returnPdfUrl.includes('kouki'))));
   const deptCode = studentSelection.department || studentSelection.dept || 'M';
   const classCode = studentSelection.grade >= 6
     ? `専${studentSelection.grade - 5}${deptCode}`
@@ -1318,7 +1317,7 @@ function exam() {
         ${isPublished && sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">公式試験時間割PDF</a>` : `<button type="button" class="button" disabled aria-disabled="true">公式試験時間割PDF（未公開）</button>`}
         ${notesPdfUrl ? `<a class="button secondary" href="${escapeHTML(notesPdfUrl)}" target="_blank" rel="noopener noreferrer">受験上の諸注意PDF</a>` : ''}
         ${!isPublished && prevPdfUrl ? `<a class="button secondary" href="${escapeHTML(prevPdfUrl)}" target="_blank" rel="noopener noreferrer">前回試験時間割PDF（参考）</a>` : ''}
-        ${returnPdfUrl ? `<a class="button secondary" href="${escapeHTML(returnPdfUrl)}" target="_blank" rel="noopener noreferrer">答案返却時間割PDF</a>` : ''}
+        ${returnPdfUrl ? `<a class="button secondary" href="${escapeHTML(returnPdfUrl)}" target="_blank" rel="noopener noreferrer">${isPrevReturnPdf ? '前期 答案返却時間割PDF（参考）' : '答案返却時間割PDF'}</a>` : ''}
         <a class="button secondary" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">${icon('book')}${escapeHTML(studentShortLabel())} シラバス</a>
         <a class="text-link" href="https://www.akashi.ac.jp/life/examtimetable.html" target="_blank" rel="noopener noreferrer">公式試験日程ページへ${icon('arrow')}</a>
       </div>
