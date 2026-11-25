@@ -42,6 +42,15 @@
       "note": "水曜日に月曜授業を実施"
     },
     {
+      "date": "2026-10-14",
+      "originalDay": 3,
+      "effectiveDay": 1,
+      "substituteDay": "月",
+      "weekNumber": 3,
+      "reason": "月曜日授業振替",
+      "note": "水曜日に月曜授業を実施"
+    },
+    {
       "date": "2026-11-04",
       "substituteDay": "月",
       "weekNumber": 5,

@@ -149,22 +149,10 @@ export async function runFetchCalendar() {
     console.warn(`[WARN] カレンダー取得失敗: ${err.message}`);
     if (previousData && previousData.meta && previousData.terms) {
       console.log(' -> 既存の有効な calendar.json を保持・再利用します');
-      result = {
-        ...previousData,
-        meta: {
-          ...previousData.meta,
-          updatedAt: new Date().toISOString()
-        }
-      };
+      result = previousData;
     } else {
       console.log(' -> ベースラインフォールバックを使用します');
-      result = {
-        ...baseline,
-        meta: {
-          ...baseline.meta,
-          updatedAt: new Date().toISOString()
-        }
-      };
+      result = baseline;
     }
   }
 
