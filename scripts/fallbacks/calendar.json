@@ -10,6 +10,7 @@
   "terms": {
     "zenki": {
       "name": "前期",
+      "totalWeeks": 15,
       "startDate": "2026-04-01",
       "classesStartDate": "2026-04-07",
       "examStartDate": "2026-07-30",
@@ -21,6 +22,7 @@
     },
     "kouki": {
       "name": "後期",
+      "totalWeeks": 15,
       "startDate": "2026-09-24",
       "classesStartDate": "2026-09-24",
       "winterVacationStart": "2026-12-26",

@@ -429,7 +429,7 @@ test('F8-T1-01: Prohibited routes reject to default home view', async () => {
   const prohibited = ['rooms', 'changes', 'congestion', 'principals', 'equipment'];
   prohibited.forEach(route => {
     app.navigate('#' + route);
-    assert.equal(app.document.title, 'ホーム — Campus');
+    assert.equal(app.document.title, 'ホーム — 明石高専');
   });
 });
 
@@ -1032,15 +1032,43 @@ test('F18-T1-04: Allergen tag extraction identifies common Japanese food allerge
   }
 });
 
-test('F18-T1-05: Route #cafeteria renders weekly menu dishes and prices', async (t) => {
-  const app = createAppInstance();
+test('F18-T1-05: Route #cafeteria renders honest PDF notice by default and weekly menu dishes when extracted', async (t) => {
   const ready = read('app.js').includes('cafeteria-view') || read('index.html').includes('data-page="cafeteria"');
   if (!requireOrSkip(t, ready, '#cafeteria tab menu rendering', 'M5')) return;
 
-  app.navigate('#cafeteria');
-  assert.match(app.document.title, /食堂|メニュー/);
-  assert.ok(app.elements.main.innerHTML.includes('cafeteria-menu-item') || app.elements.main.innerHTML.includes('ランチ'), 'Renders cafeteria weekly menu items');
-  assert.doesNotMatch(app.elements.main.innerHTML, /テキスト未抽出/, 'Weekly menus render when isTextExtracted is true');
+  const defaultApp = createAppInstance();
+  defaultApp.navigate('#cafeteria');
+  assert.match(defaultApp.document.title, /食堂|メニュー/);
+  const defaultHtml = defaultApp.elements.main.innerHTML;
+  assert.match(defaultHtml, /data-text-extracted="false"/, 'Unextracted mode is explicitly marked when PDF is not parsed');
+  assert.match(defaultHtml, /\.pdf/, 'Provides official PDF link');
+
+  const extractedFixture = {
+    meta: {
+      title: '学生食堂メニュー',
+      articleUrl: 'https://www.akashi.ac.jp/news/2026/20261026gak001.html',
+      sourcePdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/2026.11.pdf',
+      isTextExtracted: true,
+    },
+    weeklyMenus: [
+      {
+        weekRange: '11/04 - 11/08',
+        days: [
+          {
+            date: '2026-11-04',
+            dayOfWeek: '水',
+            isOpen: true,
+            lunchA: { name: '日替わりAサンプル', price: 450, allergens: ['小麦'] },
+          },
+        ],
+      },
+    ],
+  };
+  const extractedApp = createAppInstance({ fetchMock: { './dist-data/cafeteria.json': extractedFixture } });
+  extractedApp.navigate('#cafeteria');
+  const extractedHtml = extractedApp.elements.main.innerHTML;
+  assert.ok(extractedHtml.includes('cafeteria-menu-item') && extractedHtml.includes('450円'), 'Renders extracted cafeteria weekly menu items and prices');
+  assert.doesNotMatch(extractedHtml, /自動抽出未対応|テキスト未抽出/, 'Weekly menus render without unextracted fallback when isTextExtracted is true');
 });
 
 // =============================================================================

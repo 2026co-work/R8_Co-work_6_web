@@ -1511,7 +1511,7 @@ function calendar() {
     <section class="panel calendar-panel">
       <div class="panel-head">
         <h2>${icon('calendar')}行事予定表</h2>
-        <span class="badge blue">${escapeHTML(weekInfo.label)}</span>
+        <span class="badge blue">${escapeHTML(weekInfo.label)} / 全15週</span>
       </div>
       <div class="calendar-toolbar">
         <button type="button" class="button" id="export-calendar-ics">${icon('download')}iCal保存 (.ics)</button>

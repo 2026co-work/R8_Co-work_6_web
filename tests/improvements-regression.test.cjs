@@ -227,7 +227,30 @@ test('IMP-10: timetable search/room trigger, exam countdown, calendar search/mon
   const calMonthHtml = calApp.document.getElementById('main')?.innerHTML || '';
   assert.match(calMonthHtml, /cal-month-grid/, 'month view renders cal-month-grid');
 
-  const cafeApp = createAppInstance();
+  const cafeApp = createAppInstance({
+    fetchMock: {
+      './dist-data/cafeteria.json': {
+        meta: {
+          title: '学生食堂メニュー',
+          sourcePdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/2026.11.pdf',
+          isTextExtracted: true,
+        },
+        weeklyMenus: [
+          {
+            weekRange: '11/04 - 11/08',
+            days: [
+              {
+                date: '2026-11-04',
+                dayOfWeek: '水',
+                isOpen: true,
+                lunchA: { name: 'テスト定食A', price: 450, allergens: ['小麦', '大豆'] },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
   cafeApp.navigate('#cafeteria');
   const cafeHtml = cafeApp.document.getElementById('main')?.innerHTML || '';
   assert.match(cafeHtml, /data-allergen-chip=/, 'cafeteria allergen chips render');
@@ -314,4 +337,30 @@ test('IMP-12: keyboard shortcuts Alt+1..6 navigate tabs and / focuses search onl
     preventDefault() {},
   });
   assert.equal(app.document.activeElement, searchInput, '/ outside inputs focuses timetable search input');
+});
+
+test('IMP-13: v3 data honesty, verified PDF URLs, contrast fix, and copy/emoji cleanup invariants hold', () => {
+  const cafeDist = readJson('dist-data/cafeteria.json');
+  const cafeFallback = readJson('scripts/fallbacks/cafeteria.json');
+  assert.equal(cafeDist.meta?.isTextExtracted, false);
+  assert.deepEqual(cafeDist.weeklyMenus, []);
+  assert.equal(cafeFallback.meta?.isTextExtracted, false);
+  assert.deepEqual(cafeFallback.weeklyMenus, []);
+
+  const linksDist = readJson('dist-data/timetable-links.json');
+  const appSrc = read('app.js');
+  assert.match(JSON.stringify(linksDist), /o7en060000000c2u-att\/R8_koukijikanwari_20260924-2\.pdf/);
+  assert.doesNotMatch(JSON.stringify(linksDist), /o7en060000000d0c-att\/R8_koukijikanwari_20260924-2\.pdf/);
+  assert.match(appSrc, /o7en060000000c2u-att\/R8_koukijikanwari_20260924-2\.pdf/);
+  assert.doesNotMatch(appSrc, /o7en060000000d0c-att\/R8_koukijikanwari_20260924-2\.pdf/);
+
+  assert.equal(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(appSrc), false, 'app.js contains zero OS emojis');
+  for (const banned of ['— Campus', '（Dormitory）', '空きコマ', '特別略称なし', 'キャンパスポータル']) {
+    assert.equal(appSrc.includes(banned), false, `app.js must not include "${banned}"`);
+  }
+
+  const css = read('styles.css');
+  assert.match(css, /\.sidebar\s+\.brand\s+small\{[^}]*color:rgba\(255,255,255/);
+  assert.ok(css.includes('.size-paper.a4-mode .real-timetable{height:auto!important}'));
+  assert.equal(read('index.html'), read('portal.html'));
 });
