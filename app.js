@@ -1167,9 +1167,9 @@ function renderTodayOverview(currentDate = new Date()) {
         ${renderTodaySchedule(currentDate)}
       </div>
       <div class="dashboard-col-side">
+        ${renderQuickLinks()}
         ${renderExamAlert()}
         ${renderCafeteriaSummary(currentDate)}
-        ${renderQuickLinks()}
       </div>
     </div>
   `;
