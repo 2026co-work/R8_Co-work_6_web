@@ -22,9 +22,21 @@ const icons = {
   utensils:'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Zm4-6v3m4-3v3m4-3v3',
   link:'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   external:'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3',
+  download:'M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
+  copy:'M9 9h10v10H9ZM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1',
+  sliders:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 14h4M10 8h4M18 16h4',
+  search:'m21 21-4.3-4.3M10 17a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z',
+  alert:'M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z',
+  chevronLeft:'m15 18-6-6 6-6',
+  chevronRight:'m9 18 6-6-6-6',
+  close:'M18 6 6 18M6 6l12 12',
 };
 const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar:'年間予定',cafeteria:'食堂メニュー',links:'リンク'};
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[name] || icons.info}"/></svg>`;
+const setBtnContent = (el, iconName, text) => {
+  if (!el) return;
+  el.innerHTML = iconName ? `${icon(iconName)}${escapeHTML(text)}` : escapeHTML(text);
+};
 document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));
 const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const JST_WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
@@ -87,12 +99,12 @@ function getExportTheme() {
   return exportThemeOverride || resolveEffectiveTheme(currentTheme);
 }
 const EXPORT_FORMAT_CONFIGS = {
-  pdf: { copyLabel: null, downloadLabel: '💾 PDFダウンロード', adjustLabel: 'レイアウト調整' },
-  png: { copyLabel: '📋 画像をコピー', downloadLabel: '💾 PNG保存', adjustLabel: 'レイアウト調整' },
-  ics: { copyLabel: '📋 iCalをコピー', downloadLabel: '💾 iCal保存 (.ics)', adjustLabel: '形式プレビュー' },
-  text: { copyLabel: '📋 テキストをコピー', downloadLabel: '💾 テキスト保存', adjustLabel: 'プレビュー＆調整' },
-  csv: { copyLabel: '📋 CSVをコピー', downloadLabel: '💾 CSVダウンロード', adjustLabel: '形式プレビュー' },
-  json: { copyLabel: '📋 JSONをコピー', downloadLabel: '💾 JSONダウンロード', adjustLabel: 'データプレビュー' },
+  pdf: { copyLabel: null, downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
+  png: { copyLabel: '画像をコピー', downloadLabel: 'PNG保存', adjustLabel: 'レイアウト調整' },
+  ics: { copyLabel: 'iCalをコピー', downloadLabel: 'iCal保存 (.ics)', adjustLabel: 'プレビュー' },
+  text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー' },
+  csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー' },
+  json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー' },
 };
 let currentExportFormat = 'pdf';
 let textExportOptions = { includeLocation: true, includeTeacher: true };
@@ -1491,7 +1503,7 @@ function calendar() {
       </div>
       <p>明石高専の年間行事予定・授業日程（第1週〜第15週・高専祭・祝日・長期休業・授業振替）を確認できます。</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;">
-        <button type="button" class="button" id="export-calendar-ics">📅 行事予定をiCal保存 (.ics)</button>
+        <button type="button" class="button" id="export-calendar-ics">${icon('download')}iCal保存 (.ics)</button>
         ${zenkiPdfUrl ? `<a class="button secondary" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期行事予定PDF</a>` : ''}
         ${koukiPdfUrl ? `<a class="button secondary" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期行事予定PDF</a>` : ''}
         <a class="text-link" href="${escapeHTML(calSourceUrl)}" target="_blank" rel="noopener noreferrer">公式行事予定ページへ${icon('arrow')}</a>
@@ -1549,7 +1561,7 @@ function renderCafeteriaDayCard(day, todayStr = '', allergenAlert = '') {
   const allergens = Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || day.lunchA?.allergens || '');
   const hasAllergenAlert = Boolean(allergenAlert && rawAllergens.includes(allergenAlert));
   return `<li class="cafeteria-menu-item${isToday ? ' is-today' : ''}${hasAllergenAlert ? ' has-allergen-alert' : ''}">
-    <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong><span class="panel-head-meta">${isToday ? '<span class="badge red">本日</span>' : ''}${hasAllergenAlert ? `<span class="badge red">⚠ ${escapeHTML(allergenAlert)}を含む</span>` : ''}${day.isOpen ? '<span class="badge green">営業</span>' : ''}</span></div>
+    <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong><span class="panel-head-meta">${isToday ? '<span class="badge red">本日</span>' : ''}${hasAllergenAlert ? `<span class="badge red">${icon('alert')}${escapeHTML(allergenAlert)}を含む</span>` : ''}${day.isOpen ? '<span class="badge green">営業</span>' : ''}</span></div>
     <div class="cafeteria-day-dishes">${dishRows.join('') || `<span>${escapeHTML(day.name || day.menu || '')}</span>`}</div>
     ${allergens ? `<p class="allergens">アレルゲン: ${escapeHTML(allergens)}</p>` : ''}
   </li>`;
@@ -1823,7 +1835,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div>${error ? '' : '<div class="timetable-search-bar" data-export-exclude><input type="search" id="timetable-search-input" placeholder="科目名・教員名・教室名で検索ハイライト..." aria-label="時間割内検索"><span id="timetable-search-count" class="field-hint" hidden></span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。教室名をタップすると正式名称を確認できます。</p>'}${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'📋 コピー'}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${exportInProgress?'作成中…':(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'💾 保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整'}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><span class="badge" data-export-exclude>${totalPeriods}コマ</span></div>${error ? '' : '<div class="timetable-search-bar" data-export-exclude><input type="search" id="timetable-search-input" placeholder="科目名・教員名・教室名で検索ハイライト..." aria-label="時間割内検索"><span id="timetable-search-count" class="field-hint" hidden></span></div><p class="hint" data-export-exclude>スマートフォンでは表を左右にスクロールできます。教室名をタップすると正式名称を確認できます。</p>'}${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専「時間割・授業時間」 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">時間割原本PDF ↗</a>（${escapeHTML(fyText)} ${escapeHTML(termText)} / 更新: ${escapeHTML(updatedText)}）</span><span>個別の休講・変更は学校の案内で確認してください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${icon('copy')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'コピー')}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('download')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整')}</button></div></div><div class="raw-dataset-row" data-export-exclude><button type="button" class="raw-dataset-btn" id="export-raw-data-btn">明石高専 全学科・全学年の時間割原本データ（JSON）をダウンロード</button></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -1840,10 +1852,10 @@ function timetable() {
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom" aria-pressed="${exportSizeMode === 'custom' ? 'true' : 'false'}">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
-            <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="出力用テーマ切り替え（サイト本体には影響しません）">${getExportTheme() === 'dark' ? '☀️ 白背景で出力' : '🌙 暗背景で出力'}</button>
+            <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="出力用テーマ切り替え（サイト本体には影響しません）">${getExportTheme() === 'dark' ? `${icon('sun')}白背景で出力` : `${icon('moon')}暗背景で出力`}</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
-            <button type="button" class="button" id="size-modal-save-btn">💾 このサイズで保存</button>
+            <button type="button" class="button" id="size-modal-save-btn">${icon('download')}このサイズで保存</button>
             <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
           </div>
         </div>
@@ -1875,8 +1887,8 @@ function timetable() {
         <div class="data-preview-body" id="data-preview-body"></div>
         <div class="data-preview-foot">
           <button type="button" class="button secondary" id="data-preview-cancel">閉じる</button>
-          <button type="button" class="button export-copy-btn" id="data-preview-copy">📋 クリップボードにコピー</button>
-          <button type="button" class="button" id="data-preview-action">💾 ファイルを保存</button>
+          <button type="button" class="button export-copy-btn" id="data-preview-copy">${icon('copy')}コピー</button>
+          <button type="button" class="button" id="data-preview-action">${icon('download')}保存</button>
         </div>
       </div>
     </div>`;
@@ -2156,9 +2168,9 @@ async function openDataPreviewModal(format) {
   };
 
   if (format === 'text') {
-    title.textContent = 'テキスト出力のプレビュー＆設定';
-    copyBtn.textContent = '📋 テキストをコピー';
-    actionBtn.textContent = '💾 テキスト保存';
+    title.textContent = 'テキスト出力プレビュー';
+    setBtnContent(copyBtn, 'copy', 'テキストをコピー');
+    setBtnContent(actionBtn, 'download', 'テキスト保存');
     body.innerHTML = `
       <div class="data-preview-options">
         <label><input type="checkbox" id="text-opt-location" ${textExportOptions.includeLocation ? 'checked' : ''}> 教室名を含める</label>
@@ -2181,8 +2193,8 @@ async function openDataPreviewModal(format) {
     });
   } else if (format === 'csv') {
     title.textContent = 'CSV形式プレビュー';
-    copyBtn.textContent = '📋 CSVをコピー';
-    actionBtn.textContent = '💾 CSVダウンロード';
+    setBtnContent(copyBtn, 'copy', 'CSVをコピー');
+    setBtnContent(actionBtn, 'download', 'CSV保存');
     body.innerHTML = `
       <div class="data-preview-options">
         <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
@@ -2195,8 +2207,8 @@ async function openDataPreviewModal(format) {
     });
   } else if (format === 'json') {
     title.textContent = 'JSONデータプレビュー';
-    copyBtn.textContent = '📋 JSONをコピー';
-    actionBtn.textContent = '💾 JSONダウンロード';
+    setBtnContent(copyBtn, 'copy', 'JSONをコピー');
+    setBtnContent(actionBtn, 'download', 'JSON保存');
     body.innerHTML = `
       <div class="data-preview-options" style="margin-bottom:8px;">
         <label><input type="checkbox" id="preview-opt-empty" ${exportIncludeEmpty ? 'checked' : ''}> 空きコマを含める</label>
@@ -2222,8 +2234,8 @@ async function openDataPreviewModal(format) {
     });
   } else if (format === 'ics') {
     title.textContent = 'iCal (.ics) 形式プレビュー';
-    copyBtn.textContent = '📋 iCalをコピー';
-    actionBtn.textContent = '💾 iCal保存 (.ics)';
+    setBtnContent(copyBtn, 'copy', 'iCalをコピー');
+    setBtnContent(actionBtn, 'download', 'iCal保存 (.ics)');
     body.innerHTML = `
       <div class="data-preview-options">
         <span class="badge blue">Google Calendar / Apple Calendar 対応 (.ics)</span>
@@ -2325,11 +2337,11 @@ async function downloadCurrentTimetable(action = 'download') {
     const currentCopy = document.getElementById('export-copy');
     if (currentDL) {
       currentDL.disabled = Boolean(selectedSchedule().error);
-      currentDL.textContent = EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel || '💾 保存';
+      setBtnContent(currentDL, 'download', EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel || '保存');
     }
     if (currentCopy) {
       currentCopy.disabled = Boolean(selectedSchedule().error);
-      currentCopy.textContent = EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel || '📋 コピー';
+      setBtnContent(currentCopy, 'copy', EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel || 'コピー');
     }
     const select = document.getElementById('export-format');
     if (select) select.disabled = Boolean(selectedSchedule().error);
@@ -2343,7 +2355,7 @@ function render() {
   if (page !== 'links') editingMyLinkId = '';
   const breadcrumbEl = document.getElementById('breadcrumb');
   if (breadcrumbEl) breadcrumbEl.textContent = names[page];
-  document.title = `${names[page]} — Campus`;
+  document.title = `${names[page]} — 明石高専`;
   document.querySelectorAll('[data-page]').forEach(a => {
     const isActive = a.dataset.page === page;
     a.classList.toggle('active', isActive);
@@ -2354,7 +2366,7 @@ function render() {
   if (footerMeta) {
     const fyLabel = formatFiscalYear(timetableMeta?.fiscalYear || 2026);
     const termLabel = timetableMeta?.term || '後期';
-    footerMeta.textContent = `${fyLabel}${termLabel} キャンパスポータル`;
+    footerMeta.textContent = `${fyLabel}${termLabel}`;
   }
   const main = document.getElementById('main');
   if (main) {
@@ -2391,16 +2403,16 @@ function render() {
     if (copyBtn && !exportInProgress) {
       if (cfg.copyLabel) {
         copyBtn.hidden = false;
-        copyBtn.textContent = cfg.copyLabel;
+        setBtnContent(copyBtn, 'copy', cfg.copyLabel);
       } else {
         copyBtn.hidden = true;
       }
     }
     if (downloadBtn && !exportInProgress) {
-      downloadBtn.textContent = cfg.downloadLabel;
+      setBtnContent(downloadBtn, 'download', cfg.downloadLabel);
     }
     if (adjustBtn) {
-      adjustBtn.textContent = cfg.adjustLabel;
+      setBtnContent(adjustBtn, 'sliders', cfg.adjustLabel);
     }
   };
 
@@ -2423,15 +2435,15 @@ function render() {
     const ok = await downloadCurrentTimetable('copy');
     const previewCopy = document.getElementById('data-preview-copy');
     if (previewCopy) {
-      const orig = previewCopy.textContent;
+      const origHtml = previewCopy.innerHTML;
       if (ok) {
-        previewCopy.textContent = '✅ コピー完了！';
+        setBtnContent(previewCopy, 'check', 'コピー完了');
         previewCopy.classList?.add('btn-success');
       } else {
-        previewCopy.textContent = '⚠️ コピー失敗';
+        setBtnContent(previewCopy, 'alert', 'コピー失敗');
       }
       const timer = setTimeout(() => {
-        previewCopy.textContent = orig;
+        previewCopy.innerHTML = origHtml;
         previewCopy.classList?.remove('btn-success');
       }, 1500);
       timer?.unref?.();
@@ -3052,7 +3064,7 @@ function syncExportThemeUI() {
   const sizeSheet = document.querySelector?.('#size-modal-paper .export-sheet');
   if (sizeSheet) sizeSheet.setAttribute('data-theme', expTheme);
   const modalThemeBtn = document.getElementById('size-modal-theme-toggle');
-  if (modalThemeBtn) modalThemeBtn.textContent = expTheme === 'dark' ? '☀️ 白背景で出力' : '🌙 暗背景で出力';
+  if (modalThemeBtn) setBtnContent(modalThemeBtn, expTheme === 'dark' ? 'sun' : 'moon', expTheme === 'dark' ? '白背景で出力' : '暗背景で出力');
 }
 function updateThemeUI(mode = currentTheme) {
   if (typeof document === 'undefined') return;
