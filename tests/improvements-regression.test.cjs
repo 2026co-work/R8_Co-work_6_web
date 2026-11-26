@@ -495,6 +495,19 @@ test('IMP-16: Plan A minimal speed-dial リンク集, icon-only toggle, hide/res
   for (const b of ['syllabus', 'henkou', 'webclass', 'opac', 'jr']) {
     assert.match(linksHtml, new RegExp(`data-brand="${b}"`), `Built-in ${b} tile uses crisp brand inline SVG badge`);
   }
+  assert.match(linksHtml, /teams\.microsoft\.com\/v2\//, 'Teams uses /v2/ URL');
+  assert.match(linksHtml, /classroom\.google\.com\/u\/0\/h/, 'Classroom uses /u/0/h URL');
+  assert.match(linksHtml, /libopac-c\.kosen-k\.go\.jp\/webopac29\/cattab\.do/, 'OPAC uses webopac29 URL');
+  assert.equal(app.context.getResolvedLinks().some(x => x.id === 'default:physics'), false, 'Grade 4 omits default 物理 link');
+  assert.match(linksHtml, /物理（1・2年）/, 'Grade 4 includes 物理（1・2年） preset inside add modal');
+
+  app.selectStudent({ grade: '1', department: 'M', classGroup: '1' });
+  app.navigate('#links');
+  const g1LinksHtml = app.document.getElementById('main')?.innerHTML || '';
+  assert.equal(app.context.getResolvedLinks().some(x => x.id === 'default:physics'), true, 'Grade 1 includes default 物理 link');
+  assert.match(g1LinksHtml, /data-brand="physics"/, 'Grade 1 renders physics brand badge');
+  app.selectStudent({ grade: '4', department: 'M' });
+  app.navigate('#links');
 
   // 2. Icon-only mode persists inside campus-links-v1 (strict whitelist) and mirrors to #home
   app.document.getElementById('links-icon-only-toggle').click();
