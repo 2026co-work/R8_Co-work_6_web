@@ -399,15 +399,19 @@ test('F7-T1-03: Home dashboard displays upcoming exam notice or status', async (
   if (!requireOrSkip(t, ready, 'Exam alert widget on #home', 'M2')) return;
 
   app.navigate('#home');
+  assert.doesNotMatch(app.elements.main.innerHTML, /id="exam-alert"/, 'Exam widget is hidden on #home while FEATURE_FLAGS.exam is false');
+  app.run('FEATURE_FLAGS.exam = true; render();');
   assert.match(app.elements.main.innerHTML, /試験|exam/i);
 });
 
-test('F7-T1-04: Home dashboard displays cafeteria menu summary', async (t) => {
+test('F7-T1-04: Home dashboard displays cafeteria menu summary when enabled and hides it when disabled', async (t) => {
   const app = createAppInstance();
   const ready = read('app.js').includes('cafeteria-summary') || read('app.js').includes('食堂') && read('app.js').includes('home');
   if (!requireOrSkip(t, ready, 'Cafeteria summary on #home', 'M2')) return;
 
   app.navigate('#home');
+  assert.doesNotMatch(app.elements.main.innerHTML, /id="cafeteria-summary"/, 'Cafeteria widget is hidden on #home while FEATURE_FLAGS.cafeteria is false');
+  app.run('FEATURE_FLAGS.cafeteria = true; render();');
   assert.match(app.elements.main.innerHTML, /食堂|メニュー|ランチ/);
 });
 
@@ -1194,7 +1198,7 @@ test('F21-T1-01: Links directory contains all 8 curated service links', async (t
     'teams.microsoft.com',
     'classroom.google.com',
     'webclass.kosen-k.go.jp',
-    'portal.office.com',
+    'kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72',
     'libopac-c.kosen-k.go.jp',
     'syllabus.kosen-k.go.jp',
     'trafficinfo.westjr.co.jp',
@@ -1288,6 +1292,9 @@ test('F22-T1-04: Link deletion removes target item from localStorage', async (t)
   const before = JSON.parse(app.localStorage.getItem('campus-links-v1'));
   assert.equal(before.length, 2);
   app.navigate('#links');
+  const manageBtn = app.document.getElementById('mylinks-manage-toggle');
+  assert.ok(manageBtn, 'Manage toggle button exists in DOM');
+  manageBtn.click();
   const removeBtn = app.document.querySelector('.mylink-remove-btn[data-remove-id="1"]');
   assert.ok(removeBtn, 'Remove button exists in DOM');
   removeBtn.click();

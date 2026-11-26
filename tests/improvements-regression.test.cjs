@@ -204,13 +204,20 @@ test('IMP-09: home shows global profile switcher modal and live period badge dur
   assert.equal(modal?.hidden, false, 'clicking profile switcher opens modal');
 });
 
-test('IMP-10: timetable search/room trigger, exam countdown, calendar search/month view, and cafeteria allergen filter render', () => {
+test('IMP-10: timetable room legends modal, exam countdown, calendar month/week tags/list view, and cafeteria allergen filter render', () => {
   const ttApp = createAppInstance();
   ttApp.navigate('#timetable');
   ttApp.selectStudent({ grade: '4', department: 'M' });
   const ttHtml = ttApp.document.getElementById('main')?.innerHTML || '';
-  assert.ok(ttApp.document.getElementById('timetable-search-input'), 'timetable search input exists');
+  assert.doesNotMatch(ttHtml, /timetable-search-input/, 'timetable search input is removed');
+  assert.ok(ttApp.document.getElementById('open-room-legends-modal'), 'room legends modal trigger button exists');
   assert.match(ttHtml, /lesson-location-btn/, 'room trigger buttons render inside timetable');
+  const roomModal = ttApp.document.getElementById('room-legends-modal');
+  roomModal.hidden = true;
+  ttApp.document.getElementById('open-room-legends-modal').click();
+  assert.equal(roomModal?.hidden, false, 'clicking room legends button opens popup modal');
+  ttApp.context.closeRoomLegendsModal();
+  assert.equal(roomModal?.hidden, true, 'closing room legends modal hides it');
 
   const sizeModal = ttApp.document.getElementById('export-size-modal');
   sizeModal.hidden = true;
@@ -226,14 +233,19 @@ test('IMP-10: timetable search/room trigger, exam countdown, calendar search/mon
   assert.ok(examApp.document.getElementById('exam-search-input'), 'exam search input exists');
   assert.match(examHtml, /exam-countdown-bar/, 'exam countdown bar renders ahead of scheduled exam');
 
-  const calApp = createAppInstance();
+  const calApp = createAppInstance({ mockDate: '2026-11-26T09:00:00+09:00' });
   calApp.navigate('#calendar');
-  const calListHtml = calApp.document.getElementById('main')?.innerHTML || '';
-  assert.ok(calApp.document.getElementById('calendar-search-input'), 'calendar search input exists');
-  assert.match(calListHtml, /data-cal-view="month"/, 'month view toggle exists');
-  calApp.run("calendarViewMode = 'month'; render();");
   const calMonthHtml = calApp.document.getElementById('main')?.innerHTML || '';
-  assert.match(calMonthHtml, /cal-month-grid/, 'month view renders cal-month-grid');
+  assert.match(calMonthHtml, /cal-month-grid/, 'calendar defaults to month grid');
+  assert.match(calMonthHtml, /cal-month-week-tag/, 'calendar month cells render per-weekday week tags');
+  assert.match(calMonthHtml, /前期 iCal DL/, 'calendar exposes zenki iCal DL');
+  assert.match(calMonthHtml, /後期 iCal DL/, 'calendar exposes kouki iCal DL');
+  assert.match(calMonthHtml, /通年 iCal DL/, 'calendar exposes all-year iCal DL');
+  calApp.run("calendarViewMode = 'list'; render();");
+  const calListHtml = calApp.document.getElementById('main')?.innerHTML || '';
+  assert.ok(calApp.document.getElementById('calendar-search-input'), 'calendar search input exists in list view');
+  assert.match(calListHtml, /cal-anchor-zenki/, 'list view includes zenki anchor divider');
+  assert.match(calListHtml, /cal-anchor-kouki/, 'list view includes kouki anchor divider');
 
   const cafeApp = createAppInstance();
   cafeApp.navigate('#cafeteria');
@@ -247,7 +259,7 @@ test('IMP-10: timetable search/room trigger, exam countdown, calendar search/mon
   assert.ok(cafeHtml.includes('cafeteria-day-dishes') && cafeHtml.includes('dish-badge'), 'cafeteria renders structured menu fields');
 });
 
-test('IMP-11: MyLinks supports novalidate, duplicate URL rejection, inline edit, and delete undo toast', () => {
+test('IMP-11: MyLinks supports novalidate, duplicate URL rejection, manage-mode inline edit, and delete undo toast', () => {
   const app = createAppInstance();
   app.navigate('#links');
   const mainHtml = app.document.getElementById('main')?.innerHTML || '';
@@ -263,8 +275,11 @@ test('IMP-11: MyLinks supports novalidate, duplicate URL rejection, inline edit,
   assert.equal(updated.item.name, 'LMS Updated');
 
   app.context.render();
+  const tileHtml = app.document.getElementById('main')?.innerHTML || '';
+  assert.match(tileHtml, /class="link-tile"/, 'default MyLinks renders clean Favicon link tiles');
+  app.document.getElementById('mylinks-manage-toggle').click();
   const linksHtml = app.document.getElementById('main')?.innerHTML || '';
-  assert.match(linksHtml, new RegExp(`data-edit-id="${first.item.id}"`), 'inline edit button renders');
+  assert.match(linksHtml, new RegExp(`data-edit-id="${first.item.id}"`), 'inline edit button renders in manage mode');
 
   const removeBtns = app.document.querySelectorAll('.mylink-remove-btn');
   assert.equal(removeBtns.length, 1);
@@ -280,10 +295,11 @@ test('IMP-11: MyLinks supports novalidate, duplicate URL rejection, inline edit,
   assert.equal(restored[0].id, first.item.id);
 });
 
-test('IMP-12: keyboard shortcuts Alt+1..6 navigate tabs and / focuses search only outside inputs', () => {
+test('IMP-12: keyboard shortcuts Alt+1..4 navigate active tabs and / focuses calendar search only outside inputs', () => {
   const app = createAppInstance();
-  ['export-size-modal', 'data-preview-modal', 'profile-switcher-modal'].forEach(id => {
-    app.document.getElementById(id).hidden = true;
+  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'profile-switcher-modal'].forEach(id => {
+    const el = app.document.getElementById(id);
+    if (el) el.hidden = true;
   });
   assert.equal(app.window.location.hash || '#home', '#home');
 
@@ -297,10 +313,22 @@ test('IMP-12: keyboard shortcuts Alt+1..6 navigate tabs and / focuses search onl
     preventDefault() {},
   });
   assert.equal(app.window.location.hash, '#timetable', 'Alt+2 navigates to #timetable');
-  app.window.dispatchEvent({ type: 'hashchange' });
 
-  const searchInput = app.document.getElementById('timetable-search-input');
-  assert.ok(searchInput, 'timetable search input rendered after Alt+2');
+  app.window.dispatchEvent({
+    type: 'keydown',
+    key: '3',
+    altKey: true,
+    ctrlKey: false,
+    metaKey: false,
+    target: { tagName: 'BODY' },
+    preventDefault() {},
+  });
+  assert.equal(app.window.location.hash, '#calendar', 'Alt+3 navigates to #calendar');
+  app.window.dispatchEvent({ type: 'hashchange' });
+  app.run("calendarViewMode = 'list'; render();");
+
+  const searchInput = app.document.getElementById('calendar-search-input');
+  assert.ok(searchInput, 'calendar search input rendered in list mode');
   assert.notEqual(app.document.activeElement, searchInput);
 
   app.window.dispatchEvent({
@@ -323,7 +351,7 @@ test('IMP-12: keyboard shortcuts Alt+1..6 navigate tabs and / focuses search onl
     target: { tagName: 'BODY' },
     preventDefault() {},
   });
-  assert.equal(app.document.activeElement, searchInput, '/ outside inputs focuses timetable search input');
+  assert.equal(app.document.activeElement, searchInput, '/ outside inputs focuses calendar search input');
 });
 
 test('IMP-13: v3 data honesty, verified PDF URLs, contrast fix, and copy/emoji cleanup invariants hold', () => {
@@ -359,4 +387,66 @@ test('IMP-13: v3 data honesty, verified PDF URLs, contrast fix, and copy/emoji c
   assert.match(css, /\.sidebar\s+\.brand\s+small\{[^}]*color:rgba\(255,255,255/);
   assert.ok(css.includes('.size-paper.a4-mode .real-timetable{height:auto!important}'));
   assert.equal(read('index.html'), read('portal.html'));
+});
+
+test('IMP-14: Favicons, MS365 SharePoint URL, hidden exam/cafeteria nav, per-weekday lesson week count, and iCal options work', async () => {
+  const indexHtml = read('index.html');
+  assert.match(indexHtml, /<a href="#exam"[^>]*hidden/, '#exam nav link is hidden');
+  assert.match(indexHtml, /<a href="#cafeteria"[^>]*hidden/, '#cafeteria nav link is hidden');
+
+  const app = createAppInstance({ mockDate: '2026-11-26T09:00:00+09:00' });
+  app.navigate('#links');
+  const linksHtml = app.document.getElementById('main')?.innerHTML || '';
+  assert.ok(
+    linksHtml.includes('https://kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72'),
+    'MS365 Student Portal uses exact SharePoint URL'
+  );
+  assert.match(linksHtml, /google\.com\/s2\/favicons\?domain=/, 'Link tiles include favicon images');
+
+  // Per-weekday lesson week calculation on 2026-11-25 (Wed conducting Mon schedule)
+  const weeksMap = app.run('computeAcademicLessonWeeks()');
+  const nov25 = weeksMap.get('2026-11-25');
+  const nov26 = weeksMap.get('2026-11-26');
+  assert.ok(nov25 && nov25.isSubstituted && nov25.dayLabel === '月', '2026-11-25 is counted as substituted Monday class');
+  assert.ok(nov26 && !nov26.isSubstituted && nov26.dayLabel === '木', '2026-11-26 is counted as Thursday class');
+  assert.notEqual(nov25.weekNum, nov26.weekNum, 'Per-weekday week counts reflect real calendar shifts');
+
+  // iCal options: calendar-aligned vs simple 4x5 + includeCalendarEvents + term-sliced calendar iCal
+  const exp = await import('../timetable-export.js');
+  const calData = readJson('dist-data/calendar.json');
+  const sampleLessons = [
+    { id: 'm1', dayOfWeek: 1, period: 1, duration: 1, subjectName: '月曜数学', location: '4M', teacher: '山田' },
+    { id: 'w1', dayOfWeek: 3, period: 1, duration: 1, subjectName: '水曜物理', location: '4M', teacher: '佐藤' }
+  ];
+  const calModeIcs = exp.generateIcs(sampleLessons, '4M', {
+    fiscalYear: 2026,
+    term: '後期',
+    holidays: ['2026-11-23'],
+    daySubstitutions: calData.daySubstitutions,
+    mode: 'calendar',
+    includeCalendarEvents: true,
+    calendarData: calData
+  });
+  assert.match(calModeIcs, /EXDATE;TZID=Asia\/Tokyo:20261123T090000/, 'Calendar mode excludes holidays');
+  assert.match(calModeIcs, /UID:sub-20261125-m1@akashi-kosen/, 'Calendar mode adds substituted Monday lesson on 11/25');
+  assert.match(calModeIcs, /DTSTART;VALUE=DATE:/, 'includeCalendarEvents bundles all-day calendar events');
+
+  const simpleModeIcs = exp.generateIcs(sampleLessons, '4M', {
+    fiscalYear: 2026,
+    term: '後期',
+    holidays: ['2026-11-23'],
+    daySubstitutions: calData.daySubstitutions,
+    mode: 'simple'
+  });
+  assert.doesNotMatch(simpleModeIcs, /EXDATE/, 'Simple 4x5 mode omits EXDATE');
+  assert.doesNotMatch(simpleModeIcs, /UID:sub-/, 'Simple 4x5 mode omits substituted-day VEVENTs');
+
+  const zenkiCalIcs = exp.generateCalendarIcs(calData, { period: 'zenki' });
+  const koukiCalIcs = exp.generateCalendarIcs(calData, { period: 'kouki' });
+  assert.match(zenkiCalIcs, /前期/, 'Zenki calendar iCal labeled 前期');
+  assert.match(zenkiCalIcs, /20260407/, 'Zenki includes April start');
+  assert.doesNotMatch(zenkiCalIcs, /20261123/, 'Zenki excludes November holiday');
+  assert.match(koukiCalIcs, /後期/, 'Kouki calendar iCal labeled 後期');
+  assert.match(koukiCalIcs, /20261123/, 'Kouki includes November holiday');
+  assert.doesNotMatch(koukiCalIcs, /20260407/, 'Kouki excludes April start');
 });

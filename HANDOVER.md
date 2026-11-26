@@ -69,6 +69,11 @@
     - `scripts/fetch-cafeteria.mjs`: 公式ニュースフィード `resource/2_1a.json` の `{ array: [...] }` 構造へ対応し、コンパスグループ週次Excel PDFテンプレートの動的グリッド解析・`page.Fills` オーバーレイ検出（休業日・他月カバー・研修日/予備日の常設メニューのみ枠）・特定原材料8品目（`小麦・卵・乳・そば・落花生・えび・かに・くるみ`）の `●` x座標照合・解析失敗時の誠実な空配列フォールバックを実装（公式5か月連続PDF `2026.07`〜`2026.11`・全18ページ・76日分で汎用検証済み）
     - `dist-data/cafeteria.json`: 公式サイトから最新（2026年11月）学生食堂メニュー5週21日分および12月寮生食堂リンクを自動取得・抽出（オフライン基準 `scripts/fallbacks/cafeteria.json` は未抽出PDF案内を維持）
     - `app.js` / `styles.css` / `tests/cafeteria-parser.test.cjs`: `#home`・`#cafeteria` での常設メニューのみ通知・カロリー表示・特定原材料8品目フィルタ対応、パーサー単体テスト5件追加および E2E/回帰テスト整合
+16. **`feat/ux-overhaul-links-calendar-ical`（リンク集・時間割・年間予定UX刷新＆iCal共通プレビュー → `main` マージ済み）**
+    - 定期試験・食堂メニューを一時非表示化（`FEATURE_FLAGS` およびナビ `hidden`、独立調整のため内部実装は温存）、`#home` 右列をクイックリンクのみに整理
+    - リンク集（`#links` / `#home` クイックリンク）: Favicon付きコンパクトタイルカードへ刷新、学生ポータル（MS365）URLを正規 SharePoint リストURLへ修正、マイリンク通常表示／整理モード分離、PDFアーカイブ折りたたみ化
+    - 時間割（`#timetable`）: 科目/教員検索を削除し、教室略称をポップアップモーダル化（`#room-legends-modal`）
+    - 年間予定（`#calendar`）＆共通 iCal プレビュー（`#ical-preview-modal` / `timetable-export.js`）: 曜日別の第N週目算出（`computeAcademicLessonWeeks`）＋月間カレンダーセル表示、`カレンダー表示`／`イベントだけ表示` 切替、`前期へ (4月)`・`後期へ (9月)`・`今月へ`・`今日へ` ジャンプ、`前期 iCal DL`・`後期 iCal DL`・`通年 iCal DL`、時間割 iCal オプション（年間予定準拠 vs 単純4×5、年間行事予定の同梱）＋共通月間カレンダープレビュー＆DL
 
 ---
 
@@ -84,7 +89,7 @@
 
 ### 3.3 全テストスイート (`npm test`)
 - **実行コマンド**: `$env:STRICT_E2E='1'; npm test` (`node --test tests/*.test.cjs`)
-- **結果**: **tests 334 / pass 334 / fail 0 / skipped 0**（既存単体テスト36件 + 学食PDFパーサー単体テスト5件 + E2E 280件 + 改善回帰テスト13件 すべてパス）
+- **結果**: **tests 335 / pass 335 / fail 0 / skipped 0**（既存単体テスト36件 + 学食PDFパーサー単体テスト5件 + E2E 280件 + 改善回帰テスト14件 すべてパス）
 
 ---
 
