@@ -36,6 +36,7 @@ const icons = {
   lmsScreen:'M3 5h18v12H3Zm5 16h8m-4-4v4M7.5 9l1.8 4.5L12 10l2.7 3.5L16.5 9',
   libraryBooks:'M4 19.5V5.5A1.5 1.5 0 0 1 5.5 4H9v16H5.5A1.5 1.5 0 0 1 4 19.5ZM9 4h5v16H9M14 5l4.5-.8L20 19l-4.5.8Z',
   train:'M7 4h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3ZM4 11h16M8.5 15h.01M15.5 15h.01M8 18l-2 3M16 18l2 3',
+  atom:'M12 12m-1.4 0a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0-2.8 0M12 3c2.3 0 4.2 4 4.2 9s-1.9 9-4.2 9-4.2-4-4.2-9 1.9-9 4.2-9ZM4.5 16.3c-1.2-2.1 1.4-5.7 5.7-8.2s8.7-2.8 9.9-.7-1.4 5.7-5.7 8.2-8.7 2.8-9.9.7ZM4.5 7.7c1.2-2.1 5.6-1.8 9.9.7s6.9 6.1 5.7 8.2-5.6 1.8-9.9-.7-6.9-6.1-5.7-8.2Z',
 };
 const FEATURE_FLAGS = { exam: false, cafeteria: false };
 const MS365_PORTAL_URL = 'https://kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72';
@@ -1094,10 +1095,11 @@ function renderCafeteriaSummary(currentDate) {
 const DEFAULT_LINKS = [
   { id: 'default:syllabus', name: 'シラバス', dynamicSyllabus: true, brand: 'syllabus', brandIcon: 'book' },
   { id: 'default:henkou', name: '授業変更リスト', url: MS365_PORTAL_URL, brand: 'henkou', brandIcon: 'clipboardList' },
-  { id: 'default:teams', name: 'Teams', url: 'https://teams.microsoft.com' },
-  { id: 'default:classroom', name: 'Classroom', url: 'https://classroom.google.com' },
+  { id: 'default:teams', name: 'Teams', url: 'https://teams.microsoft.com/v2/' },
+  { id: 'default:classroom', name: 'Classroom', url: 'https://classroom.google.com/u/0/h' },
   { id: 'default:webclass', name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML', brand: 'webclass', brandIcon: 'lmsScreen' },
-  { id: 'default:opac', name: '図書館OPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do', brand: 'opac', brandIcon: 'libraryBooks' },
+  { id: 'default:physics', name: '物理', fullName: '物理（1・2年）', url: 'https://sites.google.com/s.akashi.ac.jp/physics', brand: 'physics', brandIcon: 'atom', maxGrade: 2 },
+  { id: 'default:opac', name: '図書館OPAC', url: 'https://libopac-c.kosen-k.go.jp/webopac29/cattab.do', brand: 'opac', brandIcon: 'libraryBooks' },
   { id: 'default:jr', name: 'JR神戸線', fullName: 'JR神戸線 列車走行位置（魚住駅）', url: 'https://www.train-guide.westjr.co.jp/kobesanyo.html?st=0444', brand: 'jr', brandIcon: 'train' },
   { id: 'default:sanyo', name: '山陽電車', fullName: '山陽電車 遅延証明書', url: 'https://www.sanyo-railway.co.jp/railway/delay/index.html' },
 ];
@@ -1216,12 +1218,14 @@ function isLinksCustomized(state = loadLinksState()) {
 function getResolvedLinks(selection = studentSelection, state = loadLinksState()) {
   const hiddenSet = new Set(state.hidden || []);
   const overrides = state.overrides || {};
+  const gradeNum = Number(selection?.grade ?? studentSelection?.grade ?? 1);
   const dynamicSyllabusUrl = getSyllabusUrl(selection);
   const canonical = [];
   const byId = new Map();
 
   for (const def of DEFAULT_LINKS) {
     if (hiddenSet.has(def.id)) continue;
+    if (def.maxGrade && gradeNum > def.maxGrade) continue;
     const ov = overrides[def.id] || {};
     const resolvedUrl = def.dynamicSyllabus
       ? (ov.url || dynamicSyllabusUrl)
@@ -1281,9 +1285,10 @@ function getResolvedLinks(selection = studentSelection, state = loadLinksState()
   return ordered;
 }
 
-function getCanonicalIds(state) {
+function getCanonicalIds(state, selection = studentSelection) {
   const hiddenSet = new Set(state.hidden || []);
-  const defIds = DEFAULT_LINKS.filter(d => !hiddenSet.has(d.id)).map(d => d.id);
+  const gradeNum = Number(selection?.grade ?? studentSelection?.grade ?? 1);
+  const defIds = DEFAULT_LINKS.filter(d => !hiddenSet.has(d.id) && (!d.maxGrade || gradeNum <= d.maxGrade)).map(d => d.id);
   const customIds = (state.custom || []).map(c => c.id);
   return [...defIds, ...customIds];
 }
@@ -2196,14 +2201,18 @@ const PRESET_LINKS = [
   { name: 'Google Drive', url: 'https://drive.google.com/' },
   { name: 'OneDrive', url: 'https://onedrive.live.com/' },
   { name: 'iCloud', url: 'https://www.icloud.com/' },
+  { name: '物理（1・2年）', url: 'https://sites.google.com/s.akashi.ac.jp/physics', minGrade: 3 },
 ];
 
 function renderLinkEditorModal(resolvedLinks = []) {
   const existingUrls = new Set(resolvedLinks.map(item => normalizeLinkUrl(item.url)));
-  const presetButtons = PRESET_LINKS.map(p => {
-    const added = existingUrls.has(normalizeLinkUrl(p.url));
-    return `<button type="button" class="preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${renderFavicon(p.url, p.name)}<span>${escapeHTML(p.name)}${added ? '（済）' : ''}</span></button>`;
-  }).join('');
+  const gradeNum = Number(studentSelection?.grade ?? 1);
+  const presetButtons = PRESET_LINKS
+    .filter(p => !p.minGrade || gradeNum >= p.minGrade)
+    .map(p => {
+      const added = existingUrls.has(normalizeLinkUrl(p.url));
+      return `<button type="button" class="preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${renderFavicon(p.url, p.name)}<span>${escapeHTML(p.name)}${added ? '（済）' : ''}</span></button>`;
+    }).join('');
 
   return `<div class="data-preview-overlay" id="link-editor-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-labelledby="link-editor-title">
     <div class="data-preview-card link-editor-modal-card">
