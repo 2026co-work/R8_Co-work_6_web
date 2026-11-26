@@ -551,3 +551,15 @@ test('IMP-16: Plan A minimal speed-dial リンク集, icon-only toggle, hide/res
   app.context.closeLinkEditorModal();
   assert.equal(editorModal.hidden, true, 'closeLinkEditorModal hides modal');
 });
+
+test('IMP-17: Phase 2 flat frameless layout and 390px mobile responsive rules hold without breaking protected invariants', () => {
+  const css = read('styles.css');
+  assert.match(css, /:root\{[^}]*--bg:#ffffff/, 'Light canvas background is unified flat white');
+  assert.match(css, /\.panel\{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none\}/, '.panel card box chrome is stripped');
+  assert.match(css, /\.dashboard-col-side\{[^}]*border-left:1px solid var\(--line\)/, '#home desktop columns use subtle hairline divider');
+  assert.match(css, /@media\(max-width:760px\)\{[\s\S]*main\{padding:12px 12px 24px/, 'Mobile main uses 12px compact horizontal padding');
+  assert.match(css, /@media\(max-width:480px\)\{[\s\S]*\.cal-month-grid\{gap:2px\}/, '390px calendar month grid uses tight 2px gap');
+  assert.match(css, /@media\(max-width:480px\)\{[\s\S]*\.data-preview-card\{max-height:calc\(100dvh - 20px\)/, 'Mobile modals fit inside 100dvh');
+  assert.match(css, /@media\(max-width:480px\)\{[\s\S]*font-size:16px;min-height:42px/, 'Mobile form inputs enforce 16px to avoid iOS zoom');
+  assert.ok(css.includes('.size-paper.a4-mode .real-timetable{height:auto!important}'), 'A4 timetable CSS invariant preserved');
+});

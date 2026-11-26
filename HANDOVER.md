@@ -74,11 +74,14 @@
     - リンク集（`#links` / `#home` クイックリンク）: Favicon付きコンパクトタイルカードへ刷新、学生ポータル（MS365）URLを正規 SharePoint リストURLへ修正、マイリンク通常表示／整理モード分離、PDFアーカイブ折りたたみ化
     - 時間割（`#timetable`）: 科目/教員検索を削除し、教室略称をポップアップモーダル化（`#room-legends-modal`）
     - 年間予定（`#calendar`）＆共通 iCal プレビュー（`#ical-preview-modal` / `timetable-export.js`）: 曜日別の第N週目算出（`computeAcademicLessonWeeks`）＋月間カレンダーセル表示、`カレンダー表示`／`イベントだけ表示` 切替、`前期へ (4月)`・`後期へ (9月)`・`今月へ`・`今日へ` ジャンプ、`前期 iCal DL`・`後期 iCal DL`・`通年 iCal DL`、時間割 iCal オプション（年間予定準拠 vs 単純4×5、年間行事予定の同梱）＋共通月間カレンダープレビュー＆DL
-17. **`feat/links-speed-dial-minimal`（Phase 1: 「リンク集」Plan A スピードダイヤル型ミニマル刷新）**
+17. **`feat/links-speed-dial-minimal`（Phase 1: 「リンク集」Plan A スピードダイヤル型ミニマル刷新 → `main` マージ済み）**
     - タブ名・画面見出しを「リンク集」へ統一（`index.html` / `portal.html` バイト一致維持、`app.js` `names.links`・`linksView`・使い方モーダル）
-    - デフォルト8件の一元化（カテゴリ見出し・サブ説明・全学科シラバスカード・神姫バスを撤去）：`シラバス`（所属連動）・`授業変更リスト`（SharePoint）・`Teams`・`Classroom`・`WebClass`・`図書館OPAC`・`JR神戸線`（`st=0444` 列車走行位置）・`山陽電車`（遅延証明書）
+    - デフォルト8件の一元化（カテゴリ見出し・サブ説明・全学科シラバスカード・神姫バスを撤去）：`シラバス`（所属連動）・`授業変更リスト`（SharePoint）・`Teams`・`Classroom`・`WebClass`・`図書館OPAC`・`JR神戸線`（`st=0444` 列車走行位置）・`山陽電車`（遅延証明書）および主要5件の専用インラインSVGバッジ化
     - Plan A スピードダイヤル型UI（`#links` および `#home` 4列連動パネル）：`アイコンのみ` 切替、`編集` モード（ドラッグ＆ドロップ＋左右ボタンによる標準/カスタム横断並び替え、タップ編集モーダル `#link-editor-modal`、`×` 削除/非表示＋Undoトースト、カスタム保持のまま `初期設定に戻す`）、`公式PDFアーカイブ` の静かな下部折りたたみ化、390pxモバイル幅最適化
     - `campus-links-v1` 単一キーの後方互換デュアルシリアライズ（未カスタマイズ時はプレーン配列、カスタマイズ時のみ `version: 2` オブジェクト）と回帰テスト `IMP-16` 追加・影響テスト整合
+18. **`feat/flat-layout-and-mobile-ux`（Phase 2: フラット・フレームレス全幅レイアウト＆390pxモバイル全面最適化）**
+    - 白カード箱（`.panel` の外枠・角丸・余白・影）を撤去し、ライト背景をフラット白 `#ffffff`（ダーク `#11141c`）へ統一。`#home` デスクトップ2列をヘアライン分割、`#timetable` 条件バーをスリムフラット化、モーダル・アラート・出力シートのみ意味的サーフェスを維持
+    - 全4画面（`#home`, `#timetable`, `#calendar`, `#links`）および全モーダル（`#room-legends-modal`, `#ical-preview-modal`, `#help-modal`, `#profile-switcher-modal`, `#link-editor-modal`）を `390×844` モバイル向けに最適化（1行コンパクトヘッダー、12px余白＋0pxパネル余白のフル幅展開、7列月間カレンダー `gap:2px`、100dvh内スクロール、`font-size:16px` ズーム抑止、回帰テスト `IMP-17` 追加）
 
 ---
 
@@ -94,7 +97,7 @@
 
 ### 3.3 全テストスイート (`npm test`)
 - **実行コマンド**: `$env:STRICT_E2E='1'; npm test` (`node --test tests/*.test.cjs`)
-- **結果**: **tests 337 / pass 337 / fail 0 / skipped 0**（既存単体テスト36件 + 学食PDFパーサー単体テスト5件 + E2E 280件 + 改善回帰テスト16件 すべてパス）
+- **結果**: **tests 338 / pass 338 / fail 0 / skipped 0**（既存単体テスト36件 + 学食PDFパーサー単体テスト5件 + E2E 280件 + 改善回帰テスト17件 すべてパス）
 
 ---
 
