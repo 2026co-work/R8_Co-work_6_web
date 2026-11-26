@@ -176,84 +176,36 @@ const VTIMEZONE_TOKYO = [
   'END:VTIMEZONE'
 ].join('\r\n');
 
-/**
- * iCalendar (.ics) 生成
- */
-export function generateIcs(selectedLessons, studentLabel, options = {}) {
-  const baseDates = resolveIcsBaseDates(options);
-
-  const escapeIcs = escapeIcsText;
-  const untilStr = resolveIcsUntil(options);
-  const parsedHolidays = (Array.isArray(options?.holidays) ? options.holidays : [])
-    .map(h => {
-      const compact = formatDateIcs(h, 0);
-      if (!compact) return null;
-      const d = new Date(Date.UTC(Number(compact.slice(0, 4)), Number(compact.slice(4, 6)) - 1, Number(compact.slice(6, 8))));
-      return { compact, dow: d.getUTCDay() };
-    })
-    .filter(Boolean);
-  const calTitle = (options?.fiscalYear || options?.term)
-    ? `明石高専 ${formatFiscalYearText(options?.fiscalYear || 2026)}${options?.term || '後期'} 時間割 (${escapeIcs(studentLabel)})`
-    : `明石高専 時間割 (${escapeIcs(studentLabel)})`;
-  const events = [];
-
-  for (const lesson of selectedLessons) {
-    const day = lesson.dayOfWeek;
-    const dateStr = baseDates[day];
-    if (!dateStr) continue;
-
-    const startP = lesson.period - 1;
-    const span = lesson.duration || 1;
-    const endP = Math.min(3, startP + span - 1);
-
-    const startTime = PERIOD_TIMES[startP]?.start || '090000';
-    const endTime = PERIOD_TIMES[endP]?.end || '103000';
-
-    const uid = `${dateStr}-${lesson.id || Math.random().toString(36).slice(2)}@akashi-kosen`;
-    const summary = escapeIcs(lesson.subjectName);
-    const location = escapeIcs(lesson.location || '');
-    const periodText = `${lesson.period}${span > 1 ? `〜${lesson.period + span - 1}` : ''}限`;
-    const description = escapeIcs(`担当: ${lesson.teacher || '未定'}\n時限: ${periodText}\n対象: ${studentLabel}${lesson.notes ? `\n備考: ${lesson.notes}` : ''}`);
-    const matchingHolidays = parsedHolidays.filter(h => h.dow === day).map(h => h.compact);
-
-    events.push([
-      'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `SUMMARY:${summary}`,
-      location ? `LOCATION:${location}` : '',
-      `DESCRIPTION:${description}`,
-      `DTSTART;TZID=Asia/Tokyo:${dateStr}T${startTime}`,
-      `DTEND;TZID=Asia/Tokyo:${dateStr}T${endTime}`,
-      `RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`,
-      matchingHolidays.length > 0 ? `EXDATE;TZID=Asia/Tokyo:${matchingHolidays.map(d => `${d}T${startTime}`).join(',')}` : '',
-      'TRANSP:OPAQUE',
-      'STATUS:CONFIRMED',
-      'END:VEVENT'
-    ].filter(Boolean).join('\r\n'));
-  }
-
-  return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Akashi KOSEN//Campus Portal Timetable//JA',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    `X-WR-CALNAME:${calTitle}`,
-    'X-WR-TIMEZONE:Asia/Tokyo',
-    VTIMEZONE_TOKYO,
-    ...events,
-    'END:VCALENDAR'
-  ].join('\r\n');
-}
-
-/**
- * 年間行事予定 iCalendar (.ics) 生成 (RFC 5545 VALUE=DATE)
- */
-export function generateCalendarIcs(calendarData = {}, options = {}) {
-  const includeExams = options?.includeExams !== false;
-  const vevents = [];
+function filterCalendarItemsByPeriod(calendarData = {}, period = 'all') {
   const rawEvents = Array.isArray(calendarData?.events) ? calendarData.events : [];
   const rawSubs = Array.isArray(calendarData?.daySubstitutions) ? calendarData.daySubstitutions : [];
+  if (!period || period === 'all') {
+    return { events: rawEvents, subs: rawSubs };
+  }
+  const koukiStart = calendarData?.terms?.kouki?.classesStartDate || calendarData?.terms?.kouki?.startDate || '2026-09-24';
+  const matchDate = (startStr, endStr) => {
+    if (!startStr) return false;
+    const endSafe = endStr || startStr;
+    const startMonth = Number(String(startStr).slice(5, 7));
+    if (period === 'zenki') {
+      return startStr < koukiStart && startMonth >= 4;
+    }
+    if (period === 'kouki') {
+      return endSafe >= koukiStart || startMonth <= 3;
+    }
+    return true;
+  };
+  return {
+    events: rawEvents.filter(ev => ev && matchDate(ev.date || ev.startDate, ev.endDate || ev.date)),
+    subs: rawSubs.filter(sub => sub && matchDate(sub.date, sub.date))
+  };
+}
+
+function buildCalendarVevents(calendarData = {}, options = {}) {
+  const includeExams = options?.includeExams !== false;
+  const period = options?.period || 'all';
+  const { events: rawEvents, subs: rawSubs } = filterCalendarItemsByPeriod(calendarData, period);
+  const vevents = [];
   const subEventDates = new Set();
 
   rawEvents.forEach((ev, idx) => {
@@ -300,7 +252,152 @@ export function generateCalendarIcs(calendarData = {}, options = {}) {
     ].filter(Boolean).join('\r\n'));
   });
 
-  const calName = escapeIcsText(calendarData?.meta?.title || '明石高専 年間行事予定');
+  return vevents;
+}
+
+/**
+ * iCalendar (.ics) 生成
+ * options.mode:
+ *   - 'calendar' (デフォルト/後方互換): holidays を EXDATE 除外し、daySubstitutions があれば振替先の授業を個別 VEVENT として追加
+ *   - 'simple': 4x5 の単純な週間繰り返し（祝日除外・振替なし）
+ * options.includeCalendarEvents: true の場合、calendarData の行事予定（VALUE=DATE）も同梱
+ */
+export function generateIcs(selectedLessons, studentLabel, options = {}) {
+  const baseDates = resolveIcsBaseDates(options);
+  const mode = options?.mode === 'simple' ? 'simple' : 'calendar';
+  const escapeIcs = escapeIcsText;
+  const untilStr = resolveIcsUntil(options);
+  const untilDateCompact = untilStr.slice(0, 8);
+  const minBaseCompact = Object.values(baseDates).sort()[0] || '20260401';
+
+  const parsedHolidays = mode === 'simple'
+    ? []
+    : (Array.isArray(options?.holidays) ? options.holidays : [])
+        .map(h => {
+          const compact = formatDateIcs(h, 0);
+          if (!compact) return null;
+          const d = new Date(Date.UTC(Number(compact.slice(0, 4)), Number(compact.slice(4, 6)) - 1, Number(compact.slice(6, 8))));
+          return { compact, dow: d.getUTCDay() };
+        })
+        .filter(Boolean);
+
+  const rawSubs = mode === 'simple'
+    ? []
+    : (Array.isArray(options?.daySubstitutions) ? options.daySubstitutions : []);
+  const parsedSubs = rawSubs
+    .map(sub => {
+      const compact = formatDateIcs(sub?.date, 0);
+      if (!compact || compact < minBaseCompact || compact > untilDateCompact) return null;
+      const d = new Date(Date.UTC(Number(compact.slice(0, 4)), Number(compact.slice(4, 6)) - 1, Number(compact.slice(6, 8))));
+      const origDow = d.getUTCDay();
+      let effDow = Number(sub.effectiveDay);
+      if (!(effDow >= 1 && effDow <= 5) && sub.substituteDay) {
+        const idx = DAYS_OF_WEEK.indexOf(String(sub.substituteDay).replace(/曜日$/, ''));
+        if (idx >= 0) effDow = idx + 1;
+      }
+      if (!(effDow >= 1 && effDow <= 5)) return null;
+      return { compact, origDow, effDow, subDayLabel: DAYS_OF_WEEK[effDow - 1], note: sub.note || sub.reason || '' };
+    })
+    .filter(Boolean);
+
+  const calTitle = (options?.fiscalYear || options?.term)
+    ? `明石高専 ${formatFiscalYearText(options?.fiscalYear || 2026)}${options?.term || '後期'} 時間割 (${escapeIcs(studentLabel)})`
+    : `明石高専 時間割 (${escapeIcs(studentLabel)})`;
+  const events = [];
+
+  for (const lesson of selectedLessons) {
+    const day = lesson.dayOfWeek;
+    const dateStr = baseDates[day];
+    if (!dateStr) continue;
+
+    const startP = lesson.period - 1;
+    const span = lesson.duration || 1;
+    const endP = Math.min(3, startP + span - 1);
+
+    const startTime = PERIOD_TIMES[startP]?.start || '090000';
+    const endTime = PERIOD_TIMES[endP]?.end || '103000';
+
+    const uid = `${dateStr}-${lesson.id || Math.random().toString(36).slice(2)}@akashi-kosen`;
+    const summary = escapeIcs(lesson.subjectName);
+    const location = escapeIcs(lesson.location || '');
+    const periodText = `${lesson.period}${span > 1 ? `〜${lesson.period + span - 1}` : ''}限`;
+    const description = escapeIcs(`担当: ${lesson.teacher || '未定'}\n時限: ${periodText}\n対象: ${studentLabel}${lesson.notes ? `\n備考: ${lesson.notes}` : ''}`);
+
+    const exDateSet = new Set(parsedHolidays.filter(h => h.dow === day).map(h => h.compact));
+    // 振替元となる曜日の通常授業を除外（振替先が同じ曜日でない場合）
+    for (const sub of parsedSubs) {
+      if (sub.origDow === day && sub.effDow !== day) {
+        exDateSet.add(sub.compact);
+      }
+    }
+    const exDates = Array.from(exDateSet).sort();
+
+    events.push([
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `SUMMARY:${summary}`,
+      location ? `LOCATION:${location}` : '',
+      `DESCRIPTION:${description}`,
+      `DTSTART;TZID=Asia/Tokyo:${dateStr}T${startTime}`,
+      `DTEND;TZID=Asia/Tokyo:${dateStr}T${endTime}`,
+      `RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`,
+      exDates.length > 0 ? `EXDATE;TZID=Asia/Tokyo:${exDates.map(d => `${d}T${startTime}`).join(',')}` : '',
+      'TRANSP:OPAQUE',
+      'STATUS:CONFIRMED',
+      'END:VEVENT'
+    ].filter(Boolean).join('\r\n'));
+
+    // 振替授業日に振替先曜日の授業を個別 VEVENT として追加
+    for (const sub of parsedSubs) {
+      if (sub.effDow !== day || sub.origDow === day) continue;
+      const subUid = `sub-${sub.compact}-${lesson.id || Math.random().toString(36).slice(2)}@akashi-kosen`;
+      const subDesc = escapeIcs(`振替授業（${sub.subDayLabel}曜日授業）\n担当: ${lesson.teacher || '未定'}\n時限: ${periodText}\n対象: ${studentLabel}${lesson.notes ? `\n備考: ${lesson.notes}` : ''}`);
+      events.push([
+        'BEGIN:VEVENT',
+        `UID:${subUid}`,
+        `SUMMARY:${summary}`,
+        location ? `LOCATION:${location}` : '',
+        `DESCRIPTION:${subDesc}`,
+        `DTSTART;TZID=Asia/Tokyo:${sub.compact}T${startTime}`,
+        `DTEND;TZID=Asia/Tokyo:${sub.compact}T${endTime}`,
+        'TRANSP:OPAQUE',
+        'STATUS:CONFIRMED',
+        'END:VEVENT'
+      ].filter(Boolean).join('\r\n'));
+    }
+  }
+
+  if (options?.includeCalendarEvents && options?.calendarData) {
+    const calPeriod = options.calendarPeriod || (options.term === '前期' ? 'zenki' : (options.term === '後期' ? 'kouki' : 'all'));
+    events.push(...buildCalendarVevents(options.calendarData, {
+      period: calPeriod,
+      includeExams: options.includeExams !== false
+    }));
+  }
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Akashi KOSEN//Campus Portal Timetable//JA',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${calTitle}`,
+    'X-WR-TIMEZONE:Asia/Tokyo',
+    VTIMEZONE_TOKYO,
+    ...events,
+    'END:VCALENDAR'
+  ].join('\r\n');
+}
+
+/**
+ * 年間行事予定 iCalendar (.ics) 生成 (RFC 5545 VALUE=DATE)
+ * options.period: 'all' | 'zenki' | 'kouki'
+ */
+export function generateCalendarIcs(calendarData = {}, options = {}) {
+  const period = options?.period || 'all';
+  const vevents = buildCalendarVevents(calendarData, options);
+  const periodSuffix = period === 'zenki' ? '（前期）' : (period === 'kouki' ? '（後期）' : '');
+  const calName = escapeIcsText(`${calendarData?.meta?.title || '明石高専 年間行事予定'}${periodSuffix}`);
 
   return [
     'BEGIN:VCALENDAR',
@@ -655,12 +752,29 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
     fiscalYear,
     term,
     semesterInfo,
-    holidays
+    holidays,
+    mode,
+    daySubstitutions,
+    includeCalendarEvents,
+    calendarData,
+    calendarPeriod,
+    includeExams
   } = options;
 
   // 1. iCalendar (.ics)
   if (format === 'ics') {
-    const icsString = generateIcs(selectedLessons, studentLabel, { semesterInfo, holidays, fiscalYear, term });
+    const icsString = generateIcs(selectedLessons, studentLabel, {
+      semesterInfo,
+      holidays,
+      fiscalYear,
+      term,
+      mode,
+      daySubstitutions,
+      includeCalendarEvents,
+      calendarData,
+      calendarPeriod,
+      includeExams
+    });
     if (action === 'copy') {
       const ok = await copyTextToClipboard(icsString);
       if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
@@ -791,8 +905,13 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
 /**
  * 年間行事予定 iCalendar (.ics) ファイル保存
  */
-export function exportCalendarIcs(calendarData, filename = 'akashi-kosen-calendar', options = {}) {
+export async function exportCalendarIcs(calendarData, filename = 'akashi-kosen-calendar', options = {}) {
   const icsString = generateCalendarIcs(calendarData, options);
+  if (options?.action === 'copy') {
+    const ok = await copyTextToClipboard(icsString);
+    if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
+    return { success: true, message: '年間行事予定のiCalテキストをコピーしました。' };
+  }
   const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
   const safeName = String(filename || 'akashi-kosen-calendar').replace(/\.ics$/i, '');
   downloadBlob(blob, `${safeName}.ics`);

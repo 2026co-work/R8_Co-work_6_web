@@ -355,11 +355,13 @@ test('T3-P-14: F7 × F14 — Exam unreleased status alert propagates countdown b
   });
 
   app.navigate('#home');
+  assert.ok(!app.elements['main'].innerHTML.includes('id="exam-alert"'), 'Exam widget hidden on #home by default');
+  app.run('FEATURE_FLAGS.exam = true; render();');
   const homeHtml = app.elements['main'].innerHTML;
-  assert.ok(homeHtml.includes('10日前の正午') || homeHtml.includes('定期試験') || homeHtml.includes('exam'), 'Home dashboard shows exam countdown notice');
+  assert.ok(homeHtml.includes('10日前の正午') || homeHtml.includes('定期試験') || homeHtml.includes('exam'), 'Home dashboard shows exam countdown notice when enabled');
 });
 
-test('T3-P-15: F7 × F18 — Home dashboard cafeteria widget summarizes today\'s lunch dish and allergens', async (t) => {
+test('T3-P-15: F7 × F18 — Home dashboard cafeteria widget summarizes today\'s lunch dish when enabled', async (t) => {
   const appCode = read('app.js');
   const ready = appCode.includes('cafeteria-summary') || (appCode.includes('lunch') && appCode.includes('home'));
   if (!requireOrSkip(t, ready, 'Cafeteria summary on home dashboard', 'M2')) return;
@@ -369,8 +371,10 @@ test('T3-P-15: F7 × F18 — Home dashboard cafeteria widget summarizes today\'s
   });
 
   app.navigate('#home');
+  assert.ok(!app.elements['main'].innerHTML.includes('id="cafeteria-summary"'), 'Cafeteria widget hidden on #home by default');
+  app.run('FEATURE_FLAGS.cafeteria = true; render();');
   const homeHtml = app.elements['main'].innerHTML;
-  assert.ok(homeHtml.includes('チキン南蛮定食') || homeHtml.includes('学食') || homeHtml.includes('食堂'), 'Dashboard displays lunch menu');
+  assert.ok(homeHtml.includes('チキン南蛮定食') || homeHtml.includes('学食') || homeHtml.includes('食堂'), 'Dashboard displays lunch menu when enabled');
 });
 
 test('T3-P-16: F7 × F20 — Home dashboard quick syllabus link maps to department syllabus for saved student', async (t) => {

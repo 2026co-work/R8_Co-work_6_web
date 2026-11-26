@@ -31,6 +31,8 @@ const icons = {
   chevronRight:'m9 18 6-6-6-6',
   close:'M18 6 6 18M6 6l12 12',
 };
+const FEATURE_FLAGS = { exam: false, cafeteria: false };
+const MS365_PORTAL_URL = 'https://kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72';
 const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar:'年間予定',cafeteria:'食堂メニュー',links:'リンク'};
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[name] || icons.info}"/></svg>`;
 const setBtnContent = (el, iconName, text) => {
@@ -101,7 +103,7 @@ function getExportTheme() {
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { copyLabel: null, downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '画像をコピー', downloadLabel: 'PNG保存', adjustLabel: 'レイアウト調整' },
-  ics: { copyLabel: 'iCalをコピー', downloadLabel: 'iCal保存 (.ics)', adjustLabel: 'プレビュー' },
+  ics: { copyLabel: 'iCalをコピー', downloadLabel: 'iCal保存 (.ics)', adjustLabel: 'オプション・プレビュー' },
   text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー' },
   csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー' },
   json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー' },
@@ -282,9 +284,126 @@ let lastModalTrigger = null;
 let onboardingDismissed = false;
 let calendarSearchQuery = '';
 let calendarHidePast = false;
-let calendarViewMode = 'list';
+let calendarViewMode = 'month';
 let calendarMonthOffset = 0;
 let selectedAllergenFilter = '';
+let myLinksManageMode = false;
+let icalModalState = {
+  source: 'timetable',
+  mode: 'calendar',
+  includeCalendarEvents: false,
+  includeExams: true,
+  period: 'kouki',
+  year: 2026,
+  month: 11
+};
+
+function getUrlHostname(url) {
+  try {
+    return new URL(String(url || '')).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function renderFavicon(url, label = '') {
+  const host = getUrlHostname(url);
+  const initial = (String(label || host || 'L').trim().charAt(0) || 'L').toUpperCase();
+  if (!host) {
+    return `<span class="link-favicon" aria-hidden="true"><span class="link-favicon-fallback">${escapeHTML(initial)}</span></span>`;
+  }
+  const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+  return `<span class="link-favicon" aria-hidden="true"><img src="${escapeHTML(src)}" alt="" width="20" height="20" loading="lazy" decoding="async" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex'"><span class="link-favicon-fallback" style="display:none">${escapeHTML(initial)}</span></span>`;
+}
+
+function computeAcademicLessonWeeks(cal = calendarData || FALLBACK_CALENDAR) {
+  const map = new Map();
+  if (!cal || typeof cal !== 'object') return map;
+  const events = Array.isArray(cal.events) ? cal.events : [];
+  const subs = Array.isArray(cal.daySubstitutions) ? cal.daySubstitutions : [];
+  const subByDate = new Map();
+  for (const s of subs) {
+    if (!s?.date) continue;
+    let eff = Number(s.effectiveDay);
+    if (!(eff >= 1 && eff <= 5) && s.substituteDay) {
+      const idx = DAYS.indexOf(String(s.substituteDay).replace(/曜日$/, ''));
+      if (idx >= 0) eff = idx + 1;
+    }
+    if (eff >= 1 && eff <= 5) {
+      subByDate.set(s.date, { effectiveDay: eff, note: s.note || s.reason || '' });
+    }
+  }
+
+  const termDefs = [
+    {
+      key: 'zenki',
+      name: '前期',
+      start: cal.terms?.zenki?.classesStartDate || cal.terms?.zenki?.startDate || '2026-04-07',
+      end: cal.terms?.zenki?.examStartDate || '2026-07-30',
+      maxWeeks: Number(cal.terms?.zenki?.totalWeeks) || 15
+    },
+    {
+      key: 'kouki',
+      name: '後期',
+      start: cal.terms?.kouki?.classesStartDate || cal.terms?.kouki?.startDate || '2026-09-24',
+      end: cal.terms?.kouki?.examStartDate || '2027-02-02',
+      maxWeeks: Number(cal.terms?.kouki?.totalWeeks) || 15
+    }
+  ];
+
+  for (const term of termDefs) {
+    const startDt = new Date(`${term.start}T00:00:00Z`);
+    const endDt = new Date(`${term.end}T00:00:00Z`);
+    if (Number.isNaN(startDt.getTime()) || Number.isNaN(endDt.getTime())) continue;
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const cur = new Date(startDt.getTime());
+    let guard = 0;
+    while (cur < endDt && guard < 220) {
+      const ds = cur.toISOString().slice(0, 10);
+      const dow = cur.getUTCDay();
+      const sub = subByDate.get(ds);
+      const dayEvents = events.filter(ev => {
+        const s = ev?.date || ev?.startDate || '';
+        const e = ev?.endDate || s;
+        return s && ds >= s && ds <= e;
+      });
+      const isSpare = dayEvents.some(ev => String(ev?.title || '').includes('予備日'));
+      if (isSpare) {
+        map.set(ds, { term: term.name, termKey: term.key, isSpare: true, isSubstituted: false, dayLabel: DAYS[dow - 1] || '', weekNum: 0 });
+      } else if (sub) {
+        counts[sub.effectiveDay] = Math.min(term.maxWeeks, counts[sub.effectiveDay] + 1);
+        map.set(ds, {
+          term: term.name,
+          termKey: term.key,
+          effectiveDay: sub.effectiveDay,
+          dayLabel: DAYS[sub.effectiveDay - 1],
+          weekNum: counts[sub.effectiveDay],
+          isSubstituted: true,
+          isSpare: false
+        });
+      } else if (dow >= 1 && dow <= 5) {
+        const isNoClass = dayEvents.some(ev =>
+          ev.hasClasses === false || ['holiday', 'vacation', 'break', 'exam'].includes(ev.type)
+        );
+        if (!isNoClass) {
+          counts[dow] = Math.min(term.maxWeeks, counts[dow] + 1);
+          map.set(ds, {
+            term: term.name,
+            termKey: term.key,
+            effectiveDay: dow,
+            dayLabel: DAYS[dow - 1],
+            weekNum: counts[dow],
+            isSubstituted: false,
+            isSpare: false
+          });
+        }
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+      guard++;
+    }
+  }
+  return map;
+}
 
 function expandRoomLegend(loc) {
   const raw = String(loc || '').trim();
@@ -621,7 +740,9 @@ function renderTodaySchedule(currentDate) {
         </div>
         <div class="dashboard-rest-card">
           <p><strong>${escapeHTML(todayDateStr)}</strong> — ${escapeHTML(examLabel)}</p>
-          <a class="button" href="#exam">${icon('document')}試験時間割を見る</a>
+          ${FEATURE_FLAGS.exam
+            ? `<a class="button" href="#exam">${icon('document')}試験時間割を見る</a>`
+            : `<a class="button" href="#calendar">${icon('calendar')}年間予定を見る</a>`}
         </div>
       </section>
     `;
@@ -1141,7 +1262,7 @@ function renderQuickLinks() {
 
   const customItemsHtml = customLinks.map(l => `
     <a class="quick-link-btn external-link" href="${escapeHTML(l.url)}" target="_blank" rel="noopener noreferrer">
-      ${icon('external')}<span>${escapeHTML(l.name)}</span>
+      ${renderFavicon(l.url, l.name)}<span>${escapeHTML(l.name)}</span>
     </a>
   `).join('');
 
@@ -1157,14 +1278,17 @@ function renderQuickLinks() {
         <a class="button secondary" href="#timetable">
           ${icon('calendar')}週間時間割
         </a>
+        <a class="quick-link-btn" href="${escapeHTML(MS365_PORTAL_URL)}" target="_blank" rel="noopener noreferrer">
+          ${renderFavicon(MS365_PORTAL_URL, '学生ポータル')}<span>学生ポータル (MS365)</span>
+        </a>
         <a class="quick-link-btn" href="https://teams.microsoft.com" target="_blank" rel="noopener noreferrer">
-          ${icon('external')}<span>Teams</span>
+          ${renderFavicon('https://teams.microsoft.com', 'Teams')}<span>Teams</span>
         </a>
         <a class="quick-link-btn" href="https://classroom.google.com" target="_blank" rel="noopener noreferrer">
-          ${icon('external')}<span>Classroom</span>
+          ${renderFavicon('https://classroom.google.com', 'Classroom')}<span>Classroom</span>
         </a>
         <a class="quick-link-btn" href="https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML" target="_blank" rel="noopener noreferrer">
-          ${icon('external')}<span>WebClass</span>
+          ${renderFavicon('https://webclass.kosen-k.go.jp', 'WebClass')}<span>WebClass</span>
         </a>
         ${customItemsHtml}
       </div>
@@ -1176,15 +1300,18 @@ function renderQuickLinks() {
 }
 
 function renderTodayOverview(currentDate = new Date()) {
+  const sidePanels = [
+    renderQuickLinks(),
+    FEATURE_FLAGS.exam ? renderExamAlert() : '',
+    FEATURE_FLAGS.cafeteria ? renderCafeteriaSummary(currentDate) : ''
+  ].filter(Boolean).join('\n');
   return `
     <div class="dashboard-grid">
       <div class="dashboard-col-main">
         ${renderTodaySchedule(currentDate)}
       </div>
       <div class="dashboard-col-side">
-        ${renderQuickLinks()}
-        ${renderExamAlert()}
-        ${renderCafeteriaSummary(currentDate)}
+        ${sidePanels}
       </div>
     </div>
   `;
@@ -1364,9 +1491,19 @@ function exam() {
 }
 function examView() { return exam(); }
 
-function renderCalendarMonthGrid(events, subs, todayStr) {
-  const [baseY, baseM] = todayStr.slice(0, 7).split('-').map(Number);
-  const firstOfTarget = new Date(Date.UTC(baseY, (baseM - 1) + calendarMonthOffset, 1));
+function renderMonthCalendarGrid(config = {}) {
+  const {
+    year,
+    month,
+    events = [],
+    subs = [],
+    todayStr = dateKey(new Date()),
+    lessonWeeksMap = null,
+    scheduleOverlay = null,
+    navAttr = 'data-cal-month',
+    viewId = 'calendar-month-view'
+  } = config;
+  const firstOfTarget = new Date(Date.UTC(year, month - 1, 1));
   const y = firstOfTarget.getUTCFullYear();
   const m = firstOfTarget.getUTCMonth() + 1;
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -1375,31 +1512,67 @@ function renderCalendarMonthGrid(events, subs, todayStr) {
   for (let i = 0; i < firstDow; i++) cells.push('<div class="cal-month-cell is-pad"></div>');
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
     const dayEvents = events.filter(ev => {
       const s = ev.date || ev.startDate || '';
       const e = ev.endDate || s;
       return s && ds >= s && ds <= e;
     });
     const subDay = subs.find(s => s && s.date === ds);
-    const pills = [
-      ...dayEvents.slice(0, 2).map(ev => {
+    const weekInfo = lessonWeeksMap ? lessonWeeksMap.get(ds) : null;
+    const weekTagHtml = weekInfo
+      ? (weekInfo.isSpare
+          ? '<span class="cal-month-week-tag is-spare" title="予備日">予備日</span>'
+          : `<span class="cal-month-week-tag${weekInfo.isSubstituted ? ' is-sub' : ''}" title="${escapeHTML(`${weekInfo.term} ${weekInfo.dayLabel}曜 第${weekInfo.weekNum}週${weekInfo.isSubstituted ? '（振替）' : ''}`)}">${escapeHTML(`${weekInfo.dayLabel}${weekInfo.weekNum}週`)}</span>`)
+      : '';
+
+    const lessonPills = [];
+    if (scheduleOverlay && Array.isArray(scheduleOverlay.lessons)) {
+      const { lessons, mode, startDate, endDate, holidaySet, subMap } = scheduleOverlay;
+      const inRange = (!startDate || ds >= startDate) && (!endDate || ds <= endDate);
+      if (inRange) {
+        let effDow = 0;
+        if (mode === 'simple') {
+          if (dow >= 1 && dow <= 5) effDow = dow;
+        } else {
+          const subEntry = subMap?.get(ds);
+          if (subEntry) effDow = subEntry.effectiveDay;
+          else if (dow >= 1 && dow <= 5 && !holidaySet?.has(ds)) effDow = dow;
+        }
+        if (effDow >= 1 && effDow <= 5) {
+          const dayLessons = lessons.filter(l => l.dayOfWeek === effDow);
+          for (const l of dayLessons.slice(0, 2)) {
+            lessonPills.push(`<span class="cal-month-pill is-lesson" title="${escapeHTML(`${l.period}限 ${l.subjectName}`)}">${escapeHTML(l.subjectName)}</span>`);
+          }
+          if (dayLessons.length > 2) {
+            lessonPills.push(`<span class="cal-month-more">+${dayLessons.length - 2}コマ</span>`);
+          }
+        }
+      }
+    }
+
+    const eventPills = [
+      ...dayEvents.slice(0, scheduleOverlay ? 1 : 2).map(ev => {
         const cls = ev.type === 'exam' ? 'is-exam' : ((ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false) ? 'is-holiday' : 'is-event');
         return `<span class="cal-month-pill ${cls}" title="${escapeHTML(ev.title || ev.name || '')}">${escapeHTML(ev.title || ev.name || '')}</span>`;
       }),
       ...(subDay ? [`<span class="cal-month-pill is-sub">${escapeHTML(String(subDay.substituteDay || '月').replace(/曜日$/, ''))}曜授業</span>`] : [])
-    ].slice(0, 3);
-    const extraCount = dayEvents.length + (subDay ? 1 : 0) - pills.length;
-    cells.push(`<div class="cal-month-cell${ds === todayStr ? ' is-today' : ''}${dayEvents.some(e => e.type === 'holiday' || e.type === 'vacation') ? ' is-rest' : ''}">
-      <span class="cal-month-daynum">${d}</span>
-      <div class="cal-month-pills">${pills.join('')}${extraCount > 0 ? `<span class="cal-month-more">+${extraCount}</span>` : ''}</div>
+    ];
+    const allPills = [...eventPills, ...lessonPills].slice(0, 4);
+    const totalItems = dayEvents.length + (subDay ? 1 : 0) + lessonPills.length;
+    const extraCount = Math.max(0, totalItems - allPills.length);
+    const isRest = dayEvents.some(e => e.type === 'holiday' || e.type === 'vacation' || e.type === 'break') || dow === 0 || dow === 6;
+    cells.push(`<div class="cal-month-cell${ds === todayStr ? ' is-today' : ''}${isRest ? ' is-rest' : ''}" data-date="${ds}">
+      <div class="cal-month-cell-head"><span class="cal-month-daynum">${d}</span>${weekTagHtml}</div>
+      <div class="cal-month-pills">${allPills.join('')}${extraCount > 0 ? `<span class="cal-month-more">+${extraCount}</span>` : ''}</div>
     </div>`);
   }
-  return `<div class="calendar-month-view" id="calendar-month-view">
+  return `<div class="calendar-month-view" id="${escapeHTML(viewId)}">
     <div class="cal-month-nav">
-      <button type="button" class="button secondary" data-cal-month="-1" aria-label="前の月">← 前月</button>
+      <button type="button" class="button secondary" ${navAttr}="-1" aria-label="前の月">← 前月</button>
       <strong>${y}年 ${m}月</strong>
-      <button type="button" class="button secondary" data-cal-month="0">今月</button>
-      <button type="button" class="button secondary" data-cal-month="1" aria-label="次の月">翌月 →</button>
+      <button type="button" class="button secondary" ${navAttr}="0">今月</button>
+      <button type="button" class="button secondary" ${navAttr}="1" aria-label="次の月">翌月 →</button>
     </div>
     <div class="cal-month-grid">
       ${['日', '月', '火', '水', '木', '金', '土'].map(w => `<div class="cal-month-head">${w}</div>`).join('')}
@@ -1408,16 +1581,30 @@ function renderCalendarMonthGrid(events, subs, todayStr) {
   </div>`;
 }
 
+function renderCalendarMonthGrid(events, subs, todayStr) {
+  const [baseY, baseM] = todayStr.slice(0, 7).split('-').map(Number);
+  const target = new Date(Date.UTC(baseY, (baseM - 1) + calendarMonthOffset, 1));
+  return renderMonthCalendarGrid({
+    year: target.getUTCFullYear(),
+    month: target.getUTCMonth() + 1,
+    events,
+    subs,
+    todayStr,
+    lessonWeeksMap: computeAcademicLessonWeeks(calendarData || FALLBACK_CALENDAR),
+    navAttr: 'data-cal-month',
+    viewId: 'calendar-month-view'
+  });
+}
+
 function calendar() {
   const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const nowDate = new Date();
   const todayStr = dateKey(nowDate);
-  const currentMonthPrefix = todayStr.slice(0, 7);
   const weekInfo = getAcademicWeek(nowDate);
   const data = calendarData || FALLBACK_CALENDAR;
   const events = Array.isArray(data.events) && data.events.length ? data.events : FALLBACK_CALENDAR.events;
   const subs = Array.isArray(data.daySubstitutions) ? data.daySubstitutions : [];
-  const subDates = new Set(subs.map(s => s.date));
+  const koukiStart = data.terms?.kouki?.classesStartDate || data.terms?.kouki?.startDate || '2026-09-24';
 
   const badgeMap = {
     holiday: { cls: 'yellow', label: '祝日・休業' },
@@ -1432,19 +1619,6 @@ function calendar() {
     event: { cls: 'blue', label: '行事' }
   };
 
-  const koukiStart = data.terms?.kouki?.classesStartDate || data.terms?.kouki?.startDate || '2026-09-24';
-  const [curY, curM] = currentMonthPrefix.split('-').map(Number);
-  const lastDom = new Date(Date.UTC(curY, curM, 0)).getUTCDate();
-  const monthStart = `${currentMonthPrefix}-01`;
-  const monthEnd = `${currentMonthPrefix}-${String(lastDom).padStart(2, '0')}`;
-  const matchesPeriod = (startStr, endStr) => {
-    if (!startStr) return true;
-    const endSafe = endStr || startStr;
-    if (calendarFilterPeriod === 'current') return startStr <= monthEnd && endSafe >= monthStart;
-    if (calendarFilterPeriod === 'zenki') return startStr < koukiStart && Number(startStr.slice(5, 7)) >= 4;
-    if (calendarFilterPeriod === 'kouki') return endSafe >= koukiStart || Number(startStr.slice(5, 7)) <= 3;
-    return true;
-  };
   const qLower = calendarSearchQuery.trim().toLowerCase();
 
   const sortedEvents = [...events]
@@ -1452,7 +1626,6 @@ function calendar() {
     .filter(ev => {
       const start = String(ev.date || ev.startDate || '');
       const endSafe = String(ev.endDate || start);
-      if (!matchesPeriod(start, endSafe)) return false;
       if (calendarHidePast && endSafe && endSafe < todayStr) return false;
       if (calendarFilterCategory === 'holiday') {
         return ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false;
@@ -1466,7 +1639,7 @@ function calendar() {
 
   const filteredSubs = (calendarFilterCategory === 'holiday' || calendarFilterCategory === 'exam')
     ? []
-    : subs.filter(s => s && matchesPeriod(String(s.date || ''), String(s.date || '')) && (!calendarHidePast || String(s.date || '') >= todayStr));
+    : subs.filter(s => s && (!calendarHidePast || String(s.date || '') >= todayStr));
 
   const timelineEntries = [
     ...sortedEvents.map(ev => {
@@ -1481,6 +1654,7 @@ function calendar() {
       const hiddenBySearch = Boolean(qLower && !textForSearch.includes(qLower));
       return {
         sortDate: start,
+        isKouki: start >= koukiStart || Number(start.slice(5, 7)) <= 3,
         html: `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}"${hiddenBySearch ? ' style="display:none;"' : ''}>
       <span class="calendar-event-date">${escapeHTML(start + end)}</span>
       ${isToday ? '<span class="badge red">本日</span>' : ''}
@@ -1499,6 +1673,7 @@ function calendar() {
       const hiddenBySearch = Boolean(qLower && !textForSearch.includes(qLower));
       return {
         sortDate: ds,
+        isKouki: ds >= koukiStart || Number(ds.slice(5, 7)) <= 3,
         html: `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(ds)}" data-type="substitution"${hiddenBySearch ? ' style="display:none;"' : ''}>
       <span class="calendar-event-date">${escapeHTML(ds)}</span>
       ${isToday ? '<span class="badge red">本日</span>' : ''}
@@ -1510,16 +1685,26 @@ function calendar() {
     })
   ].sort((a, b) => String(a.sortDate).localeCompare(String(b.sortDate)));
 
-  const eventRows = timelineEntries.map(x => x.html).join('');
+  const zenkiEntries = timelineEntries.filter(x => !x.isKouki);
+  const koukiEntries = timelineEntries.filter(x => x.isKouki);
+  const groupedListParts = [];
+  if (zenkiEntries.length > 0) {
+    groupedListParts.push('<li class="calendar-term-divider" id="cal-anchor-zenki">前期（4月〜9月）</li>');
+    groupedListParts.push(...zenkiEntries.map(x => x.html));
+  }
+  if (koukiEntries.length > 0) {
+    groupedListParts.push('<li class="calendar-term-divider" id="cal-anchor-kouki">後期（9月〜3月）</li>');
+    groupedListParts.push(...koukiEntries.map(x => x.html));
+  }
+  const eventRows = groupedListParts.join('');
 
-  const periodChip = (key, label) => `<button type="button" class="chip${calendarFilterPeriod === key ? ' active' : ''}" data-cal-period="${key}" aria-pressed="${calendarFilterPeriod === key ? 'true' : 'false'}">${label}</button>`;
   const catChip = (key, label) => `<button type="button" class="chip${calendarFilterCategory === key ? ' active' : ''}" data-cal-cat="${key}" aria-pressed="${calendarFilterCategory === key ? 'true' : 'false'}">${label}</button>`;
   const zenkiPdfUrl = normalizeAkashiUrl(data.meta?.zenkiPdfUrl, '');
   const koukiPdfUrl = normalizeAkashiUrl(data.meta?.koukiPdfUrl, '');
   const calSourceUrl = normalizeAkashiUrl(data.meta?.sourceUrl, 'https://www.akashi.ac.jp/life/calendar.html');
 
   const mainBodyHtml = calendarViewMode === 'month'
-    ? renderCalendarMonthGrid(sortedEvents, subs, todayStr)
+    ? renderCalendarMonthGrid(events, subs, todayStr)
     : `<div class="calendar-events" id="calendar-events"><ul class="calendar-timeline" id="calendar-timeline-list">${eventRows || '<li class="calendar-event-item"><span class="calendar-event-title">該当する行事はありません。</span></li>'}</ul></div>`;
 
   return `${heading('年間予定', '', actions)}
@@ -1529,20 +1714,29 @@ function calendar() {
         <span class="badge blue">${escapeHTML(weekInfo.label)} / 全15週</span>
       </div>
       <div class="calendar-toolbar">
-        <button type="button" class="button" id="export-calendar-ics">${icon('download')}iCal保存 (.ics)</button>
-        ${zenkiPdfUrl ? `<a class="button secondary" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期PDF</a>` : ''}
-        ${koukiPdfUrl ? `<a class="button secondary" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期PDF</a>` : ''}
+        <button type="button" class="button" id="export-calendar-ics-zenki" data-open-ical-preview="calendar:zenki">${icon('download')}前期 iCal DL</button>
+        <button type="button" class="button" id="export-calendar-ics-kouki" data-open-ical-preview="calendar:kouki">${icon('download')}後期 iCal DL</button>
+        <button type="button" class="button secondary" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}通年 iCal DL</button>
+        ${zenkiPdfUrl ? `<a class="button subtle" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期PDF</a>` : ''}
+        ${koukiPdfUrl ? `<a class="button subtle" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期PDF</a>` : ''}
         <a class="text-link" href="${escapeHTML(calSourceUrl)}" target="_blank" rel="noopener noreferrer">公式行事予定${icon('arrow')}</a>
       </div>
-      <div class="calendar-filters" role="group" aria-label="年間予定絞り込み">
-        <div class="filter-group">${periodChip('all', '通年')}${periodChip('current', '今月')}${periodChip('zenki', '前期')}${periodChip('kouki', '後期')}</div>
+      <div class="calendar-filters" role="group" aria-label="年間予定の表示切替と移動">
+        <div class="filter-group">
+          <button type="button" class="chip${calendarViewMode === 'month' ? ' active' : ''}" data-cal-view="month" aria-pressed="${calendarViewMode === 'month' ? 'true' : 'false'}">カレンダー表示</button>
+          <button type="button" class="chip${calendarViewMode === 'list' ? ' active' : ''}" data-cal-view="list" aria-pressed="${calendarViewMode === 'list' ? 'true' : 'false'}">イベントだけ表示</button>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="chip" data-cal-jump="zenki">前期へ (4月)</button>
+          <button type="button" class="chip" data-cal-jump="kouki">後期へ (9月)</button>
+          <button type="button" class="chip" data-cal-jump="current">今月へ</button>
+          <button type="button" class="chip" id="calendar-jump-today" data-cal-jump="today">今日へ</button>
+        </div>
+        ${calendarViewMode === 'list' ? `
         <div class="filter-group">${catChip('all', 'すべて')}${catChip('holiday', '祝日・休業')}${catChip('exam', '定期試験')}${catChip('event', '学校行事')}</div>
         <div class="filter-group">
-          <button type="button" class="chip${calendarViewMode === 'list' ? ' active' : ''}" data-cal-view="list" aria-pressed="${calendarViewMode === 'list' ? 'true' : 'false'}">リスト</button>
-          <button type="button" class="chip${calendarViewMode === 'month' ? ' active' : ''}" data-cal-view="month" aria-pressed="${calendarViewMode === 'month' ? 'true' : 'false'}">月間</button>
           <button type="button" class="chip${calendarHidePast ? ' active' : ''}" id="calendar-hide-past-btn" aria-pressed="${calendarHidePast ? 'true' : 'false'}">今後のみ</button>
-          <button type="button" class="chip" id="calendar-jump-today">今日へ</button>
-        </div>
+        </div>` : ''}
       </div>
       <div class="exam-search-bar"${calendarViewMode === 'month' ? ' hidden' : ''}>
         <input type="search" id="calendar-search-input" value="${escapeHTML(calendarSearchQuery)}" placeholder="行事名・日付で検索..." aria-label="年間予定検索">
@@ -1674,15 +1868,15 @@ function cafeteria() {
 function cafeteriaView() { return cafeteria(); }
 
 const OFFICIAL_SERVICES = [
-  { name: 'Teams', url: 'https://teams.microsoft.com', category: 'learning' },
-  { name: 'Classroom', url: 'https://classroom.google.com', category: 'learning' },
-  { name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML', category: 'learning' },
-  { name: 'Microsoft 365 (SharePoint)', url: 'https://portal.office.com', category: 'learning' },
-  { name: '図書館WebOPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do', category: 'academic' },
-  { name: 'シラバス検索', url: 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja', category: 'academic' },
-  { name: 'JR西日本 列車運行情報', url: 'https://trafficinfo.westjr.co.jp/kinki.html', category: 'transport' },
-  { name: '山陽電車 運行情報', url: 'https://www.sanyo-railway.co.jp/railway/traffic.html', category: 'transport' },
-  { name: '神姫バス 時刻表・バスナビ', url: 'https://navi.shinkibus.co.jp/', category: 'transport' },
+  { name: '学生ポータル (MS365)', url: MS365_PORTAL_URL, category: 'learning', desc: 'SharePoint 学内掲示・連絡' },
+  { name: 'Teams', url: 'https://teams.microsoft.com', category: 'learning', desc: 'チャット・オンライン授業' },
+  { name: 'Classroom', url: 'https://classroom.google.com', category: 'learning', desc: '課題提出・配布資料' },
+  { name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML', category: 'learning', desc: 'LMS（SAML認証）' },
+  { name: '図書館WebOPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do', category: 'academic', desc: '蔵書検索・貸出確認' },
+  { name: 'シラバス検索（全学科）', url: 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja', category: 'academic', desc: '全学科・専攻科一覧' },
+  { name: 'JR西日本 列車運行情報', url: 'https://trafficinfo.westjr.co.jp/kinki.html', category: 'transport', desc: '近畿エリア（JR神戸線）' },
+  { name: '山陽電車 運行情報', url: 'https://www.sanyo-railway.co.jp/railway/traffic.html', category: 'transport', desc: '山陽電鉄 運行状況' },
+  { name: '神姫バス 時刻表・バスナビ', url: 'https://navi.shinkibus.co.jp/', category: 'transport', desc: '接近・時刻検索' },
 ];
 
 const PRESET_LINKS = [
@@ -1692,21 +1886,36 @@ const PRESET_LINKS = [
   { name: 'iCloud', url: 'https://www.icloud.com/' },
 ];
 
+function renderLinkTile(item, featured = false) {
+  const sub = item.desc || getUrlHostname(item.url);
+  return `<a class="link-tile${featured ? ' is-featured' : ''}" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(item.name)}（新しいタブで開く）">
+    ${renderFavicon(item.url, item.name)}
+    <span class="link-tile-body">
+      <span class="link-tile-title">${escapeHTML(item.name)}</span>
+      ${sub ? `<span class="link-tile-sub">${escapeHTML(sub)}</span>` : ''}
+    </span>
+    <span class="link-tile-ext" aria-hidden="true">${icon('external')}</span>
+  </a>`;
+}
+
 function linksView() {
   const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
   const syllabusUrl = getSyllabusUrl(studentSelection);
   const serviceGroups = [
-    { key: 'learning', title: '学内学習ツール・LMS' },
-    { key: 'academic', title: '学術情報・シラバス' },
+    { key: 'learning', title: '学内ポータル・LMS' },
+    { key: 'academic', title: '学務・シラバス・図書館' },
     { key: 'transport', title: '交通・運行情報' },
   ];
   const officialSections = serviceGroups.map(grp => {
-    const items = OFFICIAL_SERVICES.filter(s => s.category === grp.key);
+    const baseItems = OFFICIAL_SERVICES.filter(s => s.category === grp.key);
+    const items = grp.key === 'academic'
+      ? [{ name: `シラバス（${studentShortLabel()}）`, url: syllabusUrl, desc: `${studentLabel()} の直リンク`, featured: true }, ...baseItems]
+      : baseItems;
     if (!items.length) return '';
     return `<div class="links-category-section">
       <h3 class="links-category-title">${escapeHTML(grp.title)}</h3>
-      <div class="official-links-group" style="display:flex;flex-wrap:wrap;gap:8px;">
-        ${items.map(s => `<a class="button secondary" href="${escapeHTML(s.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(s.name)}（新しいタブで開く）">${icon('external')}${escapeHTML(s.name)}</a>`).join('')}
+      <div class="links-card-grid">
+        ${items.map(s => renderLinkTile(s, Boolean(s.featured))).join('')}
       </div>
     </div>`;
   }).join('');
@@ -1714,38 +1923,39 @@ function linksView() {
   const myLinks = loadMyLinks().filter(item => item && /^https?:\/\//i.test(String(item.url || '')));
   const existingUrls = new Set(myLinks.map(item => normalizeLinkUrl(item.url)));
   const myLinkItems = myLinks.length
-    ? myLinks.map((item, idx) => {
-        const isEditing = editingMyLinkId === item.id;
-        return `
-        <div class="mylink-row${isEditing ? ' is-editing' : ''}" data-link-id="${escapeHTML(item.id)}">
-          <a class="button secondary mylink-anchor" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer">${icon('external')}${escapeHTML(item.name)}</a>
-          <div class="mylink-reorder-btns">
-            <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="up" aria-label="${escapeHTML(item.name)}を上へ移動" ${idx === 0 ? 'disabled' : ''}>↑</button>
-            <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="down" aria-label="${escapeHTML(item.name)}を下へ移動" ${idx === myLinks.length - 1 ? 'disabled' : ''}>↓</button>
-          </div>
-          <button type="button" class="button secondary mylink-edit-btn" data-edit-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を編集" aria-expanded="${isEditing ? 'true' : 'false'}">編集</button>
-          <button type="button" class="button secondary mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除">削除</button>
-          ${isEditing ? `
-          <form class="mylink-edit-form" data-edit-form-id="${escapeHTML(item.id)}" novalidate>
-            <input type="text" class="mylink-edit-name" name="name" value="${escapeHTML(item.name)}" placeholder="表示名" aria-label="リンク名を編集">
-            <input type="url" class="mylink-edit-url" name="url" value="${escapeHTML(item.url)}" placeholder="https://..." aria-label="URLを編集">
-            <div class="mylink-edit-actions">
-              <button type="submit" class="button mylink-save-btn">保存</button>
-              <button type="button" class="button secondary mylink-cancel-btn">キャンセル</button>
-            </div>
-            <p class="mylink-edit-error info-note" role="alert" hidden></p>
-          </form>` : ''}
-        </div>
-      `;
-      }).join('')
-    : '<p class="hint">登録されたマイリンクはまだありません。</p>';
+    ? (myLinksManageMode
+        ? myLinks.map((item, idx) => {
+            const isEditing = editingMyLinkId === item.id;
+            return `
+            <div class="mylink-row${isEditing ? ' is-editing' : ''}" data-link-id="${escapeHTML(item.id)}">
+              <a class="button secondary mylink-anchor" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer">${renderFavicon(item.url, item.name)}<span>${escapeHTML(item.name)}</span></a>
+              <div class="mylink-reorder-btns">
+                <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="up" aria-label="${escapeHTML(item.name)}を上へ移動" ${idx === 0 ? 'disabled' : ''}>↑</button>
+                <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="down" aria-label="${escapeHTML(item.name)}を下へ移動" ${idx === myLinks.length - 1 ? 'disabled' : ''}>↓</button>
+              </div>
+              <button type="button" class="button secondary mylink-edit-btn" data-edit-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を編集" aria-expanded="${isEditing ? 'true' : 'false'}">編集</button>
+              <button type="button" class="button secondary mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除">削除</button>
+              ${isEditing ? `
+              <form class="mylink-edit-form" data-edit-form-id="${escapeHTML(item.id)}" novalidate>
+                <input type="text" class="mylink-edit-name" name="name" value="${escapeHTML(item.name)}" placeholder="表示名" aria-label="リンク名を編集">
+                <input type="url" class="mylink-edit-url" name="url" value="${escapeHTML(item.url)}" placeholder="https://..." aria-label="URLを編集">
+                <div class="mylink-edit-actions">
+                  <button type="submit" class="button mylink-save-btn">保存</button>
+                  <button type="button" class="button secondary mylink-cancel-btn">キャンセル</button>
+                </div>
+                <p class="mylink-edit-error info-note" role="alert" hidden></p>
+              </form>` : ''}
+            </div>`;
+          }).join('')
+        : `<div class="links-card-grid">${myLinks.map(item => renderLinkTile(item)).join('')}</div>`)
+    : '<p class="hint">よく使うサイトを追加すると、ホームのクイックリンクにも表示されます。</p>';
 
   const presetButtons = PRESET_LINKS.map(p => {
     const added = existingUrls.has(normalizeLinkUrl(p.url));
-    return `<button type="button" class="button secondary preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${escapeHTML(p.name)}${added ? '（追加済み）' : ''}</button>`;
+    return `<button type="button" class="button secondary preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${renderFavicon(p.url, p.name)}<span>${escapeHTML(p.name)}${added ? '（追加済み）' : ''}</span></button>`;
   }).join('');
 
-  const archiveItems = (timetableLinksData?.pages || [])
+  const archiveList = (timetableLinksData?.pages || [])
     .flatMap(p => Array.isArray(p?.items) ? p.items : [])
     .filter(item => item && item.url)
     .map(item => {
@@ -1753,21 +1963,21 @@ function linksView() {
       if (!/^https:\/\//i.test(safeUrl)) return '';
       return `<a class="button secondary" href="${escapeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer">${icon('document')}${escapeHTML(item.title || item.fileName || 'PDF')}</a>`;
     })
-    .filter(Boolean)
-    .join('');
+    .filter(Boolean);
 
   return `${heading('リンク・シラバス', '', actions)}
     <section class="panel links-panel">
       <div class="panel-head">
-        <h2>${icon('book')}シラバス・公式リンク集</h2>
+        <h2>${icon('book')}公式リンク・シラバス</h2>
       </div>
-      <p><a class="button" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(studentShortLabel())}のシラバスを開く">シラバスを開く</a></p>
-      <div class="official-links-list" style="margin:16px 0;">
+      <div class="official-links-list" style="margin:8px 0 0;">
         ${officialSections}
       </div>
-      ${archiveItems ? `<div class="links-archive-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);"><h3>公式時間割・試験PDFアーカイブ</h3><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${archiveItems}</div></div>` : ''}
       <div class="mylinks-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-        <h3>マイリンク</h3>
+        <div class="mylinks-head">
+          <h3>マイリンク</h3>
+          ${myLinks.length > 0 ? `<button type="button" class="button subtle" id="mylinks-manage-toggle" aria-pressed="${myLinksManageMode ? 'true' : 'false'}">${myLinksManageMode ? '完了' : '並び替え・編集'}</button>` : ''}
+        </div>
         <div id="mylinks-list" class="mylinks-list">
           ${myLinkItems}
         </div>
@@ -1777,13 +1987,14 @@ function linksView() {
           <button type="submit" id="mylink-add-btn" class="button">追加</button>
         </form>
         <p id="mylink-error" class="info-note" role="alert" hidden></p>
-      </div>
-      <div class="preset-suggestions">
-        <h3>ワンタップ追加候補</h3>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
-          ${presetButtons}
+        <div class="preset-suggestions">
+          <p class="links-category-title">ワンタップ追加候補</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${presetButtons}
+          </div>
         </div>
       </div>
+      ${archiveList.length ? `<details class="links-archive-details"><summary>公式時間割・試験PDFアーカイブ（${archiveList.length}件）</summary><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${archiveList.join('')}</div></details>` : ''}
     </section>`;
 }
 
@@ -1813,7 +2024,10 @@ function renderTimetableBanners(date = new Date()) {
 
   const isExam = events.some(e => e.type === 'exam' && dateStr >= e.date && (!e.endDate || dateStr <= e.endDate));
   if (isExam) {
-    banners += `<div class="alert alert-warning timetable-banner exam-period-banner"><span class="badge red">定期試験期間</span> 現在は定期試験期間です。<a class="text-link" href="#exam">試験時間割を確認 →</a></div>`;
+    const examLink = FEATURE_FLAGS.exam
+      ? '<a class="text-link" href="#exam">試験時間割を確認 →</a>'
+      : '<a class="text-link" href="#calendar">年間予定を確認 →</a>';
+    banners += `<div class="alert alert-warning timetable-banner exam-period-banner"><span class="badge red">定期試験期間</span> 現在は定期試験期間です。${examLink}</div>`;
   }
 
   return banners;
@@ -1839,8 +2053,26 @@ function timetable() {
   const sourcePdfUrl = getTimetablePdfUrl();
   const updatedText = timetableMeta?.updated || (timetableMeta?.updatedAt ? String(timetableMeta.updatedAt).slice(0, 10) : '') || SOURCE?.updated || '2026-09-24';
   const legendEntries = Object.entries(activeRoomLegends || {});
-  const legendsHtml = (!error && legendEntries.length > 0)
-    ? `<details class="room-legends-box" data-export-exclude><summary>教室略称・正式名称一覧（${legendEntries.length}件）</summary><div class="room-legends-grid">${legendEntries.map(([k, v]) => `<div><strong>${escapeHTML(k)}</strong>: ${escapeHTML(v)}</div>`).join('')}</div></details>`
+  const legendsBtnHtml = (!error && legendEntries.length > 0)
+    ? `<button type="button" class="button subtle" id="open-room-legends-modal">${icon('door')}教室略称 (${legendEntries.length})</button>`
+    : '';
+  const legendsModalHtml = legendEntries.length > 0
+    ? `<div class="data-preview-overlay" id="room-legends-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="教室略称・正式名称一覧">
+        <div class="data-preview-card room-legends-modal-card">
+          <div class="data-preview-head">
+            <h3>教室略称・正式名称一覧（${legendEntries.length}件）</h3>
+            <button type="button" class="button size-close-btn" id="room-legends-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
+          </div>
+          <div class="data-preview-body">
+            <div class="room-legends-modal-grid">
+              ${legendEntries.map(([k, v]) => `<div class="room-legend-row"><span class="room-legend-code">${escapeHTML(k)}</span><span>${escapeHTML(v)}</span></div>`).join('')}
+            </div>
+          </div>
+          <div class="data-preview-foot">
+            <button type="button" class="button secondary" id="room-legends-cancel">閉じる</button>
+          </div>
+        </div>
+      </div>`
     : '';
 
   return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions">${themeToggleBtn()}</div>`)}
@@ -1861,7 +2093,8 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><div class="timetable-head-right" data-export-exclude>${error ? '' : '<div class="timetable-search-bar"><input type="search" id="timetable-search-input" placeholder="科目名・教員名・教室名で検索..." aria-label="時間割内検索"><span id="timetable-search-count" class="field-hint" hidden></span></div>'}<span class="badge">${totalPeriods}コマ</span></div></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}${legendsHtml}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${icon('copy')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'コピー')}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('download')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><div class="timetable-head-right" data-export-exclude>${legendsBtnHtml}<span class="badge">${totalPeriods}コマ</span></div></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${icon('copy')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'コピー')}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('download')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    ${legendsModalHtml}
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -1971,11 +2204,275 @@ function applyLiveSheetSize(sheet) {
 }
 function getOpenModalEl() {
   if (typeof document === 'undefined') return null;
-  for (const id of ['export-size-modal', 'data-preview-modal', 'profile-switcher-modal']) {
+  for (const id of ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'profile-switcher-modal']) {
     const el = document.getElementById(id);
-    if (el && !el.hidden) return el;
+    if (el && el.hidden === false) return el;
   }
   return null;
+}
+
+function renderIcalPreviewModal() {
+  return `<div class="data-preview-overlay" id="ical-preview-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="iCal出力プレビュー">
+    <div class="data-preview-card ical-modal-card">
+      <div class="data-preview-head">
+        <h3 id="ical-modal-title">iCal (.ics) 出力プレビュー</h3>
+        <button type="button" class="button size-close-btn" id="ical-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
+      </div>
+      <div class="data-preview-body" id="ical-modal-body"></div>
+      <div class="data-preview-foot">
+        <button type="button" class="button secondary" id="ical-modal-cancel">閉じる</button>
+        <button type="button" class="button export-copy-btn" id="ical-modal-copy">${icon('copy')}iCalをコピー</button>
+        <button type="button" class="button" id="ical-modal-download">${icon('download')}iCal保存 (.ics)</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openRoomLegendsModal() {
+  const modal = document.getElementById('room-legends-modal');
+  if (!modal) return;
+  lastModalTrigger = document.activeElement || null;
+  modal.hidden = false;
+  setModalBackdropInert(true, modal);
+  document.body.classList.add('size-modal-open');
+  document.getElementById('room-legends-close')?.focus?.();
+}
+
+function closeRoomLegendsModal() {
+  const modal = document.getElementById('room-legends-modal');
+  const wasOpen = modal && !modal.hidden;
+  if (modal) modal.hidden = true;
+  setModalBackdropInert(false);
+  document.body.classList.remove('size-modal-open');
+  if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+    lastModalTrigger.focus();
+    lastModalTrigger = null;
+  }
+}
+
+function closeIcalPreviewModal() {
+  const modal = document.getElementById('ical-preview-modal');
+  const wasOpen = modal && !modal.hidden;
+  if (modal) modal.hidden = true;
+  setModalBackdropInert(false);
+  document.body.classList.remove('size-modal-open');
+  if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+    lastModalTrigger.focus();
+    lastModalTrigger = null;
+  }
+}
+
+async function renderIcalPreviewBody() {
+  const titleEl = document.getElementById('ical-modal-title');
+  const bodyEl = document.getElementById('ical-modal-body');
+  if (!bodyEl) return;
+  const cal = calendarData || FALLBACK_CALENDAR;
+  const todayStr = dateKey(new Date());
+  const fy = Number(timetableMeta?.fiscalYear) || 2026;
+  const term = timetableMeta?.term || '後期';
+  const koukiStart = cal.terms?.kouki?.classesStartDate || cal.terms?.kouki?.startDate || `${fy}-09-24`;
+  const allEvents = Array.isArray(cal.events) ? cal.events : [];
+  const allSubs = Array.isArray(cal.daySubstitutions) ? cal.daySubstitutions : [];
+  const lessonWeeksMap = computeAcademicLessonWeeks(cal);
+
+  const filterByPeriod = (period) => {
+    if (!period || period === 'all') return { events: allEvents, subs: allSubs };
+    const match = (s, e) => {
+      if (!s) return false;
+      const es = e || s;
+      const sm = Number(String(s).slice(5, 7));
+      return period === 'zenki' ? (s < koukiStart && sm >= 4) : (es >= koukiStart || sm <= 3);
+    };
+    return {
+      events: allEvents.filter(ev => ev && match(ev.date || ev.startDate, ev.endDate || ev.date)),
+      subs: allSubs.filter(sub => sub && match(sub.date, sub.date))
+    };
+  };
+
+  const { generateIcs, generateCalendarIcs } = await import('./timetable-export.js');
+  let previewEvents = [];
+  let previewSubs = [];
+  let scheduleOverlay = null;
+  let rawIcs = '';
+  let summaryText = '';
+  let optionsHtml = '';
+
+  if (icalModalState.source === 'timetable') {
+    if (titleEl) titleEl.textContent = `時間割 iCal (.ics) 出力設定・プレビュー（${studentShortLabel()}）`;
+    const semInfo = getActiveSemesterInfo();
+    const holidayDates = getExpandedHolidayDates();
+    const lessons = selectedSchedule().selected || [];
+    const calPeriod = term === '前期' ? 'zenki' : 'kouki';
+    if (icalModalState.includeCalendarEvents) {
+      const filtered = filterByPeriod(calPeriod);
+      previewEvents = filtered.events.filter(ev => icalModalState.includeExams || ev.type !== 'exam');
+      previewSubs = filtered.subs;
+    } else if (icalModalState.mode === 'calendar') {
+      const filtered = filterByPeriod(calPeriod);
+      previewSubs = filtered.subs;
+    }
+    const subMap = new Map();
+    for (const s of allSubs) {
+      if (!s?.date) continue;
+      let eff = Number(s.effectiveDay);
+      if (!(eff >= 1 && eff <= 5) && s.substituteDay) {
+        const idx = DAYS.indexOf(String(s.substituteDay).replace(/曜日$/, ''));
+        if (idx >= 0) eff = idx + 1;
+      }
+      if (eff >= 1 && eff <= 5) subMap.set(s.date, { effectiveDay: eff });
+    }
+    const termObj = term === '前期' ? cal.terms?.zenki : cal.terms?.kouki;
+    const examEnd = termObj?.examStartDate || semInfo.until;
+    scheduleOverlay = {
+      lessons,
+      mode: icalModalState.mode,
+      startDate: semInfo.startDate,
+      endDate: icalModalState.mode === 'calendar' ? examEnd : semInfo.until,
+      holidaySet: new Set(holidayDates),
+      subMap
+    };
+    rawIcs = generateIcs(lessons, studentLabel(), {
+      fiscalYear: fy,
+      term,
+      semesterInfo: semInfo,
+      holidays: holidayDates,
+      mode: icalModalState.mode,
+      daySubstitutions: allSubs,
+      includeCalendarEvents: icalModalState.includeCalendarEvents,
+      calendarData: cal,
+      calendarPeriod: calPeriod,
+      includeExams: icalModalState.includeExams
+    });
+    summaryText = icalModalState.mode === 'calendar'
+      ? `年間予定に準拠（休講日を除外・振替授業日を反映）${icalModalState.includeCalendarEvents ? '＋年間行事予定を同梱' : ''}`
+      : `単純な4×5の週間繰り返し（期末まで毎週）${icalModalState.includeCalendarEvents ? '＋年間行事予定を同梱' : ''}`;
+    optionsHtml = `<div class="ical-options-box">
+      <div class="ical-option-row">
+        <span class="ical-option-label">授業の反映</span>
+        <label><input type="radio" name="ical-tt-mode" value="calendar"${icalModalState.mode === 'calendar' ? ' checked' : ''}> 年間予定に準拠（休講日除外・振替授業反映）</label>
+        <label><input type="radio" name="ical-tt-mode" value="simple"${icalModalState.mode === 'simple' ? ' checked' : ''}> 単純な4×5の週間繰り返し</label>
+      </div>
+      <div class="ical-option-row">
+        <span class="ical-option-label">行事の同梱</span>
+        <label><input type="checkbox" id="ical-opt-include-cal"${icalModalState.includeCalendarEvents ? ' checked' : ''}> 年間行事予定（祝日・試験・振替・行事）も含める</label>
+      </div>
+    </div>`;
+  } else {
+    const periodLabel = icalModalState.period === 'zenki' ? '前期' : (icalModalState.period === 'kouki' ? '後期' : '通年');
+    if (titleEl) titleEl.textContent = `年間行事予定 iCal (.ics) プレビュー（${periodLabel}）`;
+    const filtered = filterByPeriod(icalModalState.period);
+    previewEvents = filtered.events.filter(ev => icalModalState.includeExams || ev.type !== 'exam');
+    previewSubs = filtered.subs;
+    rawIcs = generateCalendarIcs(cal, { period: icalModalState.period, includeExams: icalModalState.includeExams });
+    summaryText = `出力対象: ${periodLabel}（行事 ${previewEvents.length}件・振替授業 ${previewSubs.length}件）`;
+    optionsHtml = `<div class="ical-options-box">
+      <div class="ical-option-row">
+        <span class="ical-option-label">対象期間</span>
+        <div class="filter-group">
+          <button type="button" class="chip${icalModalState.period === 'zenki' ? ' active' : ''}" data-ical-period="zenki">前期</button>
+          <button type="button" class="chip${icalModalState.period === 'kouki' ? ' active' : ''}" data-ical-period="kouki">後期</button>
+          <button type="button" class="chip${icalModalState.period === 'all' ? ' active' : ''}" data-ical-period="all">通年</button>
+        </div>
+      </div>
+      <div class="ical-option-row">
+        <span class="ical-option-label">オプション</span>
+        <label><input type="checkbox" id="ical-opt-include-exams"${icalModalState.includeExams ? ' checked' : ''}> 定期試験期間を含める</label>
+      </div>
+    </div>`;
+  }
+
+  const calHtml = renderMonthCalendarGrid({
+    year: icalModalState.year,
+    month: icalModalState.month,
+    events: previewEvents,
+    subs: previewSubs,
+    todayStr,
+    lessonWeeksMap: (icalModalState.source === 'calendar' || icalModalState.mode === 'calendar') ? lessonWeeksMap : null,
+    scheduleOverlay,
+    navAttr: 'data-ical-month',
+    viewId: 'ical-preview-calendar'
+  });
+
+  bodyEl.innerHTML = `
+    ${optionsHtml}
+    <p class="ical-preview-summary">${escapeHTML(summaryText)}</p>
+    ${calHtml}
+    <details class="ical-raw-details">
+      <summary>生成される .ics データを確認</summary>
+      <pre class="preview-code-block" id="ical-preview-code" style="margin-top:8px;">${escapeHTML(rawIcs)}</pre>
+    </details>
+  `;
+
+  bodyEl.querySelectorAll?.('input[name="ical-tt-mode"]').forEach(r => {
+    r.addEventListener('change', e => {
+      if (e.target.checked) {
+        icalModalState.mode = e.target.value === 'simple' ? 'simple' : 'calendar';
+        renderIcalPreviewBody();
+      }
+    });
+  });
+  bodyEl.querySelector?.('#ical-opt-include-cal')?.addEventListener('change', e => {
+    icalModalState.includeCalendarEvents = Boolean(e.target.checked);
+    renderIcalPreviewBody();
+  });
+  bodyEl.querySelector?.('#ical-opt-include-exams')?.addEventListener('change', e => {
+    icalModalState.includeExams = Boolean(e.target.checked);
+    renderIcalPreviewBody();
+  });
+  bodyEl.querySelectorAll?.('[data-ical-period]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset?.icalPeriod || 'all';
+      icalModalState.period = p;
+      const [nowY, nowM] = todayStr.slice(0, 7).split('-').map(Number);
+      if (p === 'zenki') { icalModalState.year = fy; icalModalState.month = 4; }
+      else if (p === 'kouki') { icalModalState.year = nowY; icalModalState.month = nowM; }
+      else { icalModalState.year = nowY; icalModalState.month = nowM; }
+      renderIcalPreviewBody();
+    });
+  });
+  bodyEl.querySelectorAll?.('[data-ical-month]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = Number(btn.dataset?.icalMonth);
+      if (delta === 0) {
+        const [nowY, nowM] = todayStr.slice(0, 7).split('-').map(Number);
+        icalModalState.year = nowY;
+        icalModalState.month = nowM;
+      } else {
+        const next = new Date(Date.UTC(icalModalState.year, (icalModalState.month - 1) + delta, 1));
+        icalModalState.year = next.getUTCFullYear();
+        icalModalState.month = next.getUTCMonth() + 1;
+      }
+      renderIcalPreviewBody();
+    });
+  });
+}
+
+async function openIcalPreviewModal(source = 'timetable', period = null) {
+  const modal = document.getElementById('ical-preview-modal');
+  if (!modal) return;
+  const todayStr = dateKey(new Date());
+  const [nowY, nowM] = todayStr.slice(0, 7).split('-').map(Number);
+  const fy = Number(timetableMeta?.fiscalYear) || 2026;
+  icalModalState.source = source === 'calendar' ? 'calendar' : 'timetable';
+  if (source === 'calendar') {
+    icalModalState.period = period || 'all';
+    if (icalModalState.period === 'zenki') {
+      icalModalState.year = fy;
+      icalModalState.month = 4;
+    } else {
+      icalModalState.year = nowY;
+      icalModalState.month = nowM;
+    }
+  } else {
+    icalModalState.year = nowY;
+    icalModalState.month = nowM;
+  }
+  await renderIcalPreviewBody();
+  lastModalTrigger = document.activeElement || null;
+  modal.hidden = false;
+  setModalBackdropInert(true, modal);
+  document.body.classList.add('size-modal-open');
+  document.getElementById('ical-modal-close')?.focus?.();
 }
 function setModalBackdropInert(active, activeModal = null) {
   if (typeof document === 'undefined') return;
@@ -2144,6 +2641,8 @@ function getActiveSemesterInfo() {
 function openExportAdjustModal() {
   if (currentExportFormat === 'pdf' || currentExportFormat === 'png') {
     openSizeAdjustModal();
+  } else if (currentExportFormat === 'ics') {
+    openIcalPreviewModal('timetable');
   } else {
     openDataPreviewModal(currentExportFormat);
   }
@@ -2313,6 +2812,11 @@ async function downloadCurrentTimetable(action = 'download') {
       term: timetableMeta?.term || '後期',
       semesterInfo: getActiveSemesterInfo(),
       holidays: holidayDates,
+      mode: icalModalState.mode,
+      daySubstitutions: Array.isArray(calendarData?.daySubstitutions) ? calendarData.daySubstitutions : [],
+      includeCalendarEvents: icalModalState.includeCalendarEvents,
+      calendarData: calendarData || FALLBACK_CALENDAR,
+      includeExams: icalModalState.includeExams,
       sizeConfig: { ...exportSizeConfig },
       a4Mode: a4ModeEnabled,
       theme: getExportTheme(),
@@ -2365,7 +2869,10 @@ let globalListenersBound = false;
 function render() {
   const rawHash = (location.hash.slice(1).split('?')[0].split('/')[0] || 'home').trim();
   const page = Object.hasOwn(names, rawHash) ? rawHash : 'home';
-  if (page !== 'links') editingMyLinkId = '';
+  if (page !== 'links') {
+    editingMyLinkId = '';
+    myLinksManageMode = false;
+  }
   const breadcrumbEl = document.getElementById('breadcrumb');
   if (breadcrumbEl) breadcrumbEl.textContent = names[page];
   document.title = `${names[page]} — 明石高専`;
@@ -2382,10 +2889,11 @@ function render() {
     footerMeta.textContent = `${fyLabel}${termLabel}`;
   }
   const main = document.getElementById('main');
+  const sharedModals = renderProfileSwitcherModal() + renderIcalPreviewModal();
   if (main) {
-    if (page === 'home') main.innerHTML = home() + renderProfileSwitcherModal();
+    if (page === 'home') main.innerHTML = home() + sharedModals;
     else if (page === 'timetable') {
-      main.innerHTML = timetable() + renderProfileSwitcherModal();
+      main.innerHTML = timetable() + sharedModals;
       const sheetEl = document.getElementById('timetable-sheet');
       if (sheetEl && !sheetEl.parentElement) {
         const m = main.innerHTML.match(/<section[^>]*id="timetable-sheet"[^>]*>([\s\S]*?)<\/section>/);
@@ -2399,10 +2907,10 @@ function render() {
         }
       }
     }
-    else if (page === 'exam') main.innerHTML = exam() + renderProfileSwitcherModal();
-    else if (page === 'calendar') main.innerHTML = calendar() + renderProfileSwitcherModal();
-    else if (page === 'cafeteria') main.innerHTML = cafeteria() + renderProfileSwitcherModal();
-    else if (page === 'links') main.innerHTML = linksView() + renderProfileSwitcherModal();
+    else if (page === 'exam') main.innerHTML = exam() + sharedModals;
+    else if (page === 'calendar') main.innerHTML = calendar() + sharedModals;
+    else if (page === 'cafeteria') main.innerHTML = cafeteria() + sharedModals;
+    else if (page === 'links') main.innerHTML = linksView() + sharedModals;
   }
   const formatSelect = document.getElementById('export-format');
   const copyBtn = document.getElementById('export-copy');
@@ -2468,52 +2976,95 @@ function render() {
   });
 
 
-  // 年間予定 iCal 保存ボタン
-  document.getElementById('export-calendar-ics')?.addEventListener('click', async () => {
-    const { exportCalendarIcs } = await import('./timetable-export.js');
-    const cal = calendarData || FALLBACK_CALENDAR;
-    const fy = timetableMeta?.fiscalYear || 2026;
-    exportCalendarIcs(cal, `akashi-calendar-${fy}`);
-    showToast('年間行事予定 (.ics) を保存しました。');
+  // 教室略称モーダル
+  document.getElementById('open-room-legends-modal')?.addEventListener('click', openRoomLegendsModal);
+  document.getElementById('room-legends-close')?.addEventListener('click', closeRoomLegendsModal);
+  document.getElementById('room-legends-cancel')?.addEventListener('click', closeRoomLegendsModal);
+  document.getElementById('room-legends-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeRoomLegendsModal();
   });
 
-  // 時間割内ハイライト検索
-  document.getElementById('timetable-search-input')?.addEventListener('input', e => {
-    const q = String(e.target?.value || '').trim().toLowerCase();
-    const countEl = document.getElementById('timetable-search-count');
-    if (typeof document.querySelectorAll !== 'function') return;
-    const cards = Array.from(document.querySelectorAll('.real-timetable .lesson-card'));
-    const cells = Array.from(document.querySelectorAll('.real-timetable td.schedule-cell'));
-    if (!q) {
-      cards.forEach(c => c.classList?.remove('is-match', 'is-dimmed'));
-      cells.forEach(td => td.classList?.remove('is-match', 'is-dimmed'));
-      if (countEl) { countEl.hidden = true; countEl.textContent = ''; }
-      return;
-    }
-    let matches = 0;
-    cards.forEach(c => {
-      const extraRoom = c.querySelector?.('.lesson-location-btn')?.dataset?.roomFull || '';
-      const hit = `${c.textContent || ''} ${extraRoom}`.toLowerCase().includes(q);
-      c.classList?.toggle('is-match', hit);
-      c.classList?.toggle('is-dimmed', !hit);
-      if (hit) matches++;
+  // 共通 iCal プレビュー＆出力モーダル
+  if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('[data-open-ical-preview]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const spec = String(btn.dataset?.openIcalPreview || 'calendar:all');
+        const [src, per] = spec.split(':');
+        openIcalPreviewModal(src || 'calendar', per || 'all');
+      });
     });
-    cells.forEach(td => {
-      if (td.classList?.contains('schedule-empty')) {
-        td.classList?.remove('is-match');
-        td.classList?.add('is-dimmed');
-        return;
+  }
+  document.getElementById('ical-modal-close')?.addEventListener('click', closeIcalPreviewModal);
+  document.getElementById('ical-modal-cancel')?.addEventListener('click', closeIcalPreviewModal);
+  document.getElementById('ical-preview-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeIcalPreviewModal();
+  });
+  document.getElementById('ical-modal-copy')?.addEventListener('click', async () => {
+    const copyBtnEl = document.getElementById('ical-modal-copy');
+    const origHtml = copyBtnEl?.innerHTML;
+    let ok = false;
+    try {
+      if (icalModalState.source === 'timetable') {
+        const prevFmt = currentExportFormat;
+        currentExportFormat = 'ics';
+        ok = await downloadCurrentTimetable('copy');
+        currentExportFormat = prevFmt;
+      } else {
+        const { exportCalendarIcs } = await import('./timetable-export.js');
+        const cal = calendarData || FALLBACK_CALENDAR;
+        const fy = timetableMeta?.fiscalYear || 2026;
+        const res = await exportCalendarIcs(cal, `akashi-calendar-${fy}-${icalModalState.period}`, {
+          period: icalModalState.period,
+          includeExams: icalModalState.includeExams,
+          action: 'copy'
+        });
+        ok = res?.success !== false;
+        if (ok) showToast('年間行事予定のiCalテキストをコピーしました。');
       }
-      const cellCards = td.querySelectorAll ? Array.from(td.querySelectorAll('.lesson-card')) : [];
-      const anyHit = cellCards.some(c => c.classList?.contains('is-match'));
-      td.classList?.toggle('is-match', anyHit);
-      td.classList?.toggle('is-dimmed', !anyHit);
-    });
-    if (countEl) {
-      countEl.hidden = false;
-      countEl.textContent = `${matches}件の授業が一致`;
+    } catch {
+      ok = false;
+    }
+    if (copyBtnEl) {
+      setBtnContent(copyBtnEl, ok ? 'check' : 'alert', ok ? 'コピー完了' : 'コピー失敗');
+      const timer = setTimeout(() => {
+        if (origHtml != null) copyBtnEl.innerHTML = origHtml;
+      }, 1500);
+      timer?.unref?.();
     }
   });
+  document.getElementById('ical-modal-download')?.addEventListener('click', async () => {
+    if (icalModalState.source === 'timetable') {
+      closeIcalPreviewModal();
+      const prevFmt = currentExportFormat;
+      currentExportFormat = 'ics';
+      const fmtSel = document.getElementById('export-format');
+      if (fmtSel) fmtSel.value = 'ics';
+      await downloadCurrentTimetable('download');
+      currentExportFormat = prevFmt;
+    } else {
+      const { exportCalendarIcs } = await import('./timetable-export.js');
+      const cal = calendarData || FALLBACK_CALENDAR;
+      const fy = timetableMeta?.fiscalYear || 2026;
+      const pLabel = icalModalState.period === 'zenki' ? '前期' : (icalModalState.period === 'kouki' ? '後期' : '通年');
+      await exportCalendarIcs(cal, `akashi-calendar-${fy}-${icalModalState.period}`, {
+        period: icalModalState.period,
+        includeExams: icalModalState.includeExams
+      });
+      closeIcalPreviewModal();
+      showToast(`年間行事予定（${pLabel} .ics）を保存しました。`);
+    }
+  });
+
+  // マイリンク整理モード切替
+  const manageToggleBtn = document.getElementById('mylinks-manage-toggle');
+  if (manageToggleBtn && !manageToggleBtn.dataset?.manageBound) {
+    if (manageToggleBtn.dataset) manageToggleBtn.dataset.manageBound = '1';
+    manageToggleBtn.addEventListener('click', () => {
+      myLinksManageMode = !myLinksManageMode;
+      if (!myLinksManageMode) editingMyLinkId = '';
+      render();
+    });
+  }
 
   // 教室略称タップ展開ポップオーバー
   if (typeof document.querySelectorAll === 'function') {
@@ -2580,10 +3131,42 @@ function render() {
         render();
       });
     });
-    document.querySelectorAll('[data-cal-period]').forEach(btn => {
+    document.querySelectorAll('[data-cal-jump]').forEach(btn => {
       btn.addEventListener('click', () => {
-        calendarFilterPeriod = btn.dataset?.calPeriod || 'all';
-        render();
+        const target = btn.dataset?.calJump || 'today';
+        const todayStr = dateKey(new Date());
+        const [curY, curM] = todayStr.slice(0, 7).split('-').map(Number);
+        const fy = Number(timetableMeta?.fiscalYear) || 2026;
+        if (calendarViewMode === 'month') {
+          if (target === 'zenki') {
+            calendarMonthOffset = (fy - curY) * 12 + (4 - curM);
+          } else if (target === 'kouki') {
+            calendarMonthOffset = (fy - curY) * 12 + (9 - curM);
+          } else {
+            calendarMonthOffset = 0;
+          }
+          render();
+          return;
+        }
+        const list = document.getElementById('calendar-timeline-list');
+        if (!list?.querySelector) return;
+        let anchor = null;
+        if (target === 'zenki') {
+          anchor = document.getElementById('cal-anchor-zenki');
+        } else if (target === 'kouki') {
+          anchor = document.getElementById('cal-anchor-kouki');
+        } else if (target === 'current') {
+          const monthPrefix = todayStr.slice(0, 7);
+          anchor = Array.from(list.querySelectorAll('.calendar-event-item[data-date]'))
+            .find(li => (li.dataset?.date || '').startsWith(monthPrefix) && li.style?.display !== 'none')
+            || Array.from(list.querySelectorAll('.calendar-event-item[data-date]'))
+            .find(li => (li.dataset?.date || '') >= `${monthPrefix}-01` && li.style?.display !== 'none');
+        } else {
+          anchor = list.querySelector('.calendar-event-item.is-today')
+            || Array.from(list.querySelectorAll('.calendar-event-item[data-date]'))
+            .find(li => (li.dataset?.date || '') >= todayStr && li.style?.display !== 'none');
+        }
+        anchor?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       });
     });
     document.querySelectorAll('[data-cal-cat]').forEach(btn => {
@@ -2848,6 +3431,8 @@ function render() {
     window.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
         closeDataPreviewModal();
+        closeIcalPreviewModal();
+        closeRoomLegendsModal();
         closeSizeAdjustModal();
         const pm = document.getElementById('profile-switcher-modal');
         if (pm && !pm.hidden) {
@@ -2871,7 +3456,14 @@ function render() {
       const tag = String(target?.tagName || '').toUpperCase();
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
       if (e.altKey && !e.ctrlKey && !e.metaKey && /^[1-6]$/.test(String(e.key || ''))) {
-        const routes = ['home', 'timetable', 'exam', 'calendar', 'cafeteria', 'links'];
+        const routes = [
+          'home',
+          'timetable',
+          ...(FEATURE_FLAGS.exam ? ['exam'] : []),
+          'calendar',
+          ...(FEATURE_FLAGS.cafeteria ? ['cafeteria'] : []),
+          'links'
+        ];
         const nextRoute = routes[Number(e.key) - 1];
         if (nextRoute) {
           e.preventDefault?.();
@@ -2880,9 +3472,8 @@ function render() {
         return;
       }
       if (e.key === '/' && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        const searchEl = document.getElementById('timetable-search-input')
-          || document.getElementById('exam-search-input')
-          || document.getElementById('calendar-search-input');
+        const searchEl = document.getElementById('calendar-search-input')
+          || document.getElementById('exam-search-input');
         if (searchEl && !searchEl.disabled && !searchEl.hidden && typeof searchEl.focus === 'function') {
           e.preventDefault?.();
           searchEl.focus();

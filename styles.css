@@ -720,3 +720,59 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .timetable-banner.week-banner{margin:-6px 0 14px;display:flex;align-items:center;gap:8px;padding:0;background:transparent;border:0}
 .week-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600;background:#ececef;color:var(--ink)}
 [data-theme="dark"] .week-pill{background:#232838;color:#d8dce6}
+
+/* リンク集 Favicon & タイルカードUI */
+.link-favicon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;background:#f4f4f6;border:1px solid var(--line);flex-shrink:0;overflow:hidden}
+.link-favicon img{width:18px;height:18px;object-fit:contain;display:block}
+.link-favicon-fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:12px;font-weight:700;color:var(--wine)}
+[data-theme="dark"] .link-favicon{background:#232838;border-color:#323a4e}
+[data-theme="dark"] .link-favicon-fallback{color:#f4a8b8}
+.quick-link-btn .link-favicon,.preset-btn .link-favicon,.mylink-anchor .link-favicon{width:22px;height:22px;border-radius:5px}
+.quick-link-btn .link-favicon img,.preset-btn .link-favicon img,.mylink-anchor .link-favicon img{width:14px;height:14px}
+.links-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.link-tile{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-decoration:none;transition:border-color .15s,background .15s,transform .12s;min-width:0}
+.link-tile:hover{border-color:var(--wine);background:#fdf7f8;transform:translateY(-1px)}
+.link-tile.is-featured{border-left:3px solid var(--wine)}
+.link-tile-body{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.link-tile-title{font-size:13px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-tile-sub{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-tile-ext{color:var(--muted);flex-shrink:0;display:inline-flex}
+.link-tile-ext svg{width:14px;height:14px}
+[data-theme="dark"] .link-tile{background:#1c2130;border-color:#2b3142;color:#e8eaf0}
+[data-theme="dark"] .link-tile:hover{border-color:#f4a8b8;background:#261d26}
+[data-theme="dark"] .link-tile.is-featured{border-left-color:#f4a8b8}
+.mylinks-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.mylinks-head h3{margin:0}
+.links-archive-details{margin-top:20px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#faf9f8}
+.links-archive-details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink)}
+[data-theme="dark"] .links-archive-details{background:#181c28;border-color:#2b3142}
+
+/* 教室略称ポップアップモーダル */
+.room-legends-modal-card{max-width:680px}
+.room-legends-modal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px 16px}
+.room-legend-row{display:flex;align-items:baseline;gap:8px;padding:6px 8px;border-bottom:1px solid var(--line);font-size:12.5px}
+.room-legend-code{font-weight:700;color:var(--wine);min-width:64px;flex-shrink:0}
+[data-theme="dark"] .room-legend-code{color:#f4a8b8}
+
+/* 年間予定：セル内第N週表示・学期区切り見出し・共通iCalプレビューモーダル */
+.cal-month-cell-head{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.cal-month-week-tag{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:999px;background:#eef0f4;color:#475569;white-space:nowrap}
+.cal-month-week-tag.is-sub{background:#f3e8ff;color:#6b21a8}
+.cal-month-week-tag.is-spare{background:#fef3c7;color:#92400e}
+[data-theme="dark"] .cal-month-week-tag{background:#262d40;color:#cbd5e1}
+[data-theme="dark"] .cal-month-week-tag.is-sub{background:#2c1b3a;color:#d8b4fe}
+[data-theme="dark"] .cal-month-week-tag.is-spare{background:#332813;color:#fde68a}
+.cal-month-pill.is-lesson{background:#eef2ff;color:#3730a3}
+[data-theme="dark"] .cal-month-pill.is-lesson{background:#1e2340;color:#c7d2fe}
+.calendar-term-divider{list-style:none;padding:10px 8px 6px;margin-top:8px;font-size:12px;font-weight:700;color:var(--wine);border-bottom:2px solid var(--line);letter-spacing:.02em}
+.calendar-term-divider:first-child{margin-top:0}
+[data-theme="dark"] .calendar-term-divider{color:#f4a8b8}
+.ical-modal-card{max-width:920px;width:min(920px,calc(100vw - 24px))}
+.ical-options-box{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#faf9f8;margin-bottom:12px}
+[data-theme="dark"] .ical-options-box{background:#181c28;border-color:#2b3142}
+.ical-option-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;font-size:12.5px}
+.ical-option-label{font-weight:700;color:var(--muted);min-width:92px}
+.ical-option-row label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.ical-preview-summary{font-size:12px;color:var(--muted);margin:0 0 8px}
+.ical-raw-details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.ical-raw-details summary{cursor:pointer;font-size:12px;color:var(--muted);font-weight:600}
