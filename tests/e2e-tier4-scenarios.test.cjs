@@ -196,7 +196,7 @@ test('S-03: First-Year Morning Dashboard Check (F6, F7, F8, F18, F20, F21, F22)'
   assert.ok(mainHtml.includes('ホーム') || mainHtml.includes('ダッシュボード'), 'Dashboard title is visible');
 
   // Step 3: Strict Non-Goals Exclusion
-  const nonGoals = ['混雑状況', '歴代校長', '備品報告', '空き教室', '授業変更'];
+  const nonGoals = ['混雑状況', '歴代校長', '備品報告', '空き教室'];
   for (const ng of nonGoals) {
     assert.ok(!mainHtml.includes(ng), `Dashboard must not contain non-goal: ${ng}`);
   }

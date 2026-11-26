@@ -30,10 +30,12 @@ const icons = {
   chevronLeft:'m15 18-6-6 6-6',
   chevronRight:'m9 18 6-6-6-6',
   close:'M18 6 6 18M6 6l12 12',
+  grid:'M4 4h7v7H4Zm9 0h7v7h-7ZM4 13h7v7H4Zm9 0h7v7h-7Z',
+  rotate:'M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5',
 };
 const FEATURE_FLAGS = { exam: false, cafeteria: false };
 const MS365_PORTAL_URL = 'https://kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72';
-const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar:'年間予定',cafeteria:'食堂メニュー',links:'リンク'};
+const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar:'年間予定',cafeteria:'食堂メニュー',links:'リンク集'};
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[name] || icons.info}"/></svg>`;
 const setBtnContent = (el, iconName, text) => {
   if (!el) return;
@@ -288,6 +290,9 @@ let calendarViewMode = 'month';
 let calendarMonthOffset = 0;
 let selectedAllergenFilter = '';
 let myLinksManageMode = false;
+let linkModalMode = 'add';
+let dragLinkId = '';
+let lastLinksSnapshot = null;
 let icalModalState = {
   source: 'timetable',
   mode: 'calendar',
@@ -313,7 +318,7 @@ function renderFavicon(url, label = '') {
     return `<span class="link-favicon" aria-hidden="true"><span class="link-favicon-fallback">${escapeHTML(initial)}</span></span>`;
   }
   const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
-  return `<span class="link-favicon" aria-hidden="true"><img src="${escapeHTML(src)}" alt="" width="20" height="20" loading="lazy" decoding="async" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex'"><span class="link-favicon-fallback" style="display:none">${escapeHTML(initial)}</span></span>`;
+  return `<span class="link-favicon has-img" aria-hidden="true"><img src="${escapeHTML(src)}" alt="" width="22" height="22" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentElement.classList.remove('has-img');if(this.nextElementSibling)this.nextElementSibling.style.display='flex'"><span class="link-favicon-fallback" style="display:none">${escapeHTML(initial)}</span></span>`;
 }
 
 function computeAcademicLessonWeeks(cal = calendarData || FALLBACK_CALENDAR) {
@@ -1082,24 +1087,220 @@ function renderCafeteriaSummary(currentDate) {
   `;
 }
 
-function loadMyLinks() {
+const DEFAULT_LINKS = [
+  { id: 'default:syllabus', name: 'シラバス', dynamicSyllabus: true },
+  { id: 'default:henkou', name: '授業変更リスト', url: MS365_PORTAL_URL },
+  { id: 'default:teams', name: 'Teams', url: 'https://teams.microsoft.com' },
+  { id: 'default:classroom', name: 'Classroom', url: 'https://classroom.google.com' },
+  { id: 'default:webclass', name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML' },
+  { id: 'default:opac', name: '図書館OPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do' },
+  { id: 'default:jr', name: 'JR神戸線', fullName: 'JR神戸線 列車走行位置（魚住駅）', url: 'https://www.train-guide.westjr.co.jp/kobesanyo.html?st=0444' },
+  { id: 'default:sanyo', name: '山陽電車', fullName: '山陽電車 遅延証明書', url: 'https://www.sanyo-railway.co.jp/railway/delay/index.html' },
+];
+const DEFAULT_LINK_IDS = new Set(DEFAULT_LINKS.map(d => d.id));
+
+function isValidHttpUrl(url) {
+  return typeof url === 'string' && /^https?:\/\//i.test(url.trim());
+}
+
+function sanitizeCustomLinksArray(arr) {
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of arr) {
+    if (!item || typeof item !== 'object') continue;
+    const id = String(item.id || '').trim();
+    const name = String(item.name || '').trim();
+    const url = String(item.url || '').trim();
+    if (!id || !name || !isValidHttpUrl(url) || DEFAULT_LINK_IDS.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push({ ...item, id, name, url, custom: true });
+  }
+  return out;
+}
+
+function emptyLinksState() {
+  return { custom: [], order: [], hidden: [], overrides: {}, iconOnly: false };
+}
+
+function cloneLinksState(state) {
+  const s = state || emptyLinksState();
+  const overrides = {};
+  for (const [k, v] of Object.entries(s.overrides || {})) {
+    if (v && typeof v === 'object') overrides[k] = { ...v };
+  }
+  return {
+    custom: (s.custom || []).map(x => ({ ...x })),
+    order: [...(s.order || [])],
+    hidden: [...(s.hidden || [])],
+    overrides,
+    iconOnly: Boolean(s.iconOnly),
+  };
+}
+
+function loadLinksState() {
   try {
     const raw = localStorage.getItem('campus-links-v1');
-    if (!raw) return [];
+    if (!raw) return emptyLinksState();
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) {
+      return {
+        custom: sanitizeCustomLinksArray(parsed),
+        order: [],
+        hidden: [],
+        overrides: {},
+        iconOnly: false,
+      };
+    }
+    if (parsed && typeof parsed === 'object') {
+      const custom = sanitizeCustomLinksArray(parsed.custom);
+      const order = Array.isArray(parsed.order)
+        ? parsed.order.filter(id => typeof id === 'string' && id.trim().length > 0)
+        : [];
+      const hidden = Array.isArray(parsed.hidden)
+        ? Array.from(new Set(parsed.hidden.filter(id => DEFAULT_LINK_IDS.has(id))))
+        : [];
+      const overrides = {};
+      if (parsed.overrides && typeof parsed.overrides === 'object' && !Array.isArray(parsed.overrides)) {
+        for (const [id, ov] of Object.entries(parsed.overrides)) {
+          if (!DEFAULT_LINK_IDS.has(id) || !ov || typeof ov !== 'object') continue;
+          const clean = {};
+          if (typeof ov.name === 'string' && ov.name.trim()) clean.name = ov.name.trim();
+          if (typeof ov.url === 'string' && isValidHttpUrl(ov.url)) clean.url = ov.url.trim();
+          if (Object.keys(clean).length > 0) overrides[id] = clean;
+        }
+      }
+      return {
+        custom,
+        order,
+        hidden,
+        overrides,
+        iconOnly: Boolean(parsed.iconOnly),
+      };
+    }
+    return emptyLinksState();
   } catch {
-    return [];
+    return emptyLinksState();
   }
 }
 
-function saveMyLinks(links) {
+function saveLinksState(state) {
   try {
-    localStorage.setItem('campus-links-v1', JSON.stringify(links || []));
+    const s = state || emptyLinksState();
+    const custom = Array.isArray(s.custom) ? s.custom : [];
+    const order = Array.isArray(s.order) ? s.order : [];
+    const hidden = Array.isArray(s.hidden) ? s.hidden : [];
+    const overrides = (s.overrides && typeof s.overrides === 'object') ? s.overrides : {};
+    const iconOnly = Boolean(s.iconOnly);
+    const isMinimalArray = hidden.length === 0 && order.length === 0 && Object.keys(overrides).length === 0 && !iconOnly;
+    const payload = isMinimalArray
+      ? custom
+      : { version: 2, custom, order, hidden, overrides, iconOnly };
+    localStorage.setItem('campus-links-v1', JSON.stringify(payload));
     return true;
   } catch {
     return false;
   }
+}
+
+function isLinksCustomized(state = loadLinksState()) {
+  return (state.hidden?.length || 0) > 0
+    || (state.order?.length || 0) > 0
+    || Object.keys(state.overrides || {}).length > 0;
+}
+
+function getResolvedLinks(selection = studentSelection, state = loadLinksState()) {
+  const hiddenSet = new Set(state.hidden || []);
+  const overrides = state.overrides || {};
+  const dynamicSyllabusUrl = getSyllabusUrl(selection);
+  const canonical = [];
+  const byId = new Map();
+
+  for (const def of DEFAULT_LINKS) {
+    if (hiddenSet.has(def.id)) continue;
+    const ov = overrides[def.id] || {};
+    const resolvedUrl = def.dynamicSyllabus
+      ? (ov.url || dynamicSyllabusUrl)
+      : (ov.url || def.url);
+    const resolvedName = ov.name || def.name;
+    const resolvedFullName = def.dynamicSyllabus
+      ? (ov.name ? resolvedName : `シラバス（${studentShortLabel()}）`)
+      : (ov.name ? resolvedName : (def.fullName || def.name));
+    const item = {
+      id: def.id,
+      name: resolvedName,
+      fullName: resolvedFullName,
+      url: resolvedUrl,
+      isDefault: true,
+      isSyllabus: Boolean(def.dynamicSyllabus),
+      usesDynamicSyllabusUrl: Boolean(def.dynamicSyllabus && !ov.url),
+      custom: false,
+    };
+    canonical.push(item);
+    byId.set(item.id, item);
+  }
+
+  for (const c of (state.custom || [])) {
+    if (!c || !c.id || byId.has(c.id) || !isValidHttpUrl(c.url)) continue;
+    const item = {
+      ...c,
+      fullName: c.name,
+      isDefault: false,
+      isSyllabus: false,
+      usesDynamicSyllabusUrl: false,
+      custom: true,
+    };
+    canonical.push(item);
+    byId.set(item.id, item);
+  }
+
+  if (!Array.isArray(state.order) || state.order.length === 0) {
+    return canonical;
+  }
+
+  const ordered = [];
+  const used = new Set();
+  for (const id of state.order) {
+    if (byId.has(id) && !used.has(id)) {
+      ordered.push(byId.get(id));
+      used.add(id);
+    }
+  }
+  for (const item of canonical) {
+    if (!used.has(item.id)) {
+      ordered.push(item);
+      used.add(item.id);
+    }
+  }
+  return ordered;
+}
+
+function getCanonicalIds(state) {
+  const hiddenSet = new Set(state.hidden || []);
+  const defIds = DEFAULT_LINKS.filter(d => !hiddenSet.has(d.id)).map(d => d.id);
+  const customIds = (state.custom || []).map(c => c.id);
+  return [...defIds, ...customIds];
+}
+
+function normalizeOrderField(state, ids) {
+  const canonical = getCanonicalIds(state);
+  const same = ids.length === canonical.length && ids.every((id, i) => id === canonical[i]);
+  state.order = same ? [] : ids;
+}
+
+function loadMyLinks() {
+  return loadLinksState().custom;
+}
+
+function saveMyLinks(links) {
+  const state = loadLinksState();
+  state.custom = Array.isArray(links) ? links : [];
+  if (state.order.length > 0) {
+    const validIds = new Set([...DEFAULT_LINK_IDS, ...state.custom.map(c => c.id)]);
+    state.order = state.order.filter(id => validIds.has(id));
+    normalizeOrderField(state, state.order);
+  }
+  return saveLinksState(state);
 }
 
 function normalizeLinkUrl(u) {
@@ -1129,9 +1330,9 @@ function validateMyLinkInput(link) {
   return { valid: true, name, url };
 }
 
-function persistMyLinks(links) {
+function persistLinksState(state) {
   try {
-    const saved = saveMyLinks(links);
+    const saved = saveLinksState(state);
     if (saved === false || (saved && saved.success === false)) {
       return { success: false, error: (saved && saved.error) || 'リンクを保存できませんでした。' };
     }
@@ -1144,13 +1345,18 @@ function persistMyLinks(links) {
 function addMyLink(link) {
   const v = validateMyLinkInput(link);
   if (!v.valid) return { success: false, error: v.error };
-  const links = loadMyLinks();
-  if (!link.id && links.some(l => normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
-    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
+  const state = loadLinksState();
+  const resolved = getResolvedLinks(studentSelection, state);
+  if (!link.id && resolved.some(l => normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
+    return { success: false, error: 'このURLはすでに登録されています。' };
   }
   const newItem = { id: link.id || `custom-${Date.now()}-${++myLinkSeq}`, name: v.name, url: v.url, custom: true };
-  links.push(newItem);
-  const persisted = persistMyLinks(links);
+  state.custom.push(newItem);
+  if (state.order.length > 0) {
+    state.order.push(newItem.id);
+    normalizeOrderField(state, state.order);
+  }
+  const persisted = persistLinksState(state);
   if (!persisted.success) return persisted;
   return { success: true, item: newItem };
 }
@@ -1158,53 +1364,130 @@ const addCustomLink = addMyLink;
 
 function updateMyLink(id, link) {
   if (!id) return { success: false, error: '対象のリンクIDが見つかりません。' };
-  const v = validateMyLinkInput(link);
+  const state = loadLinksState();
+  const isDef = DEFAULT_LINK_IDS.has(id);
+  const defItem = isDef ? DEFAULT_LINKS.find(d => d.id === id) : null;
+  const candidateUrl = (defItem?.dynamicSyllabus && !String(link?.url || '').trim())
+    ? getSyllabusUrl(studentSelection)
+    : link?.url;
+  const v = validateMyLinkInput({ name: link?.name, url: candidateUrl });
   if (!v.valid) return { success: false, error: v.error };
-  const links = loadMyLinks();
-  const idx = links.findIndex(l => l.id === id);
-  if (idx === -1) return { success: false, error: '対象のマイリンクが見つかりませんでした。' };
-  if (links.some(l => l.id !== id && normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
-    return { success: false, error: 'このURLはすでにマイリンクに登録されています。' };
+
+  const resolved = getResolvedLinks(studentSelection, state);
+  if (resolved.some(l => l.id !== id && normalizeLinkUrl(l.url) === normalizeLinkUrl(v.url))) {
+    return { success: false, error: 'このURLはすでに登録されています。' };
   }
-  links[idx] = { ...links[idx], name: v.name, url: v.url };
-  const persisted = persistMyLinks(links);
+
+  if (isDef && defItem) {
+    const ov = {};
+    if (v.name !== defItem.name) ov.name = v.name;
+    const defaultUrl = defItem.dynamicSyllabus ? getSyllabusUrl(studentSelection) : defItem.url;
+    if (normalizeLinkUrl(v.url) !== normalizeLinkUrl(defaultUrl)) ov.url = v.url;
+    if (Object.keys(ov).length > 0) state.overrides[id] = ov;
+    else delete state.overrides[id];
+    const persisted = persistLinksState(state);
+    if (!persisted.success) return persisted;
+    return { success: true, item: { id, name: v.name, url: v.url, isDefault: true } };
+  }
+
+  const idx = state.custom.findIndex(l => l.id === id);
+  if (idx === -1) return { success: false, error: '対象のマイリンクが見つかりませんでした。' };
+  state.custom[idx] = { ...state.custom[idx], name: v.name, url: v.url };
+  const persisted = persistLinksState(state);
   if (!persisted.success) return persisted;
-  return { success: true, item: links[idx], links };
+  return { success: true, item: state.custom[idx], links: state.custom };
+}
+
+function moveUnifiedLink(id, direction) {
+  const state = loadLinksState();
+  const resolved = getResolvedLinks(studentSelection, state);
+  const idx = resolved.findIndex(l => l.id === id);
+  if (idx === -1) return state.custom;
+  const delta = (direction === 'up' || direction === -1) ? -1 : ((direction === 'down' || direction === 1) ? 1 : 0);
+  const nextIdx = idx + delta;
+  if (delta === 0 || nextIdx < 0 || nextIdx >= resolved.length) return state.custom;
+
+  const a = resolved[idx];
+  const b = resolved[nextIdx];
+  if (state.order.length === 0 && a.custom && b.custom) {
+    const ciA = state.custom.findIndex(c => c.id === a.id);
+    const ciB = state.custom.findIndex(c => c.id === b.id);
+    if (ciA !== -1 && ciB !== -1) {
+      [state.custom[ciA], state.custom[ciB]] = [state.custom[ciB], state.custom[ciA]];
+      saveLinksState(state);
+      return state.custom;
+    }
+  }
+  const ids = resolved.map(x => x.id);
+  [ids[idx], ids[nextIdx]] = [ids[nextIdx], ids[idx]];
+  normalizeOrderField(state, ids);
+  saveLinksState(state);
+  return state.custom;
+}
+
+function reorderUnifiedLinkByDrop(fromId, toId) {
+  if (!fromId || !toId || fromId === toId) return false;
+  const state = loadLinksState();
+  const ids = getResolvedLinks(studentSelection, state).map(x => x.id);
+  const fromIdx = ids.indexOf(fromId);
+  const toIdx = ids.indexOf(toId);
+  if (fromIdx === -1 || toIdx === -1) return false;
+  const [moved] = ids.splice(fromIdx, 1);
+  ids.splice(toIdx, 0, moved);
+  normalizeOrderField(state, ids);
+  return saveLinksState(state);
 }
 
 function reorderMyLink(id, direction) {
-  const links = loadMyLinks();
-  const idx = links.findIndex(l => l.id === id);
-  if (idx === -1) return links;
-  if (direction === 'up' && idx > 0) {
-    const temp = links[idx];
-    links[idx] = links[idx - 1];
-    links[idx - 1] = temp;
-    saveMyLinks(links);
-  } else if (direction === 'down' && idx < links.length - 1) {
-    const temp = links[idx];
-    links[idx] = links[idx + 1];
-    links[idx + 1] = temp;
-    saveMyLinks(links);
-  }
-  return links;
+  return moveUnifiedLink(id, direction);
 }
 
 function deleteMyLink(id) {
-  const links = loadMyLinks().filter(l => l.id !== id);
-  saveMyLinks(links);
-  return links;
+  const state = loadLinksState();
+  state.custom = state.custom.filter(l => l.id !== id);
+  if (state.order.length > 0) {
+    state.order = state.order.filter(x => x !== id);
+    normalizeOrderField(state, state.order);
+  }
+  saveLinksState(state);
+  return state.custom;
 }
 const removeMyLink = deleteMyLink;
 
+function hideDefaultLink(id) {
+  if (!DEFAULT_LINK_IDS.has(id)) return false;
+  const state = loadLinksState();
+  if (!state.hidden.includes(id)) state.hidden.push(id);
+  if (state.order.length > 0) {
+    state.order = state.order.filter(x => x !== id);
+    normalizeOrderField(state, state.order);
+  }
+  return saveLinksState(state);
+}
+
+function restoreDefaultLinks() {
+  const state = loadLinksState();
+  state.hidden = [];
+  state.overrides = {};
+  state.order = [];
+  return saveLinksState(state);
+}
+
+function toggleLinksIconOnly() {
+  const state = loadLinksState();
+  state.iconOnly = !state.iconOnly;
+  saveLinksState(state);
+  return state.iconOnly;
+}
+
 function restoreMyLink(item, index = 0) {
   if (!item || typeof item !== 'object' || !item.id) return loadMyLinks();
-  const links = loadMyLinks();
-  if (links.some(l => l.id === item.id)) return links;
-  const insertAt = Math.max(0, Math.min(links.length, Number.isFinite(index) ? index : links.length));
-  links.splice(insertAt, 0, { ...item });
-  persistMyLinks(links);
-  return links;
+  const state = loadLinksState();
+  if (state.custom.some(l => l.id === item.id)) return state.custom;
+  const insertAt = Math.max(0, Math.min(state.custom.length, Number.isFinite(index) ? index : state.custom.length));
+  state.custom.splice(insertAt, 0, { ...item });
+  persistLinksState(state);
+  return state.custom;
 }
 
 function showToast(message, options = {}) {
@@ -1256,45 +1539,72 @@ function showToast(message, options = {}) {
   }
 }
 
-function renderQuickLinks() {
-  const syllabusUrl = getSyllabusUrl(studentSelection);
-  const customLinks = loadMyLinks();
+function renderDialVisual(item) {
+  if (item.isSyllabus && item.usesDynamicSyllabusUrl) {
+    return icon('book');
+  }
+  return renderFavicon(item.url, item.name);
+}
 
-  const customItemsHtml = customLinks.map(l => `
-    <a class="quick-link-btn external-link" href="${escapeHTML(l.url)}" target="_blank" rel="noopener noreferrer">
-      ${renderFavicon(l.url, l.name)}<span>${escapeHTML(l.name)}</span>
-    </a>
-  `).join('');
+function renderSpeedDialGrid(items, { editable = false, includeAdd = false, iconOnly = false } = {}) {
+  const cls = ['speed-dial-grid'];
+  if (iconOnly && !editable) cls.push('is-icon-only');
+  if (editable) cls.push('is-edit');
+
+  const cells = items.map((item, idx) => {
+    const tip = item.fullName || item.name;
+    const labelCls = (iconOnly && !editable) ? 'dial-label sr-only' : 'dial-label';
+    const sylAttr = item.isSyllabus ? ' data-syllabus="1"' : '';
+    if (!editable) {
+      return `<div class="dial-cell">
+        <a class="link-tile"${sylAttr} href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(tip)}" aria-label="${escapeHTML(tip)}（新しいタブで開く）">
+          <span class="dial-icon">${renderDialVisual(item)}</span>
+          <span class="${labelCls}">${escapeHTML(item.name)}</span>
+        </a>
+      </div>`;
+    }
+    const removeBtn = item.custom
+      ? `<button type="button" class="dial-remove-btn mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除" title="削除">${icon('close')}</button>`
+      : `<button type="button" class="dial-remove-btn link-hide-btn" data-hide-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を非表示" title="非表示にする">${icon('close')}</button>`;
+    return `<div class="dial-cell" draggable="true" data-drag-id="${escapeHTML(item.id)}">
+      ${removeBtn}
+      <button type="button" class="dial-tile-btn" data-edit-id="${escapeHTML(item.id)}"${sylAttr} title="タップして編集" aria-label="${escapeHTML(item.name)}を編集">
+        <span class="dial-icon">${renderDialVisual(item)}</span>
+        <span class="dial-label">${escapeHTML(item.name)}</span>
+      </button>
+      <div class="dial-move-row">
+        <button type="button" class="dial-move-btn mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="up" aria-label="${escapeHTML(item.name)}を前へ移動" ${idx === 0 ? 'disabled' : ''}>${icon('chevronLeft')}</button>
+        <button type="button" class="dial-move-btn mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="down" aria-label="${escapeHTML(item.name)}を後ろへ移動" ${idx === items.length - 1 ? 'disabled' : ''}>${icon('chevronRight')}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const addCell = includeAdd
+    ? `<div class="dial-cell dial-cell-add">
+        <button type="button" class="dial-tile-btn dial-tile-add" data-open-link-add="1" title="リンクを追加" aria-label="リンクを追加">
+          <span class="dial-icon">${icon('plus')}</span>
+          <span class="${(iconOnly && !editable) ? 'dial-label sr-only' : 'dial-label'}">追加</span>
+        </button>
+      </div>`
+    : '';
+
+  return `<div class="${cls.join(' ')}">${cells}${addCell}</div>`;
+}
+
+function renderQuickLinks() {
+  const linksState = loadLinksState();
+  const resolved = getResolvedLinks(studentSelection, linksState);
+  const gridHtml = resolved.length
+    ? renderSpeedDialGrid(resolved, { editable: false, includeAdd: false, iconOnly: linksState.iconOnly })
+    : '<p class="empty-inline">リンクがありません。「編集」から追加できます。</p>';
 
   return `
     <section class="panel quick-links" id="quick-links">
       <div class="panel-head">
-        <h2>${icon('link')}クイックリンク</h2>
+        <h2>${icon('link')}リンク</h2>
+        <a class="text-link" href="#links">編集${icon('arrow')}</a>
       </div>
-      <div class="quick-links-grid">
-        <a class="button syllabus-launch-btn" href="${escapeHTML(syllabusUrl)}" target="_blank" rel="noopener noreferrer">
-          ${icon('book')}シラバス（${escapeHTML(studentShortLabel())}）
-        </a>
-        <a class="button secondary" href="#timetable">
-          ${icon('calendar')}週間時間割
-        </a>
-        <a class="quick-link-btn" href="${escapeHTML(MS365_PORTAL_URL)}" target="_blank" rel="noopener noreferrer">
-          ${renderFavicon(MS365_PORTAL_URL, '学生ポータル')}<span>学生ポータル (MS365)</span>
-        </a>
-        <a class="quick-link-btn" href="https://teams.microsoft.com" target="_blank" rel="noopener noreferrer">
-          ${renderFavicon('https://teams.microsoft.com', 'Teams')}<span>Teams</span>
-        </a>
-        <a class="quick-link-btn" href="https://classroom.google.com" target="_blank" rel="noopener noreferrer">
-          ${renderFavicon('https://classroom.google.com', 'Classroom')}<span>Classroom</span>
-        </a>
-        <a class="quick-link-btn" href="https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML" target="_blank" rel="noopener noreferrer">
-          ${renderFavicon('https://webclass.kosen-k.go.jp', 'WebClass')}<span>WebClass</span>
-        </a>
-        ${customItemsHtml}
-      </div>
-      <div class="panel-footer">
-        <a class="text-link" href="#links">すべてのリンクへ${icon('arrow')}</a>
-      </div>
+      ${gridHtml}
     </section>
   `;
 }
@@ -1874,18 +2184,6 @@ function cafeteria() {
 }
 function cafeteriaView() { return cafeteria(); }
 
-const OFFICIAL_SERVICES = [
-  { name: '学生ポータル (MS365)', url: MS365_PORTAL_URL, category: 'learning', desc: 'SharePoint 学内掲示・連絡' },
-  { name: 'Teams', url: 'https://teams.microsoft.com', category: 'learning', desc: 'チャット・オンライン授業' },
-  { name: 'Classroom', url: 'https://classroom.google.com', category: 'learning', desc: '課題提出・配布資料' },
-  { name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML', category: 'learning', desc: 'LMS（SAML認証）' },
-  { name: '図書館WebOPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do', category: 'academic', desc: '蔵書検索・貸出確認' },
-  { name: 'シラバス検索（全学科）', url: 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja', category: 'academic', desc: '全学科・専攻科一覧' },
-  { name: 'JR西日本 列車運行情報', url: 'https://trafficinfo.westjr.co.jp/kinki.html', category: 'transport', desc: '近畿エリア（JR神戸線）' },
-  { name: '山陽電車 運行情報', url: 'https://www.sanyo-railway.co.jp/railway/traffic.html', category: 'transport', desc: '山陽電鉄 運行状況' },
-  { name: '神姫バス 時刻表・バスナビ', url: 'https://navi.shinkibus.co.jp/', category: 'transport', desc: '接近・時刻検索' },
-];
-
 const PRESET_LINKS = [
   { name: 'Gmail', url: 'https://mail.google.com/' },
   { name: 'Google Drive', url: 'https://drive.google.com/' },
@@ -1893,74 +2191,55 @@ const PRESET_LINKS = [
   { name: 'iCloud', url: 'https://www.icloud.com/' },
 ];
 
-function renderLinkTile(item, featured = false) {
-  const sub = item.desc || getUrlHostname(item.url);
-  return `<a class="link-tile${featured ? ' is-featured' : ''}" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(item.name)}（新しいタブで開く）">
-    ${renderFavicon(item.url, item.name)}
-    <span class="link-tile-body">
-      <span class="link-tile-title">${escapeHTML(item.name)}</span>
-      ${sub ? `<span class="link-tile-sub">${escapeHTML(sub)}</span>` : ''}
-    </span>
-    <span class="link-tile-ext" aria-hidden="true">${icon('external')}</span>
-  </a>`;
+function renderLinkEditorModal(resolvedLinks = []) {
+  const existingUrls = new Set(resolvedLinks.map(item => normalizeLinkUrl(item.url)));
+  const presetButtons = PRESET_LINKS.map(p => {
+    const added = existingUrls.has(normalizeLinkUrl(p.url));
+    return `<button type="button" class="preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${renderFavicon(p.url, p.name)}<span>${escapeHTML(p.name)}${added ? '（済）' : ''}</span></button>`;
+  }).join('');
+
+  return `<div class="data-preview-overlay" id="link-editor-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-labelledby="link-editor-title">
+    <div class="data-preview-card link-editor-modal-card">
+      <div class="data-preview-head">
+        <h3 id="link-editor-title">リンクを追加</h3>
+        <button type="button" class="button size-close-btn" id="link-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
+      </div>
+      <form id="mylink-form" novalidate>
+        <div class="data-preview-body">
+          <label class="field">表示名<input type="text" id="mylink-name" name="name" maxlength="32" placeholder="例: Gmail" aria-label="リンク名" required autocomplete="off"></label>
+          <label class="field">URL<input type="url" id="mylink-url" name="url" placeholder="https://..." aria-label="リンクURL" inputmode="url" autocapitalize="off" required autocomplete="off"><small class="field-hint" id="link-modal-syllabus-note" hidden>※ 空欄または初期URLのままにすると、所属設定（${escapeHTML(studentShortLabel())}）に合わせてシラバスURLが自動連動します。</small></label>
+          <p id="mylink-error" class="info-note link-modal-error" role="alert" hidden></p>
+          <div class="link-modal-presets" id="link-modal-presets-wrap">
+            <p class="link-modal-presets-label">よく使うサービスから1タップ追加</p>
+            <div class="link-preset-chips">${presetButtons}</div>
+          </div>
+        </div>
+        <div class="data-preview-foot link-modal-foot">
+          <button type="button" class="button danger-text" id="link-modal-delete-btn" hidden>削除</button>
+          <div class="link-modal-foot-right">
+            <button type="button" class="button secondary" id="link-modal-cancel">キャンセル</button>
+            <button type="submit" id="mylink-add-btn" class="button">追加</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>`;
 }
 
 function linksView() {
   const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
-  const syllabusUrl = getSyllabusUrl(studentSelection);
-  const serviceGroups = [
-    { key: 'learning', title: '学内ポータル・LMS' },
-    { key: 'academic', title: '学務・シラバス・図書館' },
-    { key: 'transport', title: '交通・運行情報' },
-  ];
-  const officialSections = serviceGroups.map(grp => {
-    const baseItems = OFFICIAL_SERVICES.filter(s => s.category === grp.key);
-    const items = grp.key === 'academic'
-      ? [{ name: `シラバス（${studentShortLabel()}）`, url: syllabusUrl, desc: `${studentLabel()} の直リンク`, featured: true }, ...baseItems]
-      : baseItems;
-    if (!items.length) return '';
-    return `<div class="links-category-section">
-      <h3 class="links-category-title">${escapeHTML(grp.title)}</h3>
-      <div class="links-card-grid">
-        ${items.map(s => renderLinkTile(s, Boolean(s.featured))).join('')}
+  const linksState = loadLinksState();
+  const resolvedLinks = getResolvedLinks(studentSelection, linksState);
+  const customized = isLinksCustomized(linksState);
+
+  const editBarHtml = myLinksManageMode ? `
+    <div class="links-edit-bar">
+      <span class="links-edit-hint">タップで編集・ドラッグまたは左右ボタンで並び替え</span>
+      <div class="links-edit-bar-actions">
+        <button type="button" class="button subtle" data-open-link-add="1">${icon('plus')}リンクを追加</button>
+        <button type="button" class="button subtle" id="links-restore-defaults" ${customized ? '' : 'disabled'}>${icon('rotate')}初期設定に戻す</button>
       </div>
-    </div>`;
-  }).join('');
-
-  const myLinks = loadMyLinks().filter(item => item && /^https?:\/\//i.test(String(item.url || '')));
-  const existingUrls = new Set(myLinks.map(item => normalizeLinkUrl(item.url)));
-  const myLinkItems = myLinks.length
-    ? (myLinksManageMode
-        ? myLinks.map((item, idx) => {
-            const isEditing = editingMyLinkId === item.id;
-            return `
-            <div class="mylink-row${isEditing ? ' is-editing' : ''}" data-link-id="${escapeHTML(item.id)}">
-              <a class="button secondary mylink-anchor" href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer">${renderFavicon(item.url, item.name)}<span>${escapeHTML(item.name)}</span></a>
-              <div class="mylink-reorder-btns">
-                <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="up" aria-label="${escapeHTML(item.name)}を上へ移動" ${idx === 0 ? 'disabled' : ''}>↑</button>
-                <button type="button" class="button secondary mylink-move-btn" data-move-id="${escapeHTML(item.id)}" data-dir="down" aria-label="${escapeHTML(item.name)}を下へ移動" ${idx === myLinks.length - 1 ? 'disabled' : ''}>↓</button>
-              </div>
-              <button type="button" class="button secondary mylink-edit-btn" data-edit-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を編集" aria-expanded="${isEditing ? 'true' : 'false'}">編集</button>
-              <button type="button" class="button secondary mylink-remove-btn" data-remove-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を削除">削除</button>
-              ${isEditing ? `
-              <form class="mylink-edit-form" data-edit-form-id="${escapeHTML(item.id)}" novalidate>
-                <input type="text" class="mylink-edit-name" name="name" value="${escapeHTML(item.name)}" placeholder="表示名" aria-label="リンク名を編集">
-                <input type="url" class="mylink-edit-url" name="url" value="${escapeHTML(item.url)}" placeholder="https://..." aria-label="URLを編集">
-                <div class="mylink-edit-actions">
-                  <button type="submit" class="button mylink-save-btn">保存</button>
-                  <button type="button" class="button secondary mylink-cancel-btn">キャンセル</button>
-                </div>
-                <p class="mylink-edit-error info-note" role="alert" hidden></p>
-              </form>` : ''}
-            </div>`;
-          }).join('')
-        : `<div class="links-card-grid">${myLinks.map(item => renderLinkTile(item)).join('')}</div>`)
-    : '<p class="hint">よく使うサイトを追加すると、ホームのクイックリンクにも表示されます。</p>';
-
-  const presetButtons = PRESET_LINKS.map(p => {
-    const added = existingUrls.has(normalizeLinkUrl(p.url));
-    return `<button type="button" class="button secondary preset-btn${added ? ' is-added' : ''}" data-preset-name="${escapeHTML(p.name)}" data-preset-url="${escapeHTML(p.url)}" ${added ? 'disabled aria-disabled="true"' : ''}>${renderFavicon(p.url, p.name)}<span>${escapeHTML(p.name)}${added ? '（追加済み）' : ''}</span></button>`;
-  }).join('');
+    </div>` : '';
 
   const archiveList = (timetableLinksData?.pages || [])
     .flatMap(p => Array.isArray(p?.items) ? p.items : [])
@@ -1968,41 +2247,24 @@ function linksView() {
     .map(item => {
       const safeUrl = normalizeAkashiUrl(item.url, '');
       if (!/^https:\/\//i.test(safeUrl)) return '';
-      return `<a class="button secondary" href="${escapeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer">${icon('document')}${escapeHTML(item.title || item.fileName || 'PDF')}</a>`;
+      return `<a class="links-archive-chip" href="${escapeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer">${icon('document')}<span>${escapeHTML(item.title || item.fileName || 'PDF')}</span></a>`;
     })
     .filter(Boolean);
 
-  return `${heading('リンク・シラバス', '', actions)}
-    <section class="panel links-panel">
-      <div class="panel-head">
-        <h2>${icon('book')}公式リンク・シラバス</h2>
-      </div>
-      <div class="official-links-list" style="margin:8px 0 0;">
-        ${officialSections}
-      </div>
-      <div class="mylinks-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-        <div class="mylinks-head">
-          <h3>マイリンク</h3>
-          ${myLinks.length > 0 ? `<button type="button" class="button subtle" id="mylinks-manage-toggle" aria-pressed="${myLinksManageMode ? 'true' : 'false'}">${myLinksManageMode ? '完了' : '並び替え・編集'}</button>` : ''}
-        </div>
-        <div id="mylinks-list" class="mylinks-list">
-          ${myLinkItems}
-        </div>
-        <form id="mylink-form" class="mylink-form" novalidate>
-          <input type="text" id="mylink-name" name="name" placeholder="表示名（例: Gmail）" aria-label="リンク名" required>
-          <input type="url" id="mylink-url" name="url" placeholder="https://..." aria-label="リンクURL" required>
-          <button type="submit" id="mylink-add-btn" class="button">追加</button>
-        </form>
-        <p id="mylink-error" class="info-note" role="alert" hidden></p>
-        <div class="preset-suggestions">
-          <p class="links-category-title">ワンタップ追加候補</p>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            ${presetButtons}
-          </div>
+  return `${heading('リンク集', '', actions)}
+    <section class="panel links-panel" id="links-panel">
+      <div class="links-toolbar">
+        <div class="links-toolbar-meta"><span>${resolvedLinks.length}件</span></div>
+        <div class="links-toolbar-actions">
+          <button type="button" class="button subtle${linksState.iconOnly ? ' is-active' : ''}" id="links-icon-only-toggle" aria-pressed="${linksState.iconOnly ? 'true' : 'false'}">${icon('grid')}アイコンのみ</button>
+          <button type="button" class="button subtle${myLinksManageMode ? ' is-active' : ''}" id="mylinks-manage-toggle" aria-pressed="${myLinksManageMode ? 'true' : 'false'}">${icon(myLinksManageMode ? 'check' : 'edit')}${myLinksManageMode ? '完了' : '編集'}</button>
         </div>
       </div>
-      ${archiveList.length ? `<details class="links-archive-details"><summary>公式時間割・試験PDFアーカイブ（${archiveList.length}件）</summary><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${archiveList.join('')}</div></details>` : ''}
-    </section>`;
+      ${renderSpeedDialGrid(resolvedLinks, { editable: myLinksManageMode, includeAdd: true, iconOnly: linksState.iconOnly })}
+      ${editBarHtml}
+    </section>
+    ${archiveList.length ? `<details class="links-archive-quiet"><summary>${icon('chevronRight')}公式PDFアーカイブ（${archiveList.length}件）</summary><div class="links-archive-list">${archiveList.join('')}</div></details>` : ''}
+    ${renderLinkEditorModal(resolvedLinks)}`;
 }
 
 function renderTimetableBanners(date = new Date()) {
@@ -2211,11 +2473,74 @@ function applyLiveSheetSize(sheet) {
 }
 function getOpenModalEl() {
   if (typeof document === 'undefined') return null;
-  for (const id of ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'profile-switcher-modal']) {
+  for (const id of ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'profile-switcher-modal', 'link-editor-modal']) {
     const el = document.getElementById(id);
     if (el && el.hidden === false) return el;
   }
   return null;
+}
+
+function openLinkEditorModal(mode = 'add', id = '') {
+  const modal = document.getElementById('link-editor-modal');
+  if (!modal) return;
+  const titleEl = document.getElementById('link-editor-title');
+  const nameIn = document.getElementById('mylink-name');
+  const urlIn = document.getElementById('mylink-url');
+  const errEl = document.getElementById('mylink-error');
+  const delBtn = document.getElementById('link-modal-delete-btn');
+  const submitBtn = document.getElementById('mylink-add-btn');
+  const presetsWrap = document.getElementById('link-modal-presets-wrap');
+  const sylNote = document.getElementById('link-modal-syllabus-note');
+
+  linkModalMode = mode === 'edit' ? 'edit' : 'add';
+  editingMyLinkId = linkModalMode === 'edit' ? String(id || '') : '';
+  if (errEl) {
+    errEl.hidden = true;
+    errEl.textContent = '';
+  }
+
+  if (linkModalMode === 'edit') {
+    const item = getResolvedLinks(studentSelection).find(x => x.id === editingMyLinkId);
+    if (!item) return;
+    if (titleEl) titleEl.textContent = 'リンクを編集';
+    if (nameIn) nameIn.value = item.name;
+    if (urlIn) urlIn.value = item.url;
+    if (delBtn) {
+      delBtn.hidden = false;
+      delBtn.textContent = item.isDefault ? '非表示にする' : '削除';
+    }
+    if (submitBtn) submitBtn.textContent = '保存';
+    if (presetsWrap) presetsWrap.hidden = true;
+    if (sylNote) sylNote.hidden = !item.isSyllabus;
+  } else {
+    if (titleEl) titleEl.textContent = 'リンクを追加';
+    if (nameIn) nameIn.value = '';
+    if (urlIn) urlIn.value = '';
+    if (delBtn) delBtn.hidden = true;
+    if (submitBtn) submitBtn.textContent = '追加';
+    if (presetsWrap) presetsWrap.hidden = false;
+    if (sylNote) sylNote.hidden = true;
+  }
+
+  lastModalTrigger = document.activeElement || null;
+  modal.hidden = false;
+  setModalBackdropInert(true, modal);
+  document.body.classList?.add('size-modal-open');
+  nameIn?.focus?.();
+}
+
+function closeLinkEditorModal() {
+  const modal = document.getElementById('link-editor-modal');
+  const wasOpen = modal && !modal.hidden;
+  if (modal) modal.hidden = true;
+  editingMyLinkId = '';
+  linkModalMode = 'add';
+  setModalBackdropInert(false);
+  document.body.classList?.remove('size-modal-open');
+  if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+    lastModalTrigger.focus();
+    lastModalTrigger = null;
+  }
 }
 
 function renderHelpModal() {
@@ -2232,7 +2557,7 @@ function renderHelpModal() {
             <li><strong>ホーム</strong><span>今日の時間割（振替授業対応）とよく使うリンク</span></li>
             <li><strong>時間割</strong><span>週間表・教室略称の確認と PNG / PDF / iCal 保存</span></li>
             <li><strong>年間予定</strong><span>行事カレンダー・曜日別の第N週目・前期/後期/通年 iCal</span></li>
-            <li><strong>リンク</strong><span>学生ポータル（MS365）・シラバス・マイリンク登録</span></li>
+            <li><strong>リンク集</strong><span>シラバス・授業変更リスト・よく使うサイトの登録と並び替え</span></li>
           </ul>
         </div>
         <div class="help-tips-box">
@@ -2973,7 +3298,7 @@ function render() {
     else if (page === 'calendar') main.innerHTML = calendar() + sharedModals;
     else if (page === 'cafeteria') main.innerHTML = cafeteria() + sharedModals;
     else if (page === 'links') main.innerHTML = linksView() + sharedModals;
-    for (const modalId of ['ical-preview-modal', 'room-legends-modal', 'help-modal']) {
+    for (const modalId of ['ical-preview-modal', 'room-legends-modal', 'help-modal', 'link-editor-modal']) {
       const mEl = document.getElementById(modalId);
       if (mEl) mEl.hidden = true;
     }
@@ -3136,7 +3461,15 @@ function render() {
     }
   });
 
-  // マイリンク整理モード切替
+  // リンク集：アイコンのみ切替・編集モード切替・初期設定に戻す
+  const iconOnlyBtn = document.getElementById('links-icon-only-toggle');
+  if (iconOnlyBtn && !iconOnlyBtn.dataset?.iconOnlyBound) {
+    if (iconOnlyBtn.dataset) iconOnlyBtn.dataset.iconOnlyBound = '1';
+    iconOnlyBtn.addEventListener('click', () => {
+      toggleLinksIconOnly();
+      render();
+    });
+  }
   const manageToggleBtn = document.getElementById('mylinks-manage-toggle');
   if (manageToggleBtn && !manageToggleBtn.dataset?.manageBound) {
     if (manageToggleBtn.dataset) manageToggleBtn.dataset.manageBound = '1';
@@ -3144,6 +3477,73 @@ function render() {
       myLinksManageMode = !myLinksManageMode;
       if (!myLinksManageMode) editingMyLinkId = '';
       render();
+    });
+  }
+  const restoreDefaultsBtn = document.getElementById('links-restore-defaults');
+  if (restoreDefaultsBtn && !restoreDefaultsBtn.dataset?.restoreBound) {
+    if (restoreDefaultsBtn.dataset) restoreDefaultsBtn.dataset.restoreBound = '1';
+    restoreDefaultsBtn.addEventListener('click', () => {
+      const snapshot = cloneLinksState(loadLinksState());
+      lastLinksSnapshot = snapshot;
+      restoreDefaultLinks();
+      render();
+      showToast('標準リンクを初期状態に戻しました。', {
+        undoLabel: '元に戻す',
+        onUndo: () => {
+          if (!lastLinksSnapshot) return;
+          saveLinksState(lastLinksSnapshot);
+          lastLinksSnapshot = null;
+          render();
+          showToast('操作を取り消しました。');
+        }
+      });
+    });
+  }
+  const linkModalCloseBtn = document.getElementById('link-modal-close');
+  if (linkModalCloseBtn && !linkModalCloseBtn.dataset?.modalCloseBound) {
+    if (linkModalCloseBtn.dataset) linkModalCloseBtn.dataset.modalCloseBound = '1';
+    linkModalCloseBtn.addEventListener('click', closeLinkEditorModal);
+  }
+  const linkModalCancelBtn = document.getElementById('link-modal-cancel');
+  if (linkModalCancelBtn && !linkModalCancelBtn.dataset?.modalCancelBound) {
+    if (linkModalCancelBtn.dataset) linkModalCancelBtn.dataset.modalCancelBound = '1';
+    linkModalCancelBtn.addEventListener('click', closeLinkEditorModal);
+  }
+  const linkEditorOverlay = document.getElementById('link-editor-modal');
+  if (linkEditorOverlay && !linkEditorOverlay.dataset?.backdropBound) {
+    if (linkEditorOverlay.dataset) linkEditorOverlay.dataset.backdropBound = '1';
+    linkEditorOverlay.addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeLinkEditorModal();
+    });
+  }
+  const linkModalDeleteBtn = document.getElementById('link-modal-delete-btn');
+  if (linkModalDeleteBtn && !linkModalDeleteBtn.dataset?.modalDeleteBound) {
+    if (linkModalDeleteBtn.dataset) linkModalDeleteBtn.dataset.modalDeleteBound = '1';
+    linkModalDeleteBtn.addEventListener('click', () => {
+      const id = editingMyLinkId;
+      if (!id) return;
+      const item = getResolvedLinks(studentSelection).find(x => x.id === id);
+      const snapshot = cloneLinksState(loadLinksState());
+      lastLinksSnapshot = snapshot;
+      closeLinkEditorModal();
+      if (DEFAULT_LINK_IDS.has(id)) {
+        hideDefaultLink(id);
+      } else {
+        deleteMyLink(id);
+      }
+      render();
+      if (item) {
+        showToast(`「${item.name}」を${item.isDefault ? '非表示に' : '削除'}しました。`, {
+          undoLabel: '元に戻す',
+          onUndo: () => {
+            if (!lastLinksSnapshot) return;
+            saveLinksState(lastLinksSnapshot);
+            lastLinksSnapshot = null;
+            render();
+            showToast('操作を取り消しました。');
+          }
+        });
+      }
     });
   }
 
@@ -3187,23 +3587,31 @@ function render() {
     }
   });
 
-  // マイリンク追加・削除イベント
-  document.getElementById('mylink-form')?.addEventListener('submit', e => {
-    e.preventDefault();
-    const nameInput = document.getElementById('mylink-name');
-    const urlInput = document.getElementById('mylink-url');
-    const errEl = document.getElementById('mylink-error');
-    const res = addMyLink({ name: nameInput?.value, url: urlInput?.value });
-    if (!res.success) {
-      if (errEl) {
-        errEl.textContent = res.error || 'リンクを追加できませんでした';
-        errEl.hidden = false;
+  // リンク追加・編集フォーム送信（モーダル内）
+  const myLinkForm = document.getElementById('mylink-form');
+  if (myLinkForm && !myLinkForm.dataset?.formBound) {
+    if (myLinkForm.dataset) myLinkForm.dataset.formBound = '1';
+    myLinkForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const nameInput = document.getElementById('mylink-name');
+      const urlInput = document.getElementById('mylink-url');
+      const errEl = document.getElementById('mylink-error');
+      const isEdit = linkModalMode === 'edit' && Boolean(editingMyLinkId);
+      const res = isEdit
+        ? updateMyLink(editingMyLinkId, { name: nameInput?.value, url: urlInput?.value })
+        : addMyLink({ name: nameInput?.value, url: urlInput?.value });
+      if (!res.success) {
+        if (errEl) {
+          errEl.textContent = res.error || (isEdit ? 'リンクを更新できませんでした。' : 'リンクを追加できませんでした。');
+          errEl.hidden = false;
+        }
+        return;
       }
-      return;
-    }
-    render();
-    showToast('マイリンクを追加しました。');
-  });
+      closeLinkEditorModal();
+      render();
+      showToast(isEdit ? `「${res.item?.name || 'リンク'}」を更新しました。` : `「${res.item?.name || 'リンク'}」を追加しました。`);
+    });
+  }
   if (typeof document.querySelectorAll === 'function') {
     document.querySelectorAll('[data-dash-offset]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3315,92 +3723,151 @@ function render() {
     if (badgeEl) badgeEl.textContent = `${shown}件の行事`;
   });
   if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('[data-open-link-add]').forEach(btn => {
+      if (btn.dataset?.addOpenBound) return;
+      if (btn.dataset) btn.dataset.addOpenBound = '1';
+      btn.addEventListener('click', () => openLinkEditorModal('add'));
+    });
+    document.querySelectorAll('[data-edit-id]').forEach(btn => {
+      if (btn.dataset?.editOpenBound) return;
+      if (btn.dataset) btn.dataset.editOpenBound = '1';
+      btn.addEventListener('click', () => {
+        const id = btn.dataset?.editId || '';
+        if (id) openLinkEditorModal('edit', id);
+      });
+    });
     document.querySelectorAll('.preset-btn').forEach(btn => {
+      if (btn.dataset?.presetBound) return;
+      if (btn.dataset) btn.dataset.presetBound = '1';
       btn.addEventListener('click', () => {
         const name = btn.dataset?.presetName || btn.textContent?.trim();
         const url = btn.dataset?.presetUrl || '';
         if (name && url) {
           const res = addMyLink({ name, url });
-          render();
-          if (res?.success) showToast(`「${name}」を追加しました。`);
+          if (res?.success) {
+            closeLinkEditorModal();
+            render();
+            showToast(`「${name}」を追加しました。`);
+          }
         }
       });
     });
     document.querySelectorAll('.mylink-move-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      if (btn.dataset?.moveBound) return;
+      if (btn.dataset) btn.dataset.moveBound = '1';
+      btn.addEventListener('click', e => {
+        e?.stopPropagation?.();
         const id = btn.dataset?.moveId;
         const dir = btn.dataset?.dir;
         if (id && dir) {
           reorderMyLink(id, dir);
           render();
-          const sameBtn = document.querySelector?.(`.mylink-move-btn[data-move-id="${id}"][data-dir="${dir}"]`);
-          const fallbackBtn = document.querySelector?.(`.mylink-move-btn[data-move-id="${id}"]`);
+          const escId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(id) : id.replace(/"/g, '\\"');
+          const sameBtn = document.querySelector?.(`.mylink-move-btn[data-move-id="${escId}"][data-dir="${dir}"]`);
+          const fallbackBtn = document.querySelector?.(`.mylink-move-btn[data-move-id="${escId}"]`);
           (sameBtn && !sameBtn.disabled ? sameBtn : fallbackBtn)?.focus?.({ preventScroll: true });
         }
       });
     });
-    document.querySelectorAll('.mylink-edit-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset?.editId || '';
-        if (!id) return;
-        editingMyLinkId = editingMyLinkId === id ? '' : id;
-        render();
-        if (editingMyLinkId) {
-          document.querySelector?.(`.mylink-edit-form[data-edit-form-id="${editingMyLinkId}"] .mylink-edit-name`)?.focus?.({ preventScroll: true });
-        }
-      });
-    });
-    document.querySelectorAll('.mylink-cancel-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        editingMyLinkId = '';
-        render();
-      });
-    });
-    document.querySelectorAll('.mylink-edit-form').forEach(form => {
-      form.addEventListener('submit', e => {
-        e.preventDefault();
-        const id = form.dataset?.editFormId || '';
-        const nameVal = form.querySelector?.('.mylink-edit-name')?.value;
-        const urlVal = form.querySelector?.('.mylink-edit-url')?.value;
-        const errEl = form.querySelector?.('.mylink-edit-error');
-        const res = updateMyLink(id, { name: nameVal, url: urlVal });
-        if (!res.success) {
-          if (errEl) {
-            errEl.textContent = res.error || 'リンクを更新できませんでした。';
-            errEl.hidden = false;
-          }
-          return;
-        }
-        editingMyLinkId = '';
-        render();
-        showToast('マイリンクを更新しました。');
-      });
-    });
     document.querySelectorAll('.mylink-remove-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      if (btn.dataset?.removeBound) return;
+      if (btn.dataset) btn.dataset.removeBound = '1';
+      btn.addEventListener('click', e => {
+        e?.stopPropagation?.();
         const id = btn.dataset?.removeId;
         if (id) {
-          const prevLinks = loadMyLinks();
+          const snapshot = cloneLinksState(loadLinksState());
+          const prevLinks = snapshot.custom;
           const idx = prevLinks.findIndex(l => l.id === id);
           const removedItem = idx >= 0 ? { ...prevLinks[idx] } : null;
           deleteMyLink(id);
           if (editingMyLinkId === id) editingMyLinkId = '';
           render();
-          document.getElementById('mylink-name')?.focus?.({ preventScroll: true });
           if (removedItem) {
             lastDeletedMyLink = { item: removedItem, index: idx };
+            lastLinksSnapshot = snapshot;
             showToast(`「${removedItem.name}」を削除しました。`, {
               undoLabel: '元に戻す',
               onUndo: () => {
-                if (!lastDeletedMyLink) return;
-                restoreMyLink(lastDeletedMyLink.item, lastDeletedMyLink.index);
-                lastDeletedMyLink = null;
+                if (lastLinksSnapshot) {
+                  saveLinksState(lastLinksSnapshot);
+                  lastLinksSnapshot = null;
+                  lastDeletedMyLink = null;
+                } else if (lastDeletedMyLink) {
+                  restoreMyLink(lastDeletedMyLink.item, lastDeletedMyLink.index);
+                  lastDeletedMyLink = null;
+                }
                 render();
                 showToast('削除を取り消しました。');
               }
             });
           }
         }
+      });
+    });
+    document.querySelectorAll('.link-hide-btn').forEach(btn => {
+      if (btn.dataset?.hideBound) return;
+      if (btn.dataset) btn.dataset.hideBound = '1';
+      btn.addEventListener('click', e => {
+        e?.stopPropagation?.();
+        const id = btn.dataset?.hideId;
+        if (id && DEFAULT_LINK_IDS.has(id)) {
+          const snapshot = cloneLinksState(loadLinksState());
+          const item = getResolvedLinks(studentSelection, snapshot).find(x => x.id === id);
+          hideDefaultLink(id);
+          if (editingMyLinkId === id) editingMyLinkId = '';
+          render();
+          if (item) {
+            lastLinksSnapshot = snapshot;
+            showToast(`「${item.name}」を非表示にしました。`, {
+              undoLabel: '元に戻す',
+              onUndo: () => {
+                if (!lastLinksSnapshot) return;
+                saveLinksState(lastLinksSnapshot);
+                lastLinksSnapshot = null;
+                render();
+                showToast('非表示を取り消しました。');
+              }
+            });
+          }
+        }
+      });
+    });
+    document.querySelectorAll('[data-drag-id]').forEach(el => {
+      if (el.dataset?.dragBound) return;
+      if (el.dataset) el.dataset.dragBound = '1';
+      el.addEventListener('dragstart', e => {
+        dragLinkId = el.dataset?.dragId || '';
+        el.classList?.add('is-dragging');
+        if (e?.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', dragLinkId); } catch {}
+        }
+      });
+      el.addEventListener('dragend', () => {
+        dragLinkId = '';
+        document.querySelectorAll?.('.is-dragging, .is-drag-over').forEach(n => {
+          n.classList?.remove('is-dragging', 'is-drag-over');
+        });
+      });
+      el.addEventListener('dragover', e => {
+        const targetId = el.dataset?.dragId || '';
+        if (!dragLinkId || !targetId || dragLinkId === targetId) return;
+        e?.preventDefault?.();
+        if (e?.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        el.classList?.add('is-drag-over');
+      });
+      el.addEventListener('dragleave', () => {
+        el.classList?.remove('is-drag-over');
+      });
+      el.addEventListener('drop', e => {
+        e?.preventDefault?.();
+        el.classList?.remove('is-drag-over');
+        const targetId = el.dataset?.dragId || '';
+        if (!dragLinkId || !targetId || dragLinkId === targetId) return;
+        reorderUnifiedLinkByDrop(dragLinkId, targetId);
+        dragLinkId = '';
+        render();
       });
     });
   }
@@ -3515,6 +3982,7 @@ function render() {
         closeIcalPreviewModal();
         closeRoomLegendsModal();
         closeHelpModal();
+        closeLinkEditorModal();
         closeSizeAdjustModal();
         const pm = document.getElementById('profile-switcher-modal');
         if (pm && !pm.hidden) {

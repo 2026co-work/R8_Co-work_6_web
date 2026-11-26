@@ -470,3 +470,81 @@ test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar
   app.context.closeHelpModal();
   assert.equal(helpModal.hidden, true, 'closeHelpModal hides help modal');
 });
+
+test('IMP-16: Plan A minimal speed-dial リンク集, icon-only toggle, hide/restore defaults, unified reorder, and #home sync work', () => {
+  const idx = read('index.html');
+  assert.match(idx, /id="links"[^>]*>.*リンク集<\/a>/, 'Sidebar tab is renamed to リンク集');
+  assert.doesNotMatch(idx, /リンク・シラバス/, 'Old tab name リンク・シラバス is removed');
+
+  const app = createAppInstance({ mockDate: '2026-11-26T09:00:00+09:00' });
+  app.selectStudent({ grade: '4', department: 'M' });
+  app.navigate('#links');
+  const linksHtml = app.document.getElementById('main')?.innerHTML || '';
+
+  // 1. Minimal heading & 8 unified defaults (zero categories, zero sub-descriptions, no Shinki Bus, no all-dept syllabus tile)
+  assert.match(linksHtml, /<h1>リンク集<\/h1>/, 'Page heading is リンク集');
+  assert.match(linksHtml, /class="speed-dial-grid"/, 'Plan A speed-dial grid renders');
+  assert.match(linksHtml, /data-open-link-add="1"/, 'Add tile renders inside speed-dial grid');
+  assert.match(linksHtml, /授業変更リスト/, 'SharePoint link is labeled 授業変更リスト');
+  assert.match(linksHtml, /train-guide\.westjr\.co\.jp\/kobesanyo\.html\?st=0444/, 'JR Kobe Line uses station 0444 URL');
+  assert.match(linksHtml, /sanyo-railway\.co\.jp\/railway\/delay\/index\.html/, 'Sanyo Railway uses delay certificate URL');
+  assert.doesNotMatch(linksHtml, /shinkibus/, 'Shinki Bus is removed');
+  assert.doesNotMatch(linksHtml, /シラバス検索（全学科）/, 'All-dept syllabus tile is removed');
+  assert.doesNotMatch(linksHtml, /links-category-section|link-tile-sub/, 'Zero category sections and zero sub-descriptions');
+  assert.match(linksHtml, /class="links-archive-quiet"/, 'PDF archive is rendered as quiet disclosure');
+
+  // 2. Icon-only mode persists inside campus-links-v1 (strict whitelist) and mirrors to #home
+  app.document.getElementById('links-icon-only-toggle').click();
+  const storedAfterIconOnly = JSON.parse(app.localStorage.getItem('campus-links-v1'));
+  assert.equal(storedAfterIconOnly.version, 2);
+  assert.equal(storedAfterIconOnly.iconOnly, true);
+  assert.equal(app.localStorage.length, 1, 'No extra localStorage keys introduced');
+  assert.match(app.document.getElementById('main')?.innerHTML || '', /speed-dial-grid is-icon-only/);
+
+  app.navigate('#home');
+  const homeIconOnlyHtml = app.document.getElementById('main')?.innerHTML || '';
+  assert.match(homeIconOnlyHtml, /id="quick-links"/);
+  assert.match(homeIconOnlyHtml, /speed-dial-grid is-icon-only/, '#home quick links syncs icon-only mode');
+  assert.match(homeIconOnlyHtml, /授業変更リスト/, '#home quick links shows unified defaults');
+
+  // Toggle icon-only back off
+  app.navigate('#links');
+  app.document.getElementById('links-icon-only-toggle').click();
+  assert.equal(JSON.parse(app.localStorage.getItem('campus-links-v1')).length, 0, 'Unmodified state collapses back to plain Array');
+
+  // 3. Custom link + hide default + unified reorder + #home sync + restore defaults preserving custom links
+  const added = app.context.addMyLink({ name: 'GitHub', url: 'https://github.com/' });
+  assert.equal(added.success, true);
+  app.context.hideDefaultLink('default:teams');
+  app.context.reorderMyLink(added.item.id, 'up');
+
+  const resolvedAfterEdit = app.context.getResolvedLinks();
+  assert.equal(resolvedAfterEdit.some(x => x.id === 'default:teams'), false, 'Hidden default is omitted from resolved list');
+  assert.equal(resolvedAfterEdit.findIndex(x => x.id === added.item.id), resolvedAfterEdit.length - 2, 'Custom link moved up across default boundary');
+
+  app.navigate('#home');
+  const homeSyncedHtml = app.document.getElementById('main')?.innerHTML || '';
+  assert.equal(homeSyncedHtml.includes('https://teams.microsoft.com'), false, '#home reflects hidden default');
+  assert.ok(homeSyncedHtml.includes('GitHub'), '#home reflects custom link');
+
+  app.context.restoreDefaultLinks();
+  const resolvedRestored = app.context.getResolvedLinks();
+  assert.equal(resolvedRestored.some(x => x.id === 'default:teams'), true, 'Restore brings back hidden default');
+  assert.equal(resolvedRestored.some(x => x.id === added.item.id), true, 'Restore preserves custom link');
+  const collapsed = JSON.parse(app.localStorage.getItem('campus-links-v1'));
+  assert.ok(Array.isArray(collapsed) && collapsed.length === 1 && collapsed[0].name === 'GitHub', 'Restored state collapses cleanly back to plain Array');
+
+  // 4. Link editor modal open/close lifecycle
+  app.navigate('#links');
+  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'profile-switcher-modal'].forEach(id => {
+    const el = app.document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+  const editorModal = app.document.getElementById('link-editor-modal');
+  assert.equal(editorModal.hidden, true, 'Link editor modal starts hidden');
+  app.context.openLinkEditorModal('edit', 'default:henkou');
+  assert.equal(editorModal.hidden, false, 'openLinkEditorModal opens modal');
+  assert.equal(app.context.getOpenModalEl()?.id, 'link-editor-modal', 'getOpenModalEl detects link-editor-modal');
+  app.context.closeLinkEditorModal();
+  assert.equal(editorModal.hidden, true, 'closeLinkEditorModal hides modal');
+});

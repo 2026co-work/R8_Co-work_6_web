@@ -421,8 +421,7 @@ test('T3-P-18: F8 × F4 — Prohibited non-goals are strictly omitted from both 
     '混雑状況',
     '歴代校長',
     '備品報告',
-    '空き教室',
-    '授業変更'
+    '空き教室'
   ];
 
   const sourceFiles = ['app.js', 'index.html', 'timetable-data.js', 'timetable-export.js'];

@@ -423,7 +423,7 @@ body.size-modal-open{overflow:hidden}
     width:auto!important;height:auto!important;overflow:visible!important;
     margin:0!important;padding:0!important;
   }
-  .sidebar,.floating-menu-toggle,.theme-toggle,.topbar,.skip-link,.menu-overlay,details.timetable-controls,.export-controls,.export-status,.raw-dataset-row,.size-overlay,.data-preview-overlay,.profile-modal-overlay,.dashboard-date-nav,.calendar-filters,.exam-search-bar,.timetable-search-bar,.mylink-form,.mylink-edit-form,.preset-suggestions,.mylink-reorder-btns,.mylink-remove-btn,.mylink-edit-btn,.toast,footer,[data-export-exclude]{display:none!important}
+  .sidebar,.floating-menu-toggle,.theme-toggle,.topbar,.skip-link,.menu-overlay,details.timetable-controls,.export-controls,.export-status,.raw-dataset-row,.size-overlay,.data-preview-overlay,.profile-modal-overlay,.dashboard-date-nav,.calendar-filters,.exam-search-bar,.timetable-search-bar,.mylink-form,.mylink-edit-form,.preset-suggestions,.mylink-reorder-btns,.mylink-remove-btn,.mylink-edit-btn,.links-toolbar,.dial-cell-add,.dial-remove-btn,.dial-move-row,.links-edit-bar,.links-archive-quiet,.toast,footer,[data-export-exclude]{display:none!important}
   .workspace{margin:0!important}
   main{max-width:none!important;padding:0!important;margin:0!important;min-height:0!important}
   .panel,.exam-card,.cafeteria-menu-item,.calendar-event-item{background:#ffffff!important;color:#111111!important;border-color:#d1d5db!important;box-shadow:none!important;break-inside:avoid;page-break-inside:avoid}
@@ -726,31 +726,127 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .week-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600;background:#ececef;color:var(--ink)}
 [data-theme="dark"] .week-pill{background:#232838;color:#d8dce6}
 
-/* リンク集 Favicon & タイルカードUI */
-.link-favicon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;background:#f4f4f6;border:1px solid var(--line);flex-shrink:0;overflow:hidden}
-.link-favicon img{width:18px;height:18px;object-fit:contain;display:block}
-.link-favicon-fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:12px;font-weight:700;color:var(--wine)}
-[data-theme="dark"] .link-favicon{background:#232838;border-color:#323a4e}
+/* リンク集（Plan A スピードダイヤル型）＆ホーム連動クイックリンク */
+.link-favicon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;flex-shrink:0;overflow:hidden}
+.link-favicon.has-img{background:transparent}
+[data-theme="dark"] .link-favicon.has-img{background:#eef0f5;padding:2px}
+.link-favicon img{width:22px;height:22px;object-fit:contain;display:block}
+.link-favicon-fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:15px;font-weight:700;color:var(--wine);line-height:1}
 [data-theme="dark"] .link-favicon-fallback{color:#f4a8b8}
-.quick-link-btn .link-favicon,.preset-btn .link-favicon,.mylink-anchor .link-favicon{width:22px;height:22px;border-radius:5px}
-.quick-link-btn .link-favicon img,.preset-btn .link-favicon img,.mylink-anchor .link-favicon img{width:14px;height:14px}
-.links-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
-.link-tile{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-decoration:none;transition:border-color .15s,background .15s,transform .12s;min-width:0}
-.link-tile:hover{border-color:var(--wine);background:#fdf7f8;transform:translateY(-1px)}
-.link-tile.is-featured{border-left:3px solid var(--wine)}
-.link-tile-body{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
-.link-tile-title{font-size:13px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.link-tile-sub{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.link-tile-ext{color:var(--muted);flex-shrink:0;display:inline-flex}
-.link-tile-ext svg{width:14px;height:14px}
-[data-theme="dark"] .link-tile{background:#1c2130;border-color:#2b3142;color:#e8eaf0}
-[data-theme="dark"] .link-tile:hover{border-color:#f4a8b8;background:#261d26}
-[data-theme="dark"] .link-tile.is-featured{border-left-color:#f4a8b8}
-.mylinks-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.mylinks-head h3{margin:0}
-.links-archive-details{margin-top:20px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#faf9f8}
-.links-archive-details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink)}
-[data-theme="dark"] .links-archive-details{background:#181c28;border-color:#2b3142}
+.preset-btn .link-favicon{width:18px;height:18px;border-radius:4px}
+.preset-btn .link-favicon img{width:14px;height:14px}
+.preset-btn .link-favicon-fallback{font-size:11px}
+
+.links-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.links-toolbar-meta{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.links-toolbar-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.links-toolbar-actions .button.subtle{gap:5px;padding:5px 10px}
+.links-toolbar-actions .button.subtle svg{width:14px;height:14px}
+.links-toolbar-actions .button.subtle.is-active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.speed-dial-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px 8px}
+.speed-dial-grid.is-icon-only{grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:8px}
+.speed-dial-grid.is-edit{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px 8px}
+
+.dial-cell{position:relative;display:flex;flex-direction:column;align-items:center;border-radius:12px;transition:background .14s,outline-color .14s,opacity .14s}
+.dial-cell.is-dragging{opacity:.35}
+.dial-cell.is-drag-over{outline:2px solid var(--wine);outline-offset:2px;background:#fdf2f4}
+[data-theme="dark"] .dial-cell.is-drag-over{outline-color:#f4a8b8;background:#2d1822}
+.speed-dial-grid.is-edit .dial-cell:not(.dial-cell-add){border:1px dashed var(--line);background:var(--surface-subtle,#faf9f8);padding:6px 4px}
+[data-theme="dark"] .speed-dial-grid.is-edit .dial-cell:not(.dial-cell-add){background:var(--surface-subtle,#1d2230)}
+
+.link-tile,.dial-tile-btn{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;gap:6px;padding:8px 4px;border-radius:12px;border:0;background:transparent;color:var(--ink);text-decoration:none;min-width:0;transition:background .14s}
+.speed-dial-grid.is-icon-only .link-tile,.speed-dial-grid.is-icon-only .dial-tile-btn{padding:6px;gap:0;justify-content:center}
+.speed-dial-grid.is-edit .dial-tile-btn{padding:4px 2px 6px;cursor:pointer}
+.link-tile:hover,.dial-tile-btn:hover{background:#f3f1ef}
+[data-theme="dark"] .link-tile:hover,[data-theme="dark"] .dial-tile-btn:hover{background:#242a3b}
+.speed-dial-grid.is-edit .dial-tile-btn:hover{background:transparent}
+
+.dial-icon{width:48px;height:48px;border-radius:13px;background:var(--surface-subtle,#faf9f8);border:1px solid var(--line);display:grid;place-items:center;box-shadow:0 1px 2px rgba(20,24,34,.04);transition:transform .14s ease,border-color .14s ease,background .14s ease}
+[data-theme="dark"] .dial-icon{background:#232838;border-color:#323a4e;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.link-tile:hover .dial-icon,.dial-tile-btn:hover .dial-icon{transform:translateY(-2px);border-color:var(--wine);background:#fdf2f4}
+[data-theme="dark"] .link-tile:hover .dial-icon,[data-theme="dark"] .dial-tile-btn:hover .dial-icon{border-color:#f4a8b8;background:#2d1822}
+
+[data-syllabus="1"] .dial-icon{background:#fdf2f4;border-color:#ecc9d1;color:var(--wine)}
+[data-theme="dark"] [data-syllabus="1"] .dial-icon{background:#2d1822;border-color:#592c3e;color:#f4a8b8}
+[data-syllabus="1"] .dial-icon svg{width:22px;height:22px}
+
+.dial-label{font-size:11px;font-weight:500;line-height:1.25;color:var(--ink);max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere}
+
+.dial-tile-add .dial-icon{background:transparent;border:1.5px dashed var(--line);box-shadow:none;color:var(--muted)}
+.dial-tile-add:hover .dial-icon{border-color:var(--wine);color:var(--wine);background:#fdf2f4}
+[data-theme="dark"] .dial-tile-add:hover .dial-icon{border-color:#f4a8b8;color:#f4a8b8;background:#2d1822}
+.dial-tile-add .dial-label{color:var(--muted)}
+
+.dial-remove-btn{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);color:var(--muted);display:grid;place-items:center;padding:0;box-shadow:0 1px 2px rgba(20,24,34,.08);z-index:2}
+.dial-remove-btn::after{content:'';position:absolute;inset:-6px}
+.dial-remove-btn:hover{background:var(--red);border-color:var(--red);color:#fff}
+.dial-remove-btn svg{width:12px;height:12px;stroke-width:2.2}
+[data-theme="dark"] .dial-remove-btn{background:#1d2230;border-color:#343c52}
+
+.dial-move-row{display:inline-flex;align-items:center;gap:4px;margin-top:2px}
+.dial-move-btn{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--surface,#fff);color:var(--ink);padding:0}
+.dial-move-btn:hover:not(:disabled){border-color:var(--wine);color:var(--wine)}
+.dial-move-btn:disabled{opacity:.4;cursor:default}
+.dial-move-btn svg{width:13px;height:13px}
+[data-theme="dark"] .dial-move-btn{background:#171b26;border-color:#323a4e;color:#e8eaf0}
+[data-theme="dark"] .dial-move-btn:hover:not(:disabled){border-color:#f4a8b8;color:#f4a8b8}
+
+.links-edit-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.links-edit-hint{font-size:11px;color:var(--muted)}
+.links-edit-bar-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.links-edit-bar-actions .button.subtle svg{width:14px;height:14px}
+
+.links-archive-quiet{margin-top:12px;padding:4px 2px;color:var(--muted);font-size:12px}
+.links-archive-quiet summary{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border-radius:6px;list-style:none}
+.links-archive-quiet summary::-webkit-details-marker{display:none}
+.links-archive-quiet summary:hover{color:var(--ink);background:#f1eff0}
+[data-theme="dark"] .links-archive-quiet summary:hover{background:#232838}
+.links-archive-quiet summary svg{width:14px;height:14px;transition:transform .16s ease}
+.links-archive-quiet[open] summary svg{transform:rotate(90deg)}
+.links-archive-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding:10px 12px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:10px}
+.links-archive-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:5px 9px;border-radius:7px;border:1px solid var(--line);background:var(--surface-subtle,#faf9f8);color:var(--ink)}
+.links-archive-chip:hover{border-color:var(--wine);color:var(--wine)}
+[data-theme="dark"] .links-archive-chip{background:#1d2230;border-color:#2b3142;color:#e8eaf0}
+[data-theme="dark"] .links-archive-chip:hover{border-color:#f4a8b8;color:#f4a8b8}
+.links-archive-chip svg{width:13px;height:13px;color:var(--muted)}
+
+/* ホーム #quick-links スピードダイヤル（常時コンパクト4列） */
+.quick-links .panel-head{margin-bottom:12px}
+.quick-links .speed-dial-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 4px}
+.quick-links .speed-dial-grid.is-icon-only{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.quick-links .dial-icon{width:42px;height:42px;border-radius:11px}
+.quick-links .dial-tile,.quick-links .link-tile{padding:6px 2px}
+.quick-links .dial-label{font-size:10.5px}
+
+/* リンク追加・編集モーダル (#link-editor-modal) */
+.link-editor-modal-card{max-width:420px}
+.link-modal-presets{padding-top:10px;border-top:1px solid var(--line)}
+.link-modal-presets-label{font-size:11px;color:var(--muted);margin:0 0 8px;font-weight:600}
+.link-preset-chips{display:flex;flex-wrap:wrap;gap:6px}
+.preset-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:var(--surface-subtle,#faf9f8);font-size:11.5px;font-weight:500;color:var(--ink)}
+.preset-btn:hover:not(:disabled){border-color:var(--wine);background:#fdf2f4}
+[data-theme="dark"] .preset-btn{background:#1d2230;border-color:#2b3142;color:#e8eaf0}
+[data-theme="dark"] .preset-btn:hover:not(:disabled){border-color:#f4a8b8;background:#2d1822}
+.preset-btn.is-added{opacity:.55}
+.link-modal-foot{justify-content:space-between}
+.link-modal-foot-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.button.danger-text{background:transparent;color:var(--red);padding:8px 10px}
+.button.danger-text:hover{background:rgba(183,62,65,.08)}
+[data-theme="dark"] .button.danger-text{color:#fca5a5}
+.link-modal-error{margin:0;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca}
+[data-theme="dark"] .link-modal-error{color:#fecaca;background:#32171b;border-color:#7f1d1d}
+
+@media(max-width:480px){
+  .links-panel,.quick-links{padding:14px}
+  .speed-dial-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 4px}
+  .speed-dial-grid.is-icon-only{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .speed-dial-grid.is-edit{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px}
+  .dial-icon{width:44px;height:44px;border-radius:12px}
+  .dial-label{font-size:10.5px}
+  .link-editor-modal-card input{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){.link-tile:hover .dial-icon,.dial-tile-btn:hover .dial-icon{transform:none!important}}
 
 /* 教室略称ポップアップモーダル */
 .room-legends-modal-card{max-width:680px}
