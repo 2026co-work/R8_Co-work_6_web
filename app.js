@@ -196,22 +196,29 @@ const FALLBACK_CALENDAR = {
     kouki: { startDate: '2026-09-24', classesStartDate: '2026-09-24', winterVacationEnd: '2027-01-04', examStartDate: '2027-02-02', examEndDate: '2027-02-08', totalWeeks: 15 }
   },
   daySubstitutions: [
-    { date: '2026-04-08', substituteDay: '月', weekNumber: 1, note: '水曜日に月曜授業を実施' },
-    { date: '2026-10-14', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 3, note: '水曜日に月曜授業を実施' },
-    { date: '2026-11-04', substituteDay: '月', weekNumber: 5, note: '水曜日に月曜授業を実施' },
-    { date: '2027-01-12', substituteDay: '月', weekNumber: 13, note: '火曜日に月曜授業を実施' }
+    { date: '2026-04-28', originalDay: 2, effectiveDay: 3, substituteDay: '水', weekNumber: 4, reason: '年間予定表に基づく水曜日授業振替', note: '火曜日に水曜授業を実施（TOEIC IPテスト）' },
+    { date: '2026-05-08', originalDay: 5, effectiveDay: 1, substituteDay: '月', weekNumber: 5, reason: '年間予定表に基づく月曜日授業振替', note: '金曜日に月曜授業を実施' },
+    { date: '2026-11-04', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 7, reason: '年間予定表に基づく月曜日授業振替', note: '水曜日に月曜授業を実施（全校清掃日）' },
+    { date: '2026-11-25', originalDay: 3, effectiveDay: 1, substituteDay: '月', weekNumber: 10, reason: '年間予定表に基づく月曜日授業振替', note: '水曜日に月曜授業を実施' },
+    { date: '2027-01-12', originalDay: 2, effectiveDay: 1, substituteDay: '月', weekNumber: 13, reason: '年間予定表に基づく月曜日授業振替', note: '火曜日に月曜授業を実施' }
   ],
   events: [
-    { date: '2026-04-03', title: '入学式', hasClasses: false, type: 'ceremony' },
-    { date: '2026-04-07', title: '前期授業開始・全校集会', hasClasses: true, type: 'academic' },
+    { date: '2026-04-03', title: '入学式・入寮式', hasClasses: false, type: 'ceremony' },
+    { date: '2026-04-07', title: '前期授業開始', hasClasses: true, type: 'academic' },
     { date: '2026-04-23', title: '開校記念日', hasClasses: true, type: 'academic' },
-    { date: '2026-07-30', endDate: '2026-08-05', title: '前期期末試験', hasClasses: false, type: 'exam' },
+    { date: '2026-07-30', endDate: '2026-08-05', title: '前期試験期間', hasClasses: false, type: 'exam' },
     { date: '2026-08-08', endDate: '2026-09-23', title: '夏季休業', hasClasses: false, type: 'vacation' },
-    { date: '2026-09-24', title: '後期授業開始・全校集会', hasClasses: true, type: 'academic' },
+    { date: '2026-09-24', title: '後期授業開始（全校集会）', hasClasses: true, type: 'academic' },
     { date: '2026-10-12', title: 'スポーツの日', hasClasses: false, type: 'holiday' },
+    { date: '2026-10-30', title: '高専祭準備', hasClasses: false, type: 'event' },
     { date: '2026-10-31', endDate: '2026-11-01', title: '高専祭', hasClasses: false, type: 'event' },
+    { date: '2026-11-02', title: '臨時休業', hasClasses: false, type: 'holiday' },
+    { date: '2026-11-03', title: '文化の日', hasClasses: false, type: 'holiday' },
+    { date: '2026-11-19', endDate: '2026-11-20', title: '全校避難訓練・スポーツ大会', hasClasses: false, type: 'event' },
+    { date: '2026-11-23', title: '勤労感謝の日', hasClasses: false, type: 'holiday' },
     { date: '2026-12-26', endDate: '2027-01-04', title: '冬季休業', hasClasses: false, type: 'vacation' },
-    { date: '2027-02-02', endDate: '2027-02-08', title: '学年末試験（後期期末試験）', hasClasses: false, type: 'exam' },
+    { date: '2027-01-14', title: 'Co+work最終報告会', hasClasses: false, type: 'event' },
+    { date: '2027-02-02', endDate: '2027-02-08', title: '後期試験期間（学年末試験）', hasClasses: false, type: 'exam' },
     { date: '2027-03-01', endDate: '2027-03-31', title: '学年末休業', hasClasses: false, type: 'vacation' }
   ]
 };
@@ -751,7 +758,8 @@ function renderTodaySchedule(currentDate) {
         ${periodRows}
       </div>
       ${renderRoomPopoverBox()}
-      <div class="panel-footer">
+      <div class="panel-footer panel-footer-split">
+        <span class="schedule-disclaimer">基本時間割（年間予定の振替反映）です。個別の休講・連絡は公式案内をご確認ください。</span>
         <a class="text-link" href="#timetable">週間時間割へ${icon('arrow')}</a>
       </div>
     </section>

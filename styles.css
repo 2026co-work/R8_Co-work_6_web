@@ -460,6 +460,8 @@ body.size-modal-open{overflow:hidden}
 .dashboard-rest-card,.dashboard-empty-card{text-align:center;padding:32px 16px;color:var(--muted)}
 .dashboard-rest-card p,.dashboard-empty-card p{margin-bottom:14px;font-size:13px}
 .panel-footer{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);text-align:right}
+.panel-footer-split{display:flex;align-items:center;justify-content:space-between;gap:8px 14px;flex-wrap:wrap;text-align:left}
+.schedule-disclaimer{font-size:11px;color:var(--muted);line-height:1.5}
 .exam-alert-body{padding:2px 0}
 .exam-notice{font-size:12.5px;color:var(--ink);line-height:1.6;margin-bottom:4px}
 [data-theme="dark"] .exam-notice{color:#e8eaf0}

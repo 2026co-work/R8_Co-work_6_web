@@ -320,9 +320,9 @@ test('T3-P-13: F7 × F11 — Calendar day substitution alert reflects simultaneo
   const ready = (appCode.includes('day-substitution') || appCode.includes('振替') || appCode.includes('daySubstitutions')) && appCode.includes('week-banner');
   if (!requireOrSkip(t, ready, 'Day substitution banner integration', 'M3')) return;
 
-  // 2026-10-14 is Tuesday with Monday schedule substitution
+  // 2026-11-25 is Wednesday with Monday schedule substitution (verified against official R8 calendar PDF)
   const app = createAppInstance({
-    mockDate: '2026-10-14T08:30:00+09:00'
+    mockDate: '2026-11-25T08:30:00+09:00'
   });
 
   app.navigate('#home');

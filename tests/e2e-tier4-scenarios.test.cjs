@@ -522,7 +522,7 @@ test('S-10: Arts Selection & Day Substitution Impact (F7, F9, F11, F15)', async 
     cookie: 'campus-student-v1=' + encodeURIComponent(JSON.stringify({
       version: 1, grade: 1, department: 'M', classGroup: '1', studentType: 'regular', course: '', arts: 'music'
     })),
-    mockDate: '2026-10-14T08:30:00+09:00' // Tuesday with Monday substitution
+    mockDate: '2026-11-25T08:30:00+09:00' // Wednesday with Monday substitution (official R8 calendar PDF)
   });
 
   const musicSchedule = app.run('selectedSchedule()');
