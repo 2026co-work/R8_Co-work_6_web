@@ -1201,7 +1201,7 @@ test('F21-T1-01: Links directory contains all 8 curated service links', async (t
     'kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72',
     'libopac-c.kosen-k.go.jp',
     'syllabus.kosen-k.go.jp',
-    'trafficinfo.westjr.co.jp',
+    'train-guide.westjr.co.jp/kobesanyo.html?st=0444',
     'sanyo-railway.co.jp'
   ];
   services.forEach(domain => {

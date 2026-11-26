@@ -1344,21 +1344,20 @@ test('F20-T2-05: Advanced course grade with undergraduate department normalizes 
 // Feature 21: Official URL Directory [Milestone: M5]
 // =============================================================================
 
-test('F21-T2-01: Non-goals strict exclusion check (absence of class changes, room reservations, congestion)', async (t) => {
+test('F21-T2-01: Non-goals strict exclusion check (absence of room reservations and congestion)', async (t) => {
   const app = createAppInstance();
-  const ready = read('app.js').includes("links:'リンク'") || read('app.js').includes('function links(') || read('index.html').includes('webclass.kosen-k.go.jp');
+  const ready = read('app.js').includes("links:'リンク集'") || read('app.js').includes('function linksView(') || read('index.html').includes('webclass.kosen-k.go.jp');
   if (!requireOrSkip(t, ready, '#links tab routing', 'M5')) return;
 
   app.navigate('#links');
   const mainHtml = app.elements.main.innerHTML;
-  assert.equal(mainHtml.includes('授業変更'), false, 'No class substitution link in links directory');
   assert.equal(mainHtml.includes('空き教室'), false, 'No room reservation link in links directory');
   assert.equal(mainHtml.includes('混雑状況'), false, 'No congestion statistics in links directory');
 });
 
 test('F21-T2-02: Protocol security strictly HTTPS for all official service links', async (t) => {
   const app = createAppInstance();
-  const ready = read('app.js').includes("links:'リンク'") || read('app.js').includes('function links(') || read('index.html').includes('webclass.kosen-k.go.jp');
+  const ready = read('app.js').includes("links:'リンク集'") || read('app.js').includes('function linksView(') || read('index.html').includes('webclass.kosen-k.go.jp');
   if (!requireOrSkip(t, ready, '#links official directory', 'M5')) return;
 
   app.navigate('#links');
@@ -1372,7 +1371,7 @@ test('F21-T2-02: Protocol security strictly HTTPS for all official service links
 
 test('F21-T2-03: External link security attributes (target="_blank", rel="noopener noreferrer")', async (t) => {
   const app = createAppInstance();
-  const ready = read('app.js').includes("links:'リンク'") || read('app.js').includes('function links(') || read('index.html').includes('webclass.kosen-k.go.jp');
+  const ready = read('app.js').includes("links:'リンク集'") || read('app.js').includes('function linksView(') || read('index.html').includes('webclass.kosen-k.go.jp');
   if (!requireOrSkip(t, ready, '#links official directory', 'M5')) return;
 
   app.navigate('#links');
@@ -1388,7 +1387,7 @@ test('F21-T2-03: External link security attributes (target="_blank", rel="noopen
 
 test('F21-T2-04: Keyboard navigation and descriptive ARIA labels on official links', async (t) => {
   const app = createAppInstance();
-  const ready = read('app.js').includes("links:'リンク'") || read('app.js').includes('function links(') || read('index.html').includes('webclass.kosen-k.go.jp');
+  const ready = read('app.js').includes("links:'リンク集'") || read('app.js').includes('function linksView(') || read('index.html').includes('webclass.kosen-k.go.jp');
   if (!requireOrSkip(t, ready, '#links official directory', 'M5')) return;
 
   assert.ok(ready);
