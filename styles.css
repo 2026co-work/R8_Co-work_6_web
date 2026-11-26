@@ -556,6 +556,9 @@ body.size-modal-open{overflow:hidden}
 .cafeteria-day-dishes{display:flex;flex-direction:column;gap:6px;font-size:12.5px}
 .cafeteria-menu-item .price{font-size:12px;font-weight:700;color:var(--wine);margin-left:4px}
 [data-theme="dark"] .cafeteria-menu-item .price{color:#f4a8b8}
+.cafeteria-day-notice{font-size:12px;font-weight:600;color:var(--wine);margin:0 0 4px}
+[data-theme="dark"] .cafeteria-day-notice{color:#f4a8b8}
+.dish-kcal{font-size:10.5px;color:var(--muted);margin-left:4px}
 .cafeteria-menu-item .allergens{font-size:11px;color:var(--muted);margin:0}
 .cafeteria-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
 .dormitory-section{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
