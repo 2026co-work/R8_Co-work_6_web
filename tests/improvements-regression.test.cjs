@@ -492,6 +492,9 @@ test('IMP-16: Plan A minimal speed-dial リンク集, icon-only toggle, hide/res
   assert.doesNotMatch(linksHtml, /シラバス検索（全学科）/, 'All-dept syllabus tile is removed');
   assert.doesNotMatch(linksHtml, /links-category-section|link-tile-sub/, 'Zero category sections and zero sub-descriptions');
   assert.match(linksHtml, /class="links-archive-quiet"/, 'PDF archive is rendered as quiet disclosure');
+  for (const b of ['syllabus', 'henkou', 'webclass', 'opac', 'jr']) {
+    assert.match(linksHtml, new RegExp(`data-brand="${b}"`), `Built-in ${b} tile uses crisp brand inline SVG badge`);
+  }
 
   // 2. Icon-only mode persists inside campus-links-v1 (strict whitelist) and mirrors to #home
   app.document.getElementById('links-icon-only-toggle').click();

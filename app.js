@@ -32,6 +32,10 @@ const icons = {
   close:'M18 6 6 18M6 6l12 12',
   grid:'M4 4h7v7H4Zm9 0h7v7h-7ZM4 13h7v7H4Zm9 0h7v7h-7Z',
   rotate:'M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5',
+  clipboardList:'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2M9 12h6M9 16h4',
+  lmsScreen:'M3 5h18v12H3Zm5 16h8m-4-4v4M7.5 9l1.8 4.5L12 10l2.7 3.5L16.5 9',
+  libraryBooks:'M4 19.5V5.5A1.5 1.5 0 0 1 5.5 4H9v16H5.5A1.5 1.5 0 0 1 4 19.5ZM9 4h5v16H9M14 5l4.5-.8L20 19l-4.5.8Z',
+  train:'M7 4h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3ZM4 11h16M8.5 15h.01M15.5 15h.01M8 18l-2 3M16 18l2 3',
 };
 const FEATURE_FLAGS = { exam: false, cafeteria: false };
 const MS365_PORTAL_URL = 'https://kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72';
@@ -1088,13 +1092,13 @@ function renderCafeteriaSummary(currentDate) {
 }
 
 const DEFAULT_LINKS = [
-  { id: 'default:syllabus', name: 'シラバス', dynamicSyllabus: true },
-  { id: 'default:henkou', name: '授業変更リスト', url: MS365_PORTAL_URL },
+  { id: 'default:syllabus', name: 'シラバス', dynamicSyllabus: true, brand: 'syllabus', brandIcon: 'book' },
+  { id: 'default:henkou', name: '授業変更リスト', url: MS365_PORTAL_URL, brand: 'henkou', brandIcon: 'clipboardList' },
   { id: 'default:teams', name: 'Teams', url: 'https://teams.microsoft.com' },
   { id: 'default:classroom', name: 'Classroom', url: 'https://classroom.google.com' },
-  { id: 'default:webclass', name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML' },
-  { id: 'default:opac', name: '図書館OPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do' },
-  { id: 'default:jr', name: 'JR神戸線', fullName: 'JR神戸線 列車走行位置（魚住駅）', url: 'https://www.train-guide.westjr.co.jp/kobesanyo.html?st=0444' },
+  { id: 'default:webclass', name: 'WebClass', url: 'https://webclass.kosen-k.go.jp/webclass/login.php?auth_mode=SAML', brand: 'webclass', brandIcon: 'lmsScreen' },
+  { id: 'default:opac', name: '図書館OPAC', url: 'https://libopac-c.kosen-k.go.jp/opac/cattab.do', brand: 'opac', brandIcon: 'libraryBooks' },
+  { id: 'default:jr', name: 'JR神戸線', fullName: 'JR神戸線 列車走行位置（魚住駅）', url: 'https://www.train-guide.westjr.co.jp/kobesanyo.html?st=0444', brand: 'jr', brandIcon: 'train' },
   { id: 'default:sanyo', name: '山陽電車', fullName: '山陽電車 遅延証明書', url: 'https://www.sanyo-railway.co.jp/railway/delay/index.html' },
 ];
 const DEFAULT_LINK_IDS = new Set(DEFAULT_LINKS.map(d => d.id));
@@ -1234,6 +1238,8 @@ function getResolvedLinks(selection = studentSelection, state = loadLinksState()
       isDefault: true,
       isSyllabus: Boolean(def.dynamicSyllabus),
       usesDynamicSyllabusUrl: Boolean(def.dynamicSyllabus && !ov.url),
+      brand: !ov.url ? (def.brand || '') : '',
+      brandIcon: !ov.url ? (def.brandIcon || '') : '',
       custom: false,
     };
     canonical.push(item);
@@ -1540,8 +1546,8 @@ function showToast(message, options = {}) {
 }
 
 function renderDialVisual(item) {
-  if (item.isSyllabus && item.usesDynamicSyllabusUrl) {
-    return icon('book');
+  if (item.brandIcon) {
+    return icon(item.brandIcon);
   }
   return renderFavicon(item.url, item.name);
 }
@@ -1555,9 +1561,10 @@ function renderSpeedDialGrid(items, { editable = false, includeAdd = false, icon
     const tip = item.fullName || item.name;
     const labelCls = (iconOnly && !editable) ? 'dial-label sr-only' : 'dial-label';
     const sylAttr = item.isSyllabus ? ' data-syllabus="1"' : '';
+    const brandAttr = item.brand ? ` data-brand="${escapeHTML(item.brand)}"` : '';
     if (!editable) {
       return `<div class="dial-cell">
-        <a class="link-tile"${sylAttr} href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(tip)}" aria-label="${escapeHTML(tip)}（新しいタブで開く）">
+        <a class="link-tile"${sylAttr}${brandAttr} href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(tip)}" aria-label="${escapeHTML(tip)}（新しいタブで開く）">
           <span class="dial-icon">${renderDialVisual(item)}</span>
           <span class="${labelCls}">${escapeHTML(item.name)}</span>
         </a>
@@ -1568,7 +1575,7 @@ function renderSpeedDialGrid(items, { editable = false, includeAdd = false, icon
       : `<button type="button" class="dial-remove-btn link-hide-btn" data-hide-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.name)}を非表示" title="非表示にする">${icon('close')}</button>`;
     return `<div class="dial-cell" draggable="true" data-drag-id="${escapeHTML(item.id)}">
       ${removeBtn}
-      <button type="button" class="dial-tile-btn" data-edit-id="${escapeHTML(item.id)}"${sylAttr} title="タップして編集" aria-label="${escapeHTML(item.name)}を編集">
+      <button type="button" class="dial-tile-btn" data-edit-id="${escapeHTML(item.id)}"${sylAttr}${brandAttr} title="タップして編集" aria-label="${escapeHTML(item.name)}を編集">
         <span class="dial-icon">${renderDialVisual(item)}</span>
         <span class="dial-label">${escapeHTML(item.name)}</span>
       </button>

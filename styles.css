@@ -767,9 +767,17 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .link-tile:hover .dial-icon,.dial-tile-btn:hover .dial-icon{transform:translateY(-2px);border-color:var(--wine);background:#fdf2f4}
 [data-theme="dark"] .link-tile:hover .dial-icon,[data-theme="dark"] .dial-tile-btn:hover .dial-icon{border-color:#f4a8b8;background:#2d1822}
 
-[data-syllabus="1"] .dial-icon{background:#fdf2f4;border-color:#ecc9d1;color:var(--wine)}
-[data-theme="dark"] [data-syllabus="1"] .dial-icon{background:#2d1822;border-color:#592c3e;color:#f4a8b8}
-[data-syllabus="1"] .dial-icon svg{width:22px;height:22px}
+[data-brand] .dial-icon svg{width:22px;height:22px}
+[data-brand="syllabus"] .dial-icon,[data-syllabus="1"] .dial-icon{background:#fdf2f4;border-color:#ecc9d1;color:var(--wine)}
+[data-theme="dark"] [data-brand="syllabus"] .dial-icon,[data-theme="dark"] [data-syllabus="1"] .dial-icon{background:#2d1822;border-color:#592c3e;color:#f4a8b8}
+[data-brand="henkou"] .dial-icon{background:#eefafa;border-color:#b6e5e6;color:#038387}
+[data-theme="dark"] [data-brand="henkou"] .dial-icon{background:#12292b;border-color:#225256;color:#5eead4}
+[data-brand="webclass"] .dial-icon{background:#eff6ff;border-color:#bfdbfe;color:#2563eb}
+[data-theme="dark"] [data-brand="webclass"] .dial-icon{background:#16233d;border-color:#2b4675;color:#93c5fd}
+[data-brand="opac"] .dial-icon{background:#ecfdf5;border-color:#a7f3d0;color:#0f766e}
+[data-theme="dark"] [data-brand="opac"] .dial-icon{background:#122a24;border-color:#225446;color:#6ee7b7}
+[data-brand="jr"] .dial-icon{background:#edf6fc;border-color:#b7dbf2;color:#0072bc}
+[data-theme="dark"] [data-brand="jr"] .dial-icon{background:#13253a;border-color:#23476e;color:#60a5fa}
 
 .dial-label{font-size:11px;font-weight:500;line-height:1.25;color:var(--ink);max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere}
 
@@ -816,8 +824,8 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .quick-links .speed-dial-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 4px}
 .quick-links .speed-dial-grid.is-icon-only{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 .quick-links .dial-icon{width:42px;height:42px;border-radius:11px}
-.quick-links .dial-tile,.quick-links .link-tile{padding:6px 2px}
-.quick-links .dial-label{font-size:10.5px}
+.quick-links .dial-tile,.quick-links .link-tile{padding:6px 1px}
+.quick-links .dial-label{font-size:10.5px;letter-spacing:-.015em}
 
 /* リンク追加・編集モーダル (#link-editor-modal) */
 .link-editor-modal-card{max-width:420px}
@@ -838,12 +846,13 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 [data-theme="dark"] .link-modal-error{color:#fecaca;background:#32171b;border-color:#7f1d1d}
 
 @media(max-width:480px){
-  .links-panel,.quick-links{padding:14px}
-  .speed-dial-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 4px}
-  .speed-dial-grid.is-icon-only{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .links-panel,.quick-links{padding:14px 10px}
+  .speed-dial-grid,.quick-links .speed-dial-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 2px}
+  .speed-dial-grid.is-icon-only,.quick-links .speed-dial-grid.is-icon-only{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
   .speed-dial-grid.is-edit{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px}
+  .link-tile,.dial-tile-btn{padding:8px 1px}
   .dial-icon{width:44px;height:44px;border-radius:12px}
-  .dial-label{font-size:10.5px}
+  .dial-label,.quick-links .dial-label{font-size:10px;letter-spacing:-.02em}
   .link-editor-modal-card input{font-size:16px}
 }
 @media(prefers-reduced-motion:reduce){.link-tile:hover .dial-icon,.dial-tile-btn:hover .dial-icon{transform:none!important}}
