@@ -1015,9 +1015,12 @@ test('F18-T1-03: Meal items define name, price, and daily specials', async (t) =
   if (!requireOrSkip(t, ready, 'Cafeteria meal item properties', 'M5')) return;
 
   const data = readJson('dist-data/cafeteria.json');
-  if (data.weeklyMenus.length > 0 && data.weeklyMenus[0].days.length > 0) {
-    const day = data.weeklyMenus[0].days[0];
-    assert.ok(day.lunchA || day.lunchB || day.noodle || day.bowl, 'Contains meal dishes');
+  const openDay = (data.weeklyMenus || []).flatMap(w => w.days || []).find(d => d.isOpen !== false);
+  if (openDay) {
+    assert.ok(openDay.lunchA || openDay.lunchB || openDay.noodle || openDay.bowl, 'Contains meal dishes');
+    const primary = openDay.lunchA || openDay.lunchB || openDay.noodle || openDay.bowl;
+    assert.ok(typeof primary.name === 'string' && primary.name.length > 0, 'Dish has non-empty name');
+    assert.ok(typeof primary.price === 'number' && primary.price > 0, 'Dish has numeric price');
   }
 });
 
@@ -1028,11 +1031,11 @@ test('F18-T1-04: Allergen tag extraction identifies common Japanese food allerge
   const data = readJson('dist-data/cafeteria.json');
   const allAllergens = (data.weeklyMenus || []).flatMap(w => w.days || []).flatMap(d => d.lunchA?.allergens || []);
   if (allAllergens.length > 0) {
-    assert.ok(allAllergens.some(a => ['小麦', '卵', '乳', '大豆', '豚肉'].includes(a)));
+    assert.ok(allAllergens.some(a => ['小麦', '卵', '乳', 'そば', '落花生', 'えび', 'かに', 'くるみ'].includes(a)));
   }
 });
 
-test('F18-T1-05: Route #cafeteria renders honest PDF notice by default and weekly menu dishes when extracted', async (t) => {
+test('F18-T1-05: Route #cafeteria renders parsed weekly menu dishes by default and honest PDF fallback when unextracted', async (t) => {
   const ready = read('app.js').includes('cafeteria-view') || read('index.html').includes('data-page="cafeteria"');
   if (!requireOrSkip(t, ready, '#cafeteria tab menu rendering', 'M5')) return;
 
@@ -1040,35 +1043,25 @@ test('F18-T1-05: Route #cafeteria renders honest PDF notice by default and weekl
   defaultApp.navigate('#cafeteria');
   assert.match(defaultApp.document.title, /食堂|メニュー/);
   const defaultHtml = defaultApp.elements.main.innerHTML;
-  assert.match(defaultHtml, /data-text-extracted="false"/, 'Unextracted mode is explicitly marked when PDF is not parsed');
-  assert.match(defaultHtml, /\.pdf/, 'Provides official PDF link');
+  assert.match(defaultHtml, /data-text-extracted="true"/, 'Extracted mode is marked when official PDF is parsed');
+  assert.ok(defaultHtml.includes('cafeteria-menu-item') && defaultHtml.includes('430円'), 'Renders parsed official menu items and prices');
+  assert.match(defaultHtml, /\.pdf/, 'Still provides official PDF link');
+  assert.doesNotMatch(defaultHtml, /自動抽出未対応|テキスト未抽出/, 'Weekly menus render without unextracted fallback when isTextExtracted is true');
 
-  const extractedFixture = {
+  const unextractedFixture = {
     meta: {
       title: '学生食堂メニュー',
       articleUrl: 'https://www.akashi.ac.jp/news/2026/20261026gak001.html',
       sourcePdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/2026.11.pdf',
-      isTextExtracted: true,
+      isTextExtracted: false,
     },
-    weeklyMenus: [
-      {
-        weekRange: '11/04 - 11/08',
-        days: [
-          {
-            date: '2026-11-04',
-            dayOfWeek: '水',
-            isOpen: true,
-            lunchA: { name: '日替わりAサンプル', price: 450, allergens: ['小麦'] },
-          },
-        ],
-      },
-    ],
+    weeklyMenus: [],
   };
-  const extractedApp = createAppInstance({ fetchMock: { './dist-data/cafeteria.json': extractedFixture } });
-  extractedApp.navigate('#cafeteria');
-  const extractedHtml = extractedApp.elements.main.innerHTML;
-  assert.ok(extractedHtml.includes('cafeteria-menu-item') && extractedHtml.includes('450円'), 'Renders extracted cafeteria weekly menu items and prices');
-  assert.doesNotMatch(extractedHtml, /自動抽出未対応|テキスト未抽出/, 'Weekly menus render without unextracted fallback when isTextExtracted is true');
+  const unextractedApp = createAppInstance({ fetchMock: { './dist-data/cafeteria.json': unextractedFixture } });
+  unextractedApp.navigate('#cafeteria');
+  const unextractedHtml = unextractedApp.elements.main.innerHTML;
+  assert.match(unextractedHtml, /data-text-extracted="false"/, 'Unextracted mode is explicitly marked when PDF is not parsed');
+  assert.match(unextractedHtml, /\.pdf/, 'Provides official PDF link in unextracted fallback mode');
 });
 
 // =============================================================================

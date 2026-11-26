@@ -1,9 +1,9 @@
 # 開発引き継ぎドキュメント (HANDOVER.md)
 
-最終更新: 2026-11-25 11:45 JST  
+最終更新: 2026-11-26 JST  
 対象リポジトリ: `C:\Users\ko\.gemini\antigravity\scratch\R8_Co-work_6_web` (branch: `main`)
 
-全マイルストーン（M1〜M5, E2E, M_FINAL）、[`AUDIT_REPORT.md`](./AUDIT_REPORT.md) の57件対応、v2テーマ・レスポンシブ・機能改修、および v3 データ誠実性修正・冗長文言/絵文字削減・ミニマルUI刷新と回帰テスト検証が完了した最新記録ドキュメントです。
+全マイルストーン（M1〜M5, E2E, M_FINAL）、[`AUDIT_REPORT.md`](./AUDIT_REPORT.md) の57件対応、v2テーマ・レスポンシブ・機能改修、v3 データ誠実性修正・ミニマルUI刷新、ならびに公式行事PDF同期（案A注記）および学生食堂公式PDF汎用解析・自動取得対応が完了した最新記録ドキュメントです。
 
 ---
 
@@ -62,6 +62,13 @@
     - `#home` 右列優先順位（クイックリンク2列グリッド → 試験 → 食堂）および全タブ（`#timetable` 内検索バーヘッダー統合、`#exam` 時間帯ストリップ、`#calendar` ヘアラインタイムライン、`#cafeteria` 2列・PDF案内整理、`#links` 均等グリッド）を洗練
 13. **`test/align-tests-with-overhaul`（v3 テスト整合・回帰テスト追加・引き継ぎ更新 → `main` マージ済み）**
     - `tests/e2e-tier1-features.test.cjs`（`F8-T1-01`, `F18-T1-05`）・`tests/e2e-tier2-boundaries.test.cjs`（`F7-T2-03`）・`tests/e2e-tier4-scenarios.test.cjs`（`S-03`）・`tests/improvements-regression.test.cjs`（`IMP-10` 抽出モック化＋`IMP-13` v3誠実性/絵文字ゼロ/リンク/コントラスト不変条件追加）を更新
+14. **`fix/calendar-official-pdf-sync-and-plan-a`（R8 公式行事PDF同期・案A注記 → `main` マージ済み）**
+    - 公式R8前期・後期行事予定PDF（`R8zenkigyoujiyotei_20260401.pdf` / `R8_koukigyoujiyotei_20260708.pdf`）と完全照合し、`dist-data/calendar.json`・`scripts/fallbacks/calendar.json`・`app.js` 内 `FALLBACK_CALENDAR` の授業振替日（`4/28 水`, `5/8 月`, `11/4 月`, `11/25 月`, `1/12 月`）および休業日・体育大会等を同期
+    - `#home` 今日の時間割（JST 24:00 切替維持）フッターへ案Aの明示注記（基本時間割・年間予定の振替反映、個別の休講・連絡は公式案内を確認）を追加
+15. **`feat/cafeteria-pdf-parser`（学生食堂公式PDF汎用解析＆UI対応 → `main` マージ済み）**
+    - `scripts/fetch-cafeteria.mjs`: 公式ニュースフィード `resource/2_1a.json` の `{ array: [...] }` 構造へ対応し、コンパスグループ週次Excel PDFテンプレートの動的グリッド解析・`page.Fills` オーバーレイ検出（休業日・他月カバー・研修日/予備日の常設メニューのみ枠）・特定原材料8品目（`小麦・卵・乳・そば・落花生・えび・かに・くるみ`）の `●` x座標照合・解析失敗時の誠実な空配列フォールバックを実装（公式5か月連続PDF `2026.07`〜`2026.11`・全18ページ・76日分で汎用検証済み）
+    - `dist-data/cafeteria.json`: 公式サイトから最新（2026年11月）学生食堂メニュー5週21日分および12月寮生食堂リンクを自動取得・抽出（オフライン基準 `scripts/fallbacks/cafeteria.json` は未抽出PDF案内を維持）
+    - `app.js` / `styles.css` / `tests/cafeteria-parser.test.cjs`: `#home`・`#cafeteria` での常設メニューのみ通知・カロリー表示・特定原材料8品目フィルタ対応、パーサー単体テスト5件追加および E2E/回帰テスト整合
 
 ---
 
@@ -77,7 +84,7 @@
 
 ### 3.3 全テストスイート (`npm test`)
 - **実行コマンド**: `$env:STRICT_E2E='1'; npm test` (`node --test tests/*.test.cjs`)
-- **結果**: **tests 329 / pass 329 / fail 0 / skipped 0**（既存単体テスト36件 + E2E 280件 + 改善回帰テスト13件 すべてパス）
+- **結果**: **tests 334 / pass 334 / fail 0 / skipped 0**（既存単体テスト36件 + 学食PDFパーサー単体テスト5件 + E2E 280件 + 改善回帰テスト13件 すべてパス）
 
 ---
 
