@@ -1335,9 +1335,16 @@ function home() {
   `;
   const onboardingHtml = (!cookieSaved && !onboardingDismissed)
     ? `<div class="onboarding-banner" id="onboarding-banner" role="region" aria-label="初期設定">
-        <span>現在は初期設定（<strong>${escapeHTML(studentLabel())}</strong>）で表示中</span>
+        <div class="onboarding-body">
+          <div class="onboarding-title">はじめての方へ（現在は初期設定: <strong>${escapeHTML(studentLabel())}</strong>）</div>
+          <ol class="onboarding-steps">
+            <li><strong>所属を選ぶ</strong>（学年・学科・コースを設定）</li>
+            <li><strong>今日の時間割を見る</strong>（前日・翌日の切替や振替授業も反映）</li>
+            <li><strong>ホーム画面に追加／保存</strong>（スマホは「ホーム画面に追加」で毎回すぐ開けます）</li>
+          </ol>
+        </div>
         <div class="onboarding-actions">
-          <button type="button" class="button secondary profile-switch-trigger" id="onboarding-open-profile">${icon('edit')}所属を変更</button>
+          <button type="button" class="button profile-switch-trigger" id="onboarding-open-profile">${icon('edit')}所属を選ぶ</button>
           <button type="button" class="button subtle" id="onboarding-dismiss">閉じる</button>
         </div>
       </div>`
@@ -2204,11 +2211,66 @@ function applyLiveSheetSize(sheet) {
 }
 function getOpenModalEl() {
   if (typeof document === 'undefined') return null;
-  for (const id of ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'profile-switcher-modal']) {
+  for (const id of ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'profile-switcher-modal']) {
     const el = document.getElementById(id);
     if (el && el.hidden === false) return el;
   }
   return null;
+}
+
+function renderHelpModal() {
+  return `<div class="data-preview-overlay" id="help-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="ポータルの使い方">
+    <div class="data-preview-card help-modal-card">
+      <div class="data-preview-head">
+        <h3>${icon('info')}使い方ガイド</h3>
+        <button type="button" class="button size-close-btn" id="help-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
+      </div>
+      <div class="data-preview-body">
+        <div class="help-section">
+          <h4>4つの画面</h4>
+          <ul class="help-guide-list">
+            <li><strong>ホーム</strong><span>今日の時間割（振替授業対応）とよく使うリンク</span></li>
+            <li><strong>時間割</strong><span>週間表・教室略称の確認と PNG / PDF / iCal 保存</span></li>
+            <li><strong>年間予定</strong><span>行事カレンダー・曜日別の第N週目・前期/後期/通年 iCal</span></li>
+            <li><strong>リンク</strong><span>学生ポータル（MS365）・シラバス・マイリンク登録</span></li>
+          </ul>
+        </div>
+        <div class="help-tips-box">
+          <h4>スマホで便利に使う</h4>
+          <ul>
+            <li><strong>ホーム画面に追加</strong>：iPhone（Safari）は「共有 → ホーム画面に追加」、Android（Chrome）は「メニュー(⋮) → ホーム画面に追加」</li>
+            <li><strong>時間割の保存</strong>：スマホは「PNG（画像）」で写真保存、または「iCal（.ics）」でカレンダー登録が扱いやすいです</li>
+            <li><strong>所属の変更</strong>：画面右上の所属ボタン（例: <code>1-1-M</code>）からいつでも変更できます</li>
+          </ul>
+        </div>
+      </div>
+      <div class="data-preview-foot">
+        <button type="button" class="button" id="help-modal-ok">閉じる</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openHelpModal() {
+  const modal = document.getElementById('help-modal');
+  if (!modal) return;
+  lastModalTrigger = document.activeElement || null;
+  modal.hidden = false;
+  setModalBackdropInert(true, modal);
+  document.body.classList.add('size-modal-open');
+  document.getElementById('help-modal-close')?.focus?.();
+}
+
+function closeHelpModal() {
+  const modal = document.getElementById('help-modal');
+  const wasOpen = modal && !modal.hidden;
+  if (modal) modal.hidden = true;
+  setModalBackdropInert(false);
+  document.body.classList.remove('size-modal-open');
+  if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+    lastModalTrigger.focus();
+    lastModalTrigger = null;
+  }
 }
 
 function renderIcalPreviewModal() {
@@ -2889,7 +2951,7 @@ function render() {
     footerMeta.textContent = `${fyLabel}${termLabel}`;
   }
   const main = document.getElementById('main');
-  const sharedModals = renderProfileSwitcherModal() + renderIcalPreviewModal();
+  const sharedModals = renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal();
   if (main) {
     if (page === 'home') main.innerHTML = home() + sharedModals;
     else if (page === 'timetable') {
@@ -2911,6 +2973,10 @@ function render() {
     else if (page === 'calendar') main.innerHTML = calendar() + sharedModals;
     else if (page === 'cafeteria') main.innerHTML = cafeteria() + sharedModals;
     else if (page === 'links') main.innerHTML = linksView() + sharedModals;
+    for (const modalId of ['ical-preview-modal', 'room-legends-modal', 'help-modal']) {
+      const mEl = document.getElementById(modalId);
+      if (mEl) mEl.hidden = true;
+    }
   }
   const formatSelect = document.getElementById('export-format');
   const copyBtn = document.getElementById('export-copy');
@@ -2975,6 +3041,21 @@ function render() {
     downloadCurrentTimetable('download');
   });
 
+
+  // 使い方ガイドモーダル
+  const openHelpBtn = document.getElementById('open-help-modal');
+  if (openHelpBtn && !openHelpBtn.dataset?.helpBound) {
+    if (openHelpBtn.dataset) openHelpBtn.dataset.helpBound = '1';
+    openHelpBtn.addEventListener('click', () => {
+      closeNavigation?.();
+      openHelpModal();
+    });
+  }
+  document.getElementById('help-modal-close')?.addEventListener('click', closeHelpModal);
+  document.getElementById('help-modal-ok')?.addEventListener('click', closeHelpModal);
+  document.getElementById('help-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeHelpModal();
+  });
 
   // 教室略称モーダル
   document.getElementById('open-room-legends-modal')?.addEventListener('click', openRoomLegendsModal);
@@ -3433,6 +3514,7 @@ function render() {
         closeDataPreviewModal();
         closeIcalPreviewModal();
         closeRoomLegendsModal();
+        closeHelpModal();
         closeSizeAdjustModal();
         const pm = document.getElementById('profile-switcher-modal');
         if (pm && !pm.hidden) {
