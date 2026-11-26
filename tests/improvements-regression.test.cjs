@@ -156,12 +156,14 @@ test('IMP-06: generateText avoids double parentheses and formatStudentShortBadge
   assert.doesNotMatch(text, /\(\([^)]+\)\)/, 'must not double-wrap teacher parentheses');
 });
 
-test('IMP-07: calendar.json contains 2026-10-14 Wednesday substitution without duplicate dates and Sep 24 starts week 1', () => {
+test('IMP-07: calendar.json matches official R8 PDF substitutions (incl. 2026-11-25) without duplicates and Sep 24 starts week 1', () => {
   const cal = readJson('dist-data/calendar.json');
   const subs = cal.daySubstitutions || [];
-  const oct14 = subs.find(s => s.date === '2026-10-14');
-  assert.ok(oct14, '2026-10-14 substitution entry exists in calendar.json');
-  assert.equal(oct14.originalDay, 3, '2026-10-14 is Wednesday (originalDay=3)');
+  const nov25 = subs.find(s => s.date === '2026-11-25');
+  assert.ok(nov25, '2026-11-25 substitution entry exists in calendar.json');
+  assert.equal(nov25.originalDay, 3, '2026-11-25 is Wednesday (originalDay=3)');
+  assert.equal(nov25.effectiveDay, 1, '2026-11-25 conducts Monday schedule (effectiveDay=1)');
+  assert.equal(subs.find(s => s.date === '2026-10-14'), undefined, '2026-10-14 is not a substitution in official R8 calendar PDF');
 
   const subDates = subs.map(s => s.date);
   assert.equal(new Set(subDates).size, subDates.length, 'substitution dates must be deduplicated');
@@ -169,6 +171,12 @@ test('IMP-07: calendar.json contains 2026-10-14 Wednesday substitution without d
   const app = createAppInstance({ mockDate: '2026-09-24T09:00:00+09:00' });
   const weekInfo = app.context.getAcademicWeek(new Date('2026-09-24T09:00:00+09:00'));
   assert.equal(weekInfo.week, 1, 'Sep 24 is week 1 of 後期');
+
+  const subApp = createAppInstance({ mockDate: '2026-11-25T09:00:00+09:00' });
+  subApp.navigate('#home');
+  const subHtml = subApp.document.getElementById('main')?.innerHTML || '';
+  assert.match(subHtml, /月曜日/, '2026-11-25 home schedule reflects Monday substitution');
+  assert.match(subHtml, /基本時間割（年間予定の振替反映）/, 'Plan A disclaimer is shown on home schedule');
 });
 
 test('IMP-08: Nov 24 no longer triggers false hardcoded exam banner', () => {

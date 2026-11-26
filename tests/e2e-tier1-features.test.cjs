@@ -581,7 +581,7 @@ test('F11-T1-01: Timetable displays academic week counter banner', async (t) => 
 });
 
 test('F11-T1-02: Day substitution alert banner displays on transfer dates', async (t) => {
-  const app = createAppInstance({ mockDate: '2026-10-14T09:00:00+09:00' });
+  const app = createAppInstance({ mockDate: '2026-11-25T09:00:00+09:00' });
   const ready = read('app.js').includes('授業振替') || read('app.js').includes('daySubstitutions');
   if (!requireOrSkip(t, ready, 'Day substitution alert banner', 'M3')) return;
 
@@ -590,7 +590,7 @@ test('F11-T1-02: Day substitution alert banner displays on transfer dates', asyn
 });
 
 test('F11-T1-03: Timetable view highlights substituted day schedule', async (t) => {
-  const app = createAppInstance({ mockDate: '2026-10-14T09:00:00+09:00' });
+  const app = createAppInstance({ mockDate: '2026-11-25T09:00:00+09:00' });
   const ready = read('app.js').includes('effectiveDay') || read('app.js').includes('conductedDay');
   if (!requireOrSkip(t, ready, 'Substituted day schedule display', 'M3')) return;
 
