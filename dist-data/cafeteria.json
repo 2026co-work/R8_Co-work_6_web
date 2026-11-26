@@ -4,12 +4,1564 @@
     "articleDate": "2026-10-26",
     "articleUrl": "https://www.akashi.ac.jp/news/2026/20261026gak001.html",
     "sourcePdfUrl": "https://www.akashi.ac.jp/news/us72p4000000005j-att/2026.11.pdf",
-    "dormitoryArticleUrl": "https://www.akashi.ac.jp/news/2026/20261020ryo001.html",
-    "dormitoryPdfUrl": "https://www.akashi.ac.jp/news/biub2r0000001vxh-att/menyu.pdf",
-    "isTextExtracted": false,
+    "dormitoryArticleUrl": "https://www.akashi.ac.jp/news/2026/20261117ryo001.html",
+    "dormitoryPdfUrl": "https://www.akashi.ac.jp/news/hm3ou400000000m9-att/menyu.pdf",
+    "isTextExtracted": true,
     "month": 11,
     "fiscalYear": 2026,
-    "updatedAt": "2026-10-26T00:00:00.000Z"
+    "updatedAt": "2026-11-26T00:16:30.997Z"
   },
-  "weeklyMenus": []
+  "weeklyMenus": [
+    {
+      "weekRange": "11/02 - 11/06",
+      "days": [
+        {
+          "date": "2026-11-02",
+          "dayOfWeek": "月",
+          "isOpen": false,
+          "closedReason": "臨時休業"
+        },
+        {
+          "date": "2026-11-03",
+          "dayOfWeek": "火",
+          "isOpen": false,
+          "closedReason": "文化の日"
+        },
+        {
+          "date": "2026-11-04",
+          "dayOfWeek": "水",
+          "isOpen": true,
+          "lunchA": {
+            "name": "照りマヨチキン",
+            "price": 430,
+            "kcal": 438,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "lunchB": {
+            "name": "豚の生姜焼き丼",
+            "price": 380,
+            "kcal": 557,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "noodle": {
+            "name": "醤油ラーメン",
+            "price": 250,
+            "kcal": 390,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-05",
+          "dayOfWeek": "木",
+          "isOpen": true,
+          "lunchA": {
+            "name": "インド風 タンドリーチキン",
+            "price": 430,
+            "kcal": 297,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "卵",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "海鮮炒飯",
+            "price": 380,
+            "kcal": 576,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "noodle": {
+            "name": "醤油ラーメン",
+            "price": 250,
+            "kcal": 390,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-06",
+          "dayOfWeek": "金",
+          "isOpen": true,
+          "lunchA": {
+            "name": "豚ニラ玉",
+            "price": 430,
+            "kcal": 220,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "lunchB": {
+            "name": "オムライス クリームソース",
+            "price": 380,
+            "kcal": 631,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "noodle": {
+            "name": "醤油ラーメン",
+            "price": 250,
+            "kcal": 390,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        }
+      ]
+    },
+    {
+      "weekRange": "11/09 - 11/13",
+      "days": [
+        {
+          "date": "2026-11-09",
+          "dayOfWeek": "月",
+          "isOpen": true,
+          "lunchA": {
+            "name": "アジフライ",
+            "price": 430,
+            "kcal": 237,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "lunchB": {
+            "name": "豚肉の味噌炒め丼",
+            "price": 380,
+            "kcal": 588,
+            "details": "味噌汁付"
+          },
+          "noodle": {
+            "name": "とんこつラーメン",
+            "price": 250,
+            "kcal": 411,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120,
+              "kcal": 328
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-10",
+          "dayOfWeek": "火",
+          "isOpen": true,
+          "lunchA": {
+            "name": "豚ロース肉の照り生姜焼き",
+            "price": 430,
+            "kcal": 264,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "lunchB": {
+            "name": "チキンガーリックライス",
+            "price": 380,
+            "kcal": 611,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "noodle": {
+            "name": "とんこつラーメン",
+            "price": 250,
+            "kcal": 411,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120,
+              "kcal": 328
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-11",
+          "dayOfWeek": "水",
+          "isOpen": true,
+          "lunchA": {
+            "name": "白身魚のフリット 香味トマトソース",
+            "price": 430,
+            "kcal": 295,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "豚塩カルビ丼",
+            "price": 380,
+            "kcal": 600,
+            "details": "味噌汁付"
+          },
+          "noodle": {
+            "name": "とんこつラーメン",
+            "price": 250,
+            "kcal": 411,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-12",
+          "dayOfWeek": "木",
+          "isOpen": true,
+          "lunchA": {
+            "name": "豚と卵の塩麹炒め",
+            "price": 430,
+            "kcal": 309,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "麻婆豆腐飯",
+            "price": 380,
+            "kcal": 582,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "noodle": {
+            "name": "とんこつラーメン",
+            "price": 250,
+            "kcal": 411,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-13",
+          "dayOfWeek": "金",
+          "isOpen": true,
+          "lunchA": {
+            "name": "鶏肉のパン粉焼き カレー風味",
+            "price": 430,
+            "kcal": 324,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "豚焼肉丼",
+            "price": 380,
+            "kcal": 563,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "noodle": {
+            "name": "とんこつラーメン",
+            "price": 250,
+            "kcal": 411,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        }
+      ]
+    },
+    {
+      "weekRange": "11/16 - 11/20",
+      "days": [
+        {
+          "date": "2026-11-16",
+          "dayOfWeek": "月",
+          "isOpen": true,
+          "lunchA": {
+            "name": "ヒレカツ",
+            "price": 430,
+            "kcal": 251,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "ガパオライス",
+            "price": 380,
+            "kcal": 560,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "noodle": {
+            "name": "味噌ラーメン",
+            "price": 250,
+            "kcal": 429,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120,
+              "kcal": 328
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "dayOfWeek": "火",
+          "isOpen": true,
+          "lunchA": {
+            "name": "鱈のフリット 明太子ソース",
+            "price": 430,
+            "kcal": 407,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "豚肉の細切り飯",
+            "price": 380,
+            "kcal": 560,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "noodle": {
+            "name": "味噌ラーメン",
+            "price": 250,
+            "kcal": 429,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120,
+              "kcal": 328
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "dayOfWeek": "水",
+          "isOpen": true,
+          "lunchA": {
+            "name": "豚ロース味噌焼き",
+            "price": 430,
+            "kcal": 276,
+            "details": "ご飯・味噌汁付"
+          },
+          "lunchB": {
+            "name": "肉味噌温玉丼（大豆ミート）",
+            "price": 380,
+            "kcal": 653,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "noodle": {
+            "name": "味噌ラーメン",
+            "price": 250,
+            "kcal": 429,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "dayOfWeek": "木",
+          "isOpen": true,
+          "lunchA": {
+            "name": "【岐阜】鶏ちゃん",
+            "price": 430,
+            "kcal": 167,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "lunchB": {
+            "name": "豚プルコギ丼",
+            "price": 380,
+            "kcal": 515,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "noodle": {
+            "name": "味噌ラーメン",
+            "price": 250,
+            "kcal": 429,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "dayOfWeek": "金",
+          "isOpen": true,
+          "lunchA": {
+            "name": "回鍋肉",
+            "price": 430,
+            "kcal": 193,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "lunchB": {
+            "name": "イカ天丼",
+            "price": 380,
+            "kcal": 575,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "noodle": {
+            "name": "味噌ラーメン",
+            "price": 250,
+            "kcal": 429,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        }
+      ]
+    },
+    {
+      "weekRange": "11/23 - 11/27",
+      "days": [
+        {
+          "date": "2026-11-23",
+          "dayOfWeek": "月",
+          "isOpen": false,
+          "closedReason": "勤労感謝の日"
+        },
+        {
+          "date": "2026-11-24",
+          "dayOfWeek": "火",
+          "isOpen": true,
+          "lunchA": {
+            "name": "さばカレーカツ",
+            "price": 430,
+            "kcal": 246,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "lunchB": {
+            "name": "中華丼",
+            "price": 380,
+            "kcal": 539,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "noodle": {
+            "name": "醤油ラーメン",
+            "price": 250,
+            "kcal": 390,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120,
+              "kcal": 328
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-25",
+          "dayOfWeek": "水",
+          "isOpen": true,
+          "lunchA": {
+            "name": "鶏肉の塩麹焼き 白みそソース",
+            "price": 430,
+            "kcal": 296,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "ペッパーライス",
+            "price": 380,
+            "kcal": 631,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "noodle": {
+            "name": "醤油ラーメン",
+            "price": 250,
+            "kcal": 390,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-26",
+          "dayOfWeek": "木",
+          "isOpen": true,
+          "lunchA": {
+            "name": "和風おろし豚焼肉",
+            "price": 430,
+            "kcal": 202,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦"
+            ]
+          },
+          "lunchB": {
+            "name": "鶏肉クッパ",
+            "price": 380,
+            "kcal": 475,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "noodle": {
+            "name": "醤油ラーメン",
+            "price": 250,
+            "kcal": 390,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        },
+        {
+          "date": "2026-11-27",
+          "dayOfWeek": "金",
+          "isOpen": true,
+          "lunchA": {
+            "name": "豚の味噌バター炒め ちゃんちゃん焼き風",
+            "price": 430,
+            "kcal": 256,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "タコライス（豚挽肉と大豆ミート）",
+            "price": 380,
+            "kcal": 534,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "noodle": {
+            "name": "醤油ラーメン",
+            "price": 250,
+            "kcal": 390,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        }
+      ]
+    },
+    {
+      "weekRange": "11/30 - 11/30",
+      "days": [
+        {
+          "date": "2026-11-30",
+          "dayOfWeek": "月",
+          "isOpen": true,
+          "lunchA": {
+            "name": "たっぷりチーズソースのハンバーグ",
+            "price": 430,
+            "kcal": 310,
+            "details": "ご飯・味噌汁付",
+            "allergens": [
+              "小麦",
+              "乳"
+            ]
+          },
+          "lunchB": {
+            "name": "3色丼",
+            "price": 380,
+            "kcal": 727,
+            "details": "味噌汁付",
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "noodle": {
+            "name": "とんこつラーメン",
+            "price": 250,
+            "kcal": 411,
+            "allergens": [
+              "小麦",
+              "卵"
+            ]
+          },
+          "bowl": {
+            "name": "かつ丼",
+            "price": 350,
+            "kcal": 735,
+            "allergens": [
+              "小麦",
+              "卵",
+              "乳"
+            ]
+          },
+          "regularMenu": [
+            {
+              "name": "カレーライス（中辛）",
+              "price": 300,
+              "kcal": 561,
+              "allergens": [
+                "小麦"
+              ]
+            },
+            {
+              "name": "ポークカツカレー",
+              "price": 380,
+              "kcal": 771,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳"
+              ]
+            },
+            {
+              "name": "かけうどん・そば",
+              "price": 200,
+              "kcal": 344,
+              "allergens": [
+                "小麦",
+                "卵",
+                "乳",
+                "そば"
+              ]
+            },
+            {
+              "name": "ライス中(210g)",
+              "price": 120,
+              "kcal": 328
+            }
+          ],
+          "allergens": [
+            "小麦",
+            "卵",
+            "乳"
+          ]
+        }
+      ]
+    }
+  ]
 }

@@ -235,33 +235,12 @@ test('IMP-10: timetable search/room trigger, exam countdown, calendar search/mon
   const calMonthHtml = calApp.document.getElementById('main')?.innerHTML || '';
   assert.match(calMonthHtml, /cal-month-grid/, 'month view renders cal-month-grid');
 
-  const cafeApp = createAppInstance({
-    fetchMock: {
-      './dist-data/cafeteria.json': {
-        meta: {
-          title: '学生食堂メニュー',
-          sourcePdfUrl: 'https://www.akashi.ac.jp/news/us72p4000000005j-att/2026.11.pdf',
-          isTextExtracted: true,
-        },
-        weeklyMenus: [
-          {
-            weekRange: '11/04 - 11/08',
-            days: [
-              {
-                date: '2026-11-04',
-                dayOfWeek: '水',
-                isOpen: true,
-                lunchA: { name: 'テスト定食A', price: 450, allergens: ['小麦', '大豆'] },
-              },
-            ],
-          },
-        ],
-      },
-    },
-  });
+  const cafeApp = createAppInstance();
   cafeApp.navigate('#cafeteria');
   const cafeHtml = cafeApp.document.getElementById('main')?.innerHTML || '';
-  assert.match(cafeHtml, /data-allergen-chip=/, 'cafeteria allergen chips render');
+  assert.match(cafeHtml, /data-allergen-chip="小麦"/, 'cafeteria official allergen chip 小麦 renders');
+  assert.match(cafeHtml, /data-allergen-chip="そば"/, 'cafeteria official allergen chip そば renders');
+  assert.match(cafeHtml, /data-allergen-chip="くるみ"/, 'cafeteria official allergen chip くるみ renders');
   cafeApp.run("selectedAllergenFilter = '小麦'; render();");
   const cafeFilteredHtml = cafeApp.document.getElementById('main')?.innerHTML || '';
   assert.match(cafeFilteredHtml, /has-allergen-alert/, 'matching cafeteria items receive allergen alert');
@@ -350,8 +329,17 @@ test('IMP-12: keyboard shortcuts Alt+1..6 navigate tabs and / focuses search onl
 test('IMP-13: v3 data honesty, verified PDF URLs, contrast fix, and copy/emoji cleanup invariants hold', () => {
   const cafeDist = readJson('dist-data/cafeteria.json');
   const cafeFallback = readJson('scripts/fallbacks/cafeteria.json');
-  assert.equal(cafeDist.meta?.isTextExtracted, false);
-  assert.deepEqual(cafeDist.weeklyMenus, []);
+  assert.equal(cafeDist.meta?.isTextExtracted, true);
+  assert.equal(cafeDist.weeklyMenus?.length, 5);
+  const nov04 = cafeDist.weeklyMenus.flatMap(w => w.days).find(d => d.date === '2026-11-04');
+  assert.equal(nov04?.lunchA?.name, '照りマヨチキン', '11/04 lunchA reflects real PDF, not fabricated dish');
+  assert.notEqual(nov04?.lunchA?.name, '豚肉の生姜焼き');
+  const officialAllergens = new Set(['小麦', '卵', '乳', 'そば', '落花生', 'えび', 'かに', 'くるみ']);
+  for (const d of cafeDist.weeklyMenus.flatMap(w => w.days)) {
+    for (const al of (d.allergens || [])) {
+      assert.ok(officialAllergens.has(al), `allergen "${al}" must be in official 8`);
+    }
+  }
   assert.equal(cafeFallback.meta?.isTextExtracted, false);
   assert.deepEqual(cafeFallback.weeklyMenus, []);
 

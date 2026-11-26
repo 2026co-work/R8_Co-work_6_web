@@ -866,24 +866,27 @@ function renderCafeteriaSummary(currentDate) {
 
   let contentHtml = '';
   if (isTextExtracted && todayMenu && todayMenu.isOpen) {
-    const lunchAName = todayMenu.lunchA?.name || '日替わりランチA';
+    const lunchAName = todayMenu.lunchA?.name || '';
     const lunchAPrice = todayMenu.lunchA?.price ? `${todayMenu.lunchA.price}円` : '';
     const lunchBName = todayMenu.lunchB?.name || '';
     const lunchBPrice = todayMenu.lunchB?.price ? `${todayMenu.lunchB.price}円` : '';
     const allergensStr = Array.isArray(todayMenu.allergens)
-      ? todayMenu.allergens.join(', ')
-      : (todayMenu.allergens || todayMenu.lunchA?.allergens || '');
+      ? todayMenu.allergens.join('・')
+      : (todayMenu.allergens || (Array.isArray(todayMenu.lunchA?.allergens) ? todayMenu.lunchA.allergens.join('・') : (todayMenu.lunchA?.allergens || '')));
 
     contentHtml = `
       <div class="cafeteria-today-dishes">
-        <div class="dish-item primary-dish">
-          <span class="dish-badge">ランチA定食</span>
-          <strong class="dish-name">${escapeHTML(lunchAName)}</strong>
-          ${lunchAPrice ? `<span class="dish-price">${escapeHTML(lunchAPrice)}</span>` : ''}
-        </div>
+        ${todayMenu.notice ? `<p class="cafeteria-day-notice">${escapeHTML(todayMenu.notice)}</p>` : ''}
+        ${lunchAName ? `
+          <div class="dish-item primary-dish">
+            <span class="dish-badge">Aランチ</span>
+            <strong class="dish-name">${escapeHTML(lunchAName)}</strong>
+            ${lunchAPrice ? `<span class="dish-price">${escapeHTML(lunchAPrice)}</span>` : ''}
+          </div>
+        ` : ''}
         ${lunchBName ? `
           <div class="dish-item">
-            <span class="dish-badge">ランチB定食</span>
+            <span class="dish-badge">Bランチ</span>
             <strong class="dish-name">${escapeHTML(lunchBName)}</strong>
             ${lunchBPrice ? `<span class="dish-price">${escapeHTML(lunchBPrice)}</span>` : ''}
           </div>
@@ -897,12 +900,12 @@ function renderCafeteriaSummary(currentDate) {
         ` : ''}
         ${todayMenu.bowl ? `
           <div class="dish-item bowl-dish">
-            <span class="dish-badge">丼物</span>
+            <span class="dish-badge">丼</span>
             <span class="dish-name">${escapeHTML(todayMenu.bowl.name)}</span>
             ${todayMenu.bowl.price ? `<span class="dish-price">${escapeHTML(todayMenu.bowl.price)}円</span>` : ''}
           </div>
         ` : ''}
-        ${allergensStr ? `<p class="allergens-note"><small>アレルギー特定原材料: ${escapeHTML(allergensStr)}</small></p>` : ''}
+        ${allergensStr ? `<p class="allergens-note"><small>アレルゲン: ${escapeHTML(allergensStr)}</small></p>` : ''}
       </div>
     `;
   } else if (isWeekend || holidayEv || (todayMenu && todayMenu.isOpen === false)) {
@@ -936,6 +939,10 @@ function renderCafeteriaSummary(currentDate) {
     contentHtml = `
       <div class="cafeteria-fallback-info">
         <p>本日の献立は未掲載です${escapeHTML(rangeNote)}。</p>
+        ${(sourcePdfUrl || articleUrl) ? `<div class="cafeteria-summary-actions">
+          ${sourcePdfUrl ? `<a class="button secondary" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">${icon('document')}公式献立PDF</a>` : ''}
+          ${articleUrl ? `<a class="text-link" href="${escapeHTML(articleUrl)}" target="_blank" rel="noopener noreferrer">公式案内${icon('arrow')}</a>` : ''}
+        </div>` : ''}
         <p class="cafeteria-times"><small>営業時間: 平日 11:30〜13:30</small></p>
       </div>
     `;
@@ -1558,26 +1565,29 @@ function renderCafeteriaDayCard(day, todayStr = '', allergenAlert = '') {
     if (!item?.name) return '';
     const titleHtml = strong ? `<strong>${escapeHTML(item.name)}</strong>` : `<span>${escapeHTML(item.name)}</span>`;
     const priceHtml = item.price ? ` <span class="price">${escapeHTML(String(item.price))}円</span>` : '';
+    const kcalHtml = item.kcal ? ` <small class="dish-kcal">${escapeHTML(String(item.kcal))}kcal</small>` : '';
     const detailsHtml = item.details ? ` <small class="dish-details">(${escapeHTML(item.details)})</small>` : '';
-    return `<div><span class="dish-badge">${badge}</span> ${titleHtml}${priceHtml}${detailsHtml}</div>`;
+    return `<div><span class="dish-badge">${badge}</span> ${titleHtml}${priceHtml}${kcalHtml}${detailsHtml}</div>`;
   };
   const dishRows = [
-    fmtDish('ランチA', day.lunchA, true),
-    fmtDish('ランチB', day.lunchB, true),
+    fmtDish('Aランチ', day.lunchA, true),
+    fmtDish('Bランチ', day.lunchB, true),
     fmtDish('麺類', day.noodle, false),
     fmtDish('丼', day.bowl, false)
   ].filter(Boolean);
+  const toAllergenText = (val) => Array.isArray(val) ? val.join('・') : String(val || '');
   const rawAllergens = [
-    Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || ''),
-    day.lunchA?.allergens,
-    day.lunchB?.allergens,
-    day.noodle?.allergens,
-    day.bowl?.allergens
+    toAllergenText(day.allergens),
+    toAllergenText(day.lunchA?.allergens),
+    toAllergenText(day.lunchB?.allergens),
+    toAllergenText(day.noodle?.allergens),
+    toAllergenText(day.bowl?.allergens)
   ].filter(Boolean).join(' ');
-  const allergens = Array.isArray(day.allergens) ? day.allergens.join(', ') : (day.allergens || day.lunchA?.allergens || '');
+  const allergens = toAllergenText(day.allergens) || toAllergenText(day.lunchA?.allergens);
   const hasAllergenAlert = Boolean(allergenAlert && rawAllergens.includes(allergenAlert));
   return `<li class="cafeteria-menu-item${isToday ? ' is-today' : ''}${hasAllergenAlert ? ' has-allergen-alert' : ''}">
     <div class="cafeteria-day-head"><strong>${escapeHTML(dateTitle || '本日')}</strong><span class="panel-head-meta">${isToday ? '<span class="badge red">本日</span>' : ''}${hasAllergenAlert ? `<span class="badge red">${icon('alert')}${escapeHTML(allergenAlert)}を含む</span>` : ''}</span></div>
+    ${day.notice ? `<p class="cafeteria-day-notice">${escapeHTML(day.notice)}</p>` : ''}
     <div class="cafeteria-day-dishes">${dishRows.join('') || `<span>${escapeHTML(day.name || day.menu || '')}</span>`}</div>
     ${allergens ? `<p class="allergens">アレルゲン: ${escapeHTML(allergens)}</p>` : ''}
   </li>`;
@@ -1600,7 +1610,7 @@ function cafeteria() {
   const legacyMenus = Array.isArray(data.menus) ? data.menus : (Array.isArray(data.items) ? data.items : []);
   const hasMenuData = weeklyMenus.some(w => Array.isArray(w?.days) && w.days.length > 0) || legacyMenus.length > 0;
   const hasAllergenData = weeklyMenus.some(w => (w?.days || []).some(d => d?.allergens || d?.lunchA?.allergens || d?.lunchB?.allergens || d?.noodle?.allergens || d?.bowl?.allergens));
-  const allergenChoices = ['小麦', '卵', '乳', '牛肉', '豚肉', '鶏肉', '大豆', 'ごま'];
+  const allergenChoices = ['小麦', '卵', '乳', 'そば', '落花生', 'えび', 'かに', 'くるみ'];
   const allergenChipsHtml = hasMenuData && isTextExtracted && hasAllergenData
     ? `<div class="cafeteria-allergen-filter" role="group" aria-label="アレルゲン注意ハイライト">
         <span class="strip-label">アレルゲン</span>
@@ -1635,6 +1645,9 @@ function cafeteria() {
       menuContent = `<ul class="cafeteria-menu-list">${legacyMenus.map(m => `<li class="cafeteria-menu-item"><strong>${escapeHTML(m.date || m.day || '本日')}</strong>: ${escapeHTML(m.name || m.menu || m.lunch || '')}${m.price ? ` <span class="badge">${escapeHTML(String(m.price))}円</span>` : ''}</li>`).join('')}</ul>`;
     }
   }
+  const menuFootnote = isTextExtracted && hasMenuData
+    ? `<p class="hint" style="margin:6px 0 0;">※表示価格は税込。「小麦・卵・乳・そば・落花生・えび・かに・くるみ」を含む設備で調理しています。</p>`
+    : '';
   return `${heading('食堂メニュー', '', actions)}
     <section class="panel cafeteria-panel cafeteria-view" id="cafeteria-view" data-text-extracted="${isTextExtracted ? 'true' : 'false'}">
       <div class="panel-head">
@@ -1643,6 +1656,7 @@ function cafeteria() {
       ${weekTabsHtml}
       ${allergenChipsHtml}
       ${menuContent}
+      ${menuFootnote}
       <div class="cafeteria-links" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${sourcePdfUrl ? `<a class="button" href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">${icon('document')}今月の献立PDF</a>` : ''}
         ${articleUrl ? `<a class="button secondary" href="${escapeHTML(articleUrl)}" target="_blank" rel="noopener noreferrer">食堂メニュー案内記事</a>` : ''}
