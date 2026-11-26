@@ -450,3 +450,23 @@ test('IMP-14: Favicons, MS365 SharePoint URL, hidden exam/cafeteria nav, per-wee
   assert.match(koukiCalIcs, /20261123/, 'Kouki includes November holiday');
   assert.doesNotMatch(koukiCalIcs, /20260407/, 'Kouki excludes April start');
 });
+
+test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar help modal work', () => {
+  const idx = read('index.html');
+  assert.match(idx, /rel="apple-touch-icon"/, 'index.html includes apple-touch-icon for iOS home screen');
+  assert.match(idx, /id="open-help-modal"/, 'index.html includes sidebar help button');
+
+  const app = createAppInstance({ mockDate: '2026-11-26T09:00:00+09:00' });
+  app.navigate('#home');
+  const homeHtml = app.document.getElementById('main')?.innerHTML || '';
+  assert.match(homeHtml, /class="onboarding-steps"/, 'Initial #home renders 3-step onboarding list');
+  assert.match(homeHtml, /所属を選ぶ/, 'Onboarding CTA lets user pick profile directly');
+  assert.match(homeHtml, /id="help-modal"/, 'Help modal is mounted');
+
+  const helpModal = app.document.getElementById('help-modal');
+  assert.equal(helpModal.hidden, true, 'Help modal is hidden initially');
+  app.document.getElementById('open-help-modal').click();
+  assert.equal(helpModal.hidden, false, 'Clicking sidebar help button opens help modal');
+  app.context.closeHelpModal();
+  assert.equal(helpModal.hidden, true, 'closeHelpModal hides help modal');
+});

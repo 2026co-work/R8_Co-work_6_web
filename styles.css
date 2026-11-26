@@ -595,9 +595,14 @@ body.size-modal-open{overflow:hidden}
 button.student-pill.profile-switch-trigger{cursor:pointer;font-weight:700;transition:border-color .15s,background .15s,color .15s}
 button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:var(--wine);background:#fbf1f3}
 [data-theme="dark"] button.student-pill.profile-switch-trigger:hover{border-color:#f4a8b8;color:#f4a8b8;background:#2a1922}
-.onboarding-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 16px;margin-bottom:16px;background:var(--surface,#fff);border:1px solid var(--line);border-left:3px solid var(--wine);border-radius:10px;font-size:12.5px}
+.onboarding-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 16px;margin-bottom:16px;background:var(--surface,#fff);border:1px solid var(--line);border-left:3px solid var(--wine);border-radius:10px;font-size:12.5px}
 [data-theme="dark"] .onboarding-banner{background:var(--surface,#171b26);border-color:var(--line);border-left-color:#f4a8b8}
+.onboarding-body{display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px}
+.onboarding-title{font-size:13px;font-weight:600;color:var(--ink)}
+.onboarding-steps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);line-height:1.45}
+.onboarding-steps strong{color:var(--ink)}
 .onboarding-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+@media(max-width:600px){.onboarding-actions{width:100%}.onboarding-actions .button{flex:1;min-height:40px}}
 .profile-modal-card{max-width:600px}
 .profile-modal-card .student-filters{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:4px}
 @media(max-width:520px){.profile-modal-card .student-filters{grid-template-columns:1fr}}
@@ -776,3 +781,21 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 .ical-preview-summary{font-size:12px;color:var(--muted);margin:0 0 8px}
 .ical-raw-details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 .ical-raw-details summary{cursor:pointer;font-size:12px;color:var(--muted);font-weight:600}
+
+/* サイドバー最下部 使い方ボタン & 使い方モーダル */
+.sidebar{display:flex;flex-direction:column}
+.sidebar-footer{margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.14)}
+.sidebar-help-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:left;transition:background .15s}
+.sidebar-help-btn:hover{background:rgba(255,255,255,.16)}
+.sidebar-help-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.help-modal-card{max-width:540px}
+.help-section h4,.help-tips-box h4{margin:0 0 8px;font-size:13px;color:var(--wine)}
+[data-theme="dark"] .help-section h4,[data-theme="dark"] .help-tips-box h4{color:#f4a8b8}
+.help-guide-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.help-guide-list li{display:flex;align-items:baseline;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px}
+.help-guide-list li strong{min-width:72px;color:var(--ink);flex-shrink:0}
+.help-guide-list li span{color:var(--muted)}
+.help-tips-box{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#faf9f8}
+[data-theme="dark"] .help-tips-box{background:#181c28;border-color:#2b3142}
+.help-tips-box ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);line-height:1.5}
+.help-tips-box strong{color:var(--ink)}
