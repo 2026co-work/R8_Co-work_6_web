@@ -2062,17 +2062,14 @@ function calendar() {
     ? renderCalendarMonthGrid(events, subs, todayStr)
     : `<div class="calendar-events" id="calendar-events"><ul class="calendar-timeline" id="calendar-timeline-list">${eventRows || '<li class="calendar-event-item"><span class="calendar-event-title">該当する行事はありません。</span></li>'}</ul></div>`;
 
-  return `${heading('年間予定', '', actions)}
+  return `${heading('行事予定', '', actions)}
     <section class="panel calendar-panel">
-      <div class="panel-head">
-        <h2>${icon('calendar')}行事予定表</h2>
-        <span class="badge blue">${escapeHTML(weekInfo.label)} / 全15週</span>
-      </div>
       <div class="calendar-filters" role="group" aria-label="年間予定の表示切替と移動">
         <div class="cal-view-tabs" role="tablist" aria-label="表示形式">
           <button type="button" class="cal-view-tab${calendarViewMode === 'month' ? ' is-active' : ''}" data-cal-view="month" role="tab" aria-selected="${calendarViewMode === 'month' ? 'true' : 'false'}">カレンダー</button>
           <button type="button" class="cal-view-tab${calendarViewMode === 'list' ? ' is-active' : ''}" data-cal-view="list" role="tab" aria-selected="${calendarViewMode === 'list' ? 'true' : 'false'}">イベント一覧</button>
         </div>
+        <span class="badge blue cal-week-badge">${escapeHTML(weekInfo.label)} / 全15週</span>
         <div class="cal-term-jump">
           <button type="button" class="cal-jump-link" data-cal-jump="zenki">前期 (4月)</button>
           <span class="cal-jump-sep" aria-hidden="true">/</span>
