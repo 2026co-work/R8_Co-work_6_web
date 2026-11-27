@@ -2606,172 +2606,85 @@ function closeLinkEditorModal() {
   }
 }
 
-const HELP_GUIDE_TABS = [
-  { id: 'home', label: '全体（ホーム）' },
-  { id: 'timetable', label: '時間割' },
-  { id: 'calendar', label: '年間予定' },
-  { id: 'links', label: 'リンク集' }
+const HELP_GUIDE_ITEMS = [
+  {
+    id: 'home',
+    title: 'ホーム',
+    summary: '今日の時間割（振替授業対応）とよく使うリンクをまとめて確認できます。右上の所属ボタン（例: 1-1-M）からいつでも所属を変更できます。'
+  },
+  {
+    id: 'timetable',
+    title: '時間割',
+    summary: '「変更する ▼」から学年・学科・クラス・コースを切り替え、「教室略称」やセルクリックで正式名称を確認できます。下部の保存形式から PNG（画像）・PDF（A4横）・カレンダー形式 (.ics) などで出力できます。'
+  },
+  {
+    id: 'calendar',
+    title: '年間予定',
+    summary: '「カレンダー表示」（曜日別第N週目・休日色分け・スマホは日付タップで詳細表示）と「イベントだけ表示」を切り替えられます。「カレンダー形式で出力」から自分の授業を含めた .ics も作成できます。'
+  },
+  {
+    id: 'links',
+    title: 'リンク集',
+    summary: '所属連動シラバス・授業変更リスト・Teams・Classroom・WebClass 等を収録。「＋追加」で自由に追加でき、「編集」から並び替えや非表示（ホームのリンクにも自動同期）が行えます。'
+  }
 ];
 
-const HELP_GUIDE_DATA = {
-  home: {
-    title: 'ポータルの使い方（全体ガイド）',
-    sections: [
-      {
-        heading: '4つの画面',
-        type: 'list',
-        items: [
-          ['ホーム', '今日の時間割（振替授業対応）とよく使うリンク'],
-          ['時間割', '週間表・教室略称の確認と PNG / PDF / カレンダー(.ics)出力'],
-          ['年間予定', '行事カレンダー・曜日別の第N週目・前期/後期/通年 .ics 出力'],
-          ['リンク集', 'シラバス・授業変更リスト・よく使うサイトの登録と並び替え']
-        ]
-      },
-      {
-        heading: 'スマホで便利に使う',
-        type: 'tips',
-        items: [
-          ['ホーム画面に追加', 'iPhone（Safari）は「共有 → ホーム画面に追加」、Android（Chrome）は「メニュー(⋮) → ホーム画面に追加」'],
-          ['時間割の保存', 'スマホは「PNG（画像）」で写真保存、または「カレンダー形式 (.ics)」でカレンダー登録が扱いやすいです'],
-          ['所属の変更', '画面右上の所属ボタン（例: <code>1-1-M</code>）からいつでも変更できます']
-        ]
-      }
-    ]
-  },
-  timetable: {
-    title: '時間割の使い方',
-    sections: [
-      {
-        heading: '時間割の表示・切り替え',
-        type: 'list',
-        items: [
-          ['所属の変更', '上部の「変更する ▼」を開き、学年・学科・クラス・コースを選んで「決定」を押します（専攻科・留学生にも対応）'],
-          ['教室略称の確認', '時間割右上の「教室略称」ボタン、または授業セルの教室名をクリックすると正式名称を確認できます'],
-          ['今日の列', '平日は当日の曜日列がハイライトされ、スマホでは今日の列付近へ自動スクロールします']
-        ]
-      },
-      {
-        heading: '保存・出力形式の使い分け',
-        type: 'tips',
-        items: [
-          ['PNG（画像）', 'スマホの写真フォルダに保存したり待ち受けに使う場合に最適です'],
-          ['PDF（A4横）', 'A4横1枚に収まるレイアウトで印刷・配布したい場合に適しています（「レイアウト調整」で余白・文字倍率変更可）'],
-          ['カレンダー形式 (.ics)', 'GoogleカレンダーやAppleカレンダーへ授業予定を一括登録できます（「プレビュー・設定」で年間予定の同梱も可能）']
-        ]
-      }
-    ]
-  },
-  calendar: {
-    title: '年間予定の使い方',
-    sections: [
-      {
-        heading: '表示と確認方法',
-        type: 'list',
-        items: [
-          ['2つの表示モード', '「カレンダー表示」（月間マス目・曜日別の第N週目・休日色分け）と「イベントだけ表示」（前期/後期一覧）を切り替えられます'],
-          ['スマホでの確認', 'カレンダーの日付セルをタップすると、カレンダー下部にその日の授業実施・行事詳細が表示されます'],
-          ['前期・後期へ移動', '「前期へ (4月)」「後期へ (9月)」ボタンで目的の学期へすぐ移動できます']
-        ]
-      },
-      {
-        heading: 'カレンダー形式で出力 (.ics)',
-        type: 'tips',
-        items: [
-          ['年間行事＋自分の授業', '「カレンダー形式で出力」を開き「自分の授業を含める」をONにすると、行事と時間割をまとめて1つの `.ics` にできます'],
-          ['対象期間の選択', '前期・後期・通年から選んでプレビューを確認したうえでコピーまたは保存できます（定期試験期間は常に含まれます）']
-        ]
-      }
-    ]
-  },
-  links: {
-    title: 'リンク集の使い方',
-    sections: [
-      {
-        heading: '標準リンクとカスタマイズ',
-        type: 'list',
-        items: [
-          ['標準リンク', '所属連動シラバス・授業変更リスト・Teams・Classroom・WebClass・物理ページ（1〜2年）・JR/山陽電車運行情報を収録'],
-          ['＋追加', 'グリッド内の「＋追加」から自由にURLを登録、またはプリセットからワンタップで追加できます'],
-          ['編集モード', '上部の「編集」を押すと、並び替え・URL編集・非表示や「初期設定に戻す」が行えます']
-        ]
-      },
-      {
-        heading: 'ホーム画面との連動',
-        type: 'tips',
-        items: [
-          ['自動同期', 'ここで追加・並び替え・非表示にした内容は、ホーム画面の「リンク」にもそのまま反映されます'],
-          ['アイコンのみ', '「アイコンのみ」をONにすると文字ラベルを隠して省スペースで並べられます']
-        ]
-      }
-    ]
-  },
-  exam: {
-    title: '定期試験の使い方',
-    sections: [
-      {
-        heading: '試験日程の確認',
-        type: 'list',
-        items: [
-          ['発表タイミング', '定期試験時間割は試験開始10日前の正午に公式発表されます'],
-          ['検索・絞込', '公開後は科目名や実施日での絞り込み・確認が可能です']
-        ]
-      }
-    ]
-  },
-  cafeteria: {
-    title: '学食メニューの使い方',
-    sections: [
-      {
-        heading: 'メニューとアレルゲン確認',
-        type: 'list',
-        items: [
-          ['週替わり表示', '週ごとの営業日・休業日と日替わりメニューを確認できます'],
-          ['アレルゲン確認', '特定原材料8品目などの表示に対応しています']
-        ]
-      }
-    ]
-  }
-};
+const HELP_TIPS_ITEMS = [
+  ['ホーム画面に追加', 'iPhone（Safari）は「共有 → ホーム画面に追加」、Android（Chrome）は「メニュー(⋮) → ホーム画面に追加」でアプリのようにすぐ開けます'],
+  ['時間割の保存形式', 'スマホの写真保存には「PNG（画像）」、Google・Appleカレンダーへの一括登録には「カレンダー形式 (.ics)」、印刷には「PDF（A4横）」が便利です'],
+  ['ショートカット', 'PCでは Alt+1〜4 で各タブを素早く切り替えられます']
+];
 
-function renderHelpGuideContent(tabKey) {
-  const key = Object.hasOwn(HELP_GUIDE_DATA, tabKey) ? tabKey : 'home';
-  const data = HELP_GUIDE_DATA[key];
-  const tabsHtml = `<div class="filter-group help-modal-tabs" role="tablist" aria-label="使い方カテゴリ">${HELP_GUIDE_TABS.map(t => `<button type="button" class="chip${key === t.id ? ' active' : ''}" role="tab" aria-selected="${key === t.id ? 'true' : 'false'}" data-help-tab="${t.id}">${escapeHTML(t.label)}</button>`).join('')}</div>`;
-  const sectionsHtml = data.sections.map(sec => {
-    if (sec.type === 'tips') {
-      return `<div class="help-tips-box"><h4>${escapeHTML(sec.heading)}</h4><ul>${sec.items.map(([k, v]) => `<li><strong>${escapeHTML(k)}</strong>：${v}</li>`).join('')}</ul></div>`;
-    }
-    return `<div class="help-section"><h4>${escapeHTML(sec.heading)}</h4><ul class="help-guide-list">${sec.items.map(([k, v]) => `<li><strong>${escapeHTML(k)}</strong><span>${escapeHTML(v)}</span></li>`).join('')}</ul></div>`;
-  }).join('');
-  return `${tabsHtml}${sectionsHtml}`;
+function renderHelpGuideContent(focusKey = 'home', showTips = false) {
+  if (showTips) {
+    return `<div class="help-tips-box">
+      <h4>スマホ活用・便利なTips</h4>
+      <ul>${HELP_TIPS_ITEMS.map(([k, v]) => `<li><strong>${escapeHTML(k)}</strong>：${escapeHTML(v)}</li>`).join('')}</ul>
+    </div>`;
+  }
+  const activeKey = HELP_GUIDE_ITEMS.some(item => item.id === focusKey) ? focusKey : 'home';
+  return `<div class="help-section">
+    <ul class="help-guide-list">${HELP_GUIDE_ITEMS.map(item => {
+      const isCurrent = item.id === activeKey;
+      return `<li class="${isCurrent ? 'is-current-guide' : ''}">
+        <strong>${escapeHTML(item.title)}${isCurrent ? ' <span class="badge blue">現在の画面</span>' : ''}</strong>
+        <span>${escapeHTML(item.summary)}</span>
+      </li>`;
+    }).join('')}</ul>
+  </div>`;
 }
 
 function renderHelpModal() {
   return `<div class="data-preview-overlay" id="help-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="ポータルの使い方">
     <div class="data-preview-card help-modal-card">
       <div class="data-preview-head">
-        <h3 id="help-modal-title">${icon('info')}ポータルの使い方（全体ガイド）</h3>
+        <h3 id="help-modal-title">${icon('info')}ポータルの使い方</h3>
         <button type="button" class="button size-close-btn" id="help-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
       </div>
-      <div class="data-preview-body" id="help-modal-body">${renderHelpGuideContent(activeHelpTab)}</div>
-      <div class="data-preview-foot">
+      <div class="data-preview-body" id="help-modal-body">${renderHelpGuideContent(activeHelpTab, false)}</div>
+      <div class="data-preview-foot help-modal-foot">
+        <button type="button" class="button subtle" id="help-modal-tips-toggle">スマホ活用・Tipsを見る</button>
         <button type="button" class="button" id="help-modal-ok">閉じる</button>
       </div>
     </div>
   </div>`;
 }
 
-function updateHelpModalBody(tabKey) {
-  const key = Object.hasOwn(HELP_GUIDE_DATA, tabKey) ? tabKey : 'home';
-  activeHelpTab = key;
+let helpModalShowingTips = false;
+function updateHelpModalBody(focusKey = activeHelpTab, showTips = false) {
+  activeHelpTab = HELP_GUIDE_ITEMS.some(item => item.id === focusKey) ? focusKey : 'home';
+  helpModalShowingTips = Boolean(showTips);
   const titleEl = document.getElementById('help-modal-title');
   const bodyEl = document.getElementById('help-modal-body');
-  if (titleEl) titleEl.innerHTML = `${icon('info')}${escapeHTML(HELP_GUIDE_DATA[key].title)}`;
+  const tipsBtn = document.getElementById('help-modal-tips-toggle');
+  if (titleEl) {
+    titleEl.innerHTML = `${icon('info')}${helpModalShowingTips ? 'スマホ活用・Tips' : 'ポータルの使い方'}`;
+  }
+  if (tipsBtn) {
+    tipsBtn.textContent = helpModalShowingTips ? '使い方に戻る' : 'スマホ活用・Tipsを見る';
+  }
   if (bodyEl) {
-    bodyEl.innerHTML = renderHelpGuideContent(key);
-    bodyEl.querySelectorAll?.('[data-help-tab]').forEach(btn => {
-      btn.addEventListener('click', () => updateHelpModalBody(btn.dataset?.helpTab || 'home'));
-    });
+    bodyEl.innerHTML = renderHelpGuideContent(activeHelpTab, helpModalShowingTips);
   }
 }
 
@@ -2793,8 +2706,8 @@ function openHelpModal(tab = null) {
   if (!modal) return;
   dismissHelpSpotlight();
   const rawHash = (typeof location !== 'undefined' ? (location.hash.slice(1).split('?')[0].split('/')[0] || 'home').trim() : 'home');
-  const targetTab = tab || (Object.hasOwn(HELP_GUIDE_DATA, rawHash) ? rawHash : 'home');
-  updateHelpModalBody(targetTab);
+  const targetTab = tab || (HELP_GUIDE_ITEMS.some(item => item.id === rawHash) ? rawHash : 'home');
+  updateHelpModalBody(targetTab, false);
   lastModalTrigger = document.activeElement || null;
   modal.hidden = false;
   setModalBackdropInert(true, modal);
@@ -3628,12 +3541,10 @@ function render() {
         openHelpModal(btn.dataset?.openHelp || 'home');
       });
     });
-    document.querySelectorAll('[data-help-tab]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        updateHelpModalBody(btn.dataset?.helpTab || 'home');
-      });
-    });
   }
+  document.getElementById('help-modal-tips-toggle')?.addEventListener('click', () => {
+    updateHelpModalBody(activeHelpTab, !helpModalShowingTips);
+  });
   document.getElementById('guide-spotlight-skip')?.addEventListener('click', dismissHelpSpotlight);
   document.getElementById('help-modal-close')?.addEventListener('click', closeHelpModal);
   document.getElementById('help-modal-ok')?.addEventListener('click', closeHelpModal);
