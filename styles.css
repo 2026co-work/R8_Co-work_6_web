@@ -1064,6 +1064,9 @@ details.timetable-controls[open]{box-shadow:none}
 [data-theme="dark"] .help-guide-list li.is-current-guide{border-color:#5a8fd6;background:#192338}
 .help-modal-foot{justify-content:space-between}
 #help-modal-title{display:inline-flex;align-items:center;gap:8px}
+.ical-import-help{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
+.ical-import-help a{color:var(--wine);text-decoration:underline;text-underline-offset:3px}
+[data-theme="dark"] .ical-import-help a{color:#f4a8b8}
 .help-quickstart{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:#f8f1f3;border:1px solid #ead4d9;font-size:12.5px;margin-bottom:10px}
 [data-theme="dark"] .help-quickstart{background:#231b24;border-color:#442c37}
 .onboarding-sub{margin:2px 0 0;font-size:12px;color:var(--muted)}
