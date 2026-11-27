@@ -387,7 +387,10 @@ body.size-modal-open{overflow:hidden}
 .size-a4-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;cursor:pointer;margin-left:8px;padding:4px 8px;border-radius:4px;background:rgba(121,24,43,0.06);border:1px solid rgba(121,24,43,0.18);user-select:none}
 [data-theme="dark"] .size-a4-toggle{background:transparent;border-color:#3a4258;color:#c9d0df}
 [data-theme="dark"] .size-a4-toggle:has(input:checked){background:rgba(244,168,184,0.14);border-color:rgba(244,168,184,0.38);color:#f4a8b8}
-.size-close-btn{min-height:36px;padding:0 18px;font-size:13px;font-weight:700}
+.size-overlay-controls .button{min-height:40px}
+.size-close-btn{min-height:40px;padding:0 18px;font-size:13px;font-weight:700}
+.data-preview-head .size-close-btn{min-width:36px;min-height:36px;padding:0 10px}
+.profile-switch-trigger{min-height:34px;padding:4px 12px}
 .size-sliders{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 14px;max-width:960px;width:100%;margin:0 auto;box-sizing:border-box}
 .size-slider-item{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;min-width:0}
 .size-slider-name{min-width:68px;white-space:nowrap}
@@ -837,14 +840,14 @@ button.cal-month-cell{cursor:pointer}
 [data-theme="dark"] .dial-tile-add:hover .dial-icon{border-color:#f4a8b8;color:#f4a8b8;background:#2d1822}
 .dial-tile-add .dial-label{color:var(--muted)}
 
-.dial-remove-btn{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);color:var(--muted);display:grid;place-items:center;padding:0;box-shadow:0 1px 2px rgba(20,24,34,.08);z-index:2}
+.dial-remove-btn{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);color:var(--muted);display:grid;place-items:center;padding:0;box-shadow:0 1px 2px rgba(20,24,34,.08);z-index:2}
 .dial-remove-btn::after{content:'';position:absolute;inset:-6px}
 .dial-remove-btn:hover{background:var(--red);border-color:var(--red);color:#fff}
 .dial-remove-btn svg{width:12px;height:12px;stroke-width:2.2}
 [data-theme="dark"] .dial-remove-btn{background:#1d2230;border-color:#343c52}
 
 .dial-move-row{display:inline-flex;align-items:center;gap:4px;margin-top:2px}
-.dial-move-btn{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--surface,#fff);color:var(--ink);padding:0}
+.dial-move-btn{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:34px;border-radius:6px;border:1px solid var(--line);background:var(--surface,#fff);color:var(--ink);padding:0}
 .dial-move-btn:hover:not(:disabled){border-color:var(--wine);color:var(--wine)}
 .dial-move-btn:disabled{opacity:.4;cursor:default}
 .dial-move-btn svg{width:13px;height:13px}
@@ -1135,39 +1138,5 @@ details.timetable-controls[open]{box-shadow:none}
 [data-theme="dark"] .guide-spotlight-skip{background:#283044;border-color:#3a445d;color:#cfd6e6}
 @keyframes spotlightPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 @keyframes spotlightBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-.help-guide-cta{margin-top:12px;display:flex;justify-content:flex-end}
-.help-guide-cta .button{width:100%;justify-content:center;font-weight:600}
-.guide-section{margin-bottom:20px}
-.guide-lead{margin:0 0 14px;color:var(--muted);font-size:13.5px;line-height:1.65}
-.guide-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.guide-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-subtle);display:flex;flex-direction:column;gap:10px}
-[data-theme="dark"] .guide-card{background:#181c28;border-color:#2b3142}
-.guide-card h3{margin:0;font-size:14.5px;color:var(--ink)}
-.guide-media-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:18px;align-items:start}
-.guide-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;line-height:1.65;color:var(--ink)}
-.guide-inline-link{color:var(--wine);text-decoration:underline;text-underline-offset:3px;font-weight:600}
-[data-theme="dark"] .guide-inline-link{color:#f4a8b8}
-.guide-figure{margin:0;display:flex;flex-direction:column;gap:6px}
-.guide-figure figcaption{font-size:11.5px;color:var(--muted);line-height:1.45}
-.guide-screenshot-figure img{width:100%;max-width:320px;height:auto;border-radius:12px;border:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.08);display:block;margin:0 auto}
-.guide-mockup-svg{width:100%;max-width:280px;height:auto;display:block;margin:0 auto}
-.guide-mockup-svg .gm-frame{fill:#ffffff;stroke:var(--line);stroke-width:1.5}
-.guide-mockup-svg .gm-bar{fill:#f3f4f6}
-.guide-mockup-svg .gm-sheet{fill:#fafafa;stroke:var(--line);stroke-width:1}
-.guide-mockup-svg .gm-highlight{fill:#f8f1f3;stroke:var(--wine);stroke-width:1.2}
-.guide-mockup-svg .gm-highlight-circle{fill:#f8f1f3;stroke:var(--wine);stroke-width:1.2}
-.guide-mockup-svg .gm-text-muted{fill:#5e6573;font-size:10.5px;font-family:inherit}
-.guide-mockup-svg .gm-text-accent{fill:#79182b;font-size:11px;font-weight:700;font-family:inherit}
-.guide-mockup-svg .gm-stroke-accent{fill:none;stroke:#79182b;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-[data-theme="dark"] .guide-mockup-svg .gm-frame{fill:#1c2130;stroke:#323a4e}
-[data-theme="dark"] .guide-mockup-svg .gm-bar{fill:#262d40}
-[data-theme="dark"] .guide-mockup-svg .gm-sheet{fill:#161a25;stroke:#323a4e}
-[data-theme="dark"] .guide-mockup-svg .gm-highlight,[data-theme="dark"] .guide-mockup-svg .gm-highlight-circle{fill:#341c27;stroke:#f4a8b8}
-[data-theme="dark"] .guide-mockup-svg .gm-text-muted{fill:#a8b2c4}
-[data-theme="dark"] .guide-mockup-svg .gm-text-accent{fill:#f4a8b8}
-[data-theme="dark"] .guide-mockup-svg .gm-stroke-accent{stroke:#f4a8b8}
-.guide-footer-nav{margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
-@media(max-width:760px){
-  .guide-two-col,.guide-media-row{grid-template-columns:1fr}
-  .guide-footer-nav .button{flex:1;justify-content:center}
-}
+.help-guide-links{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.help-guide-links .button{width:100%;justify-content:flex-start;min-height:40px;font-size:12.5px}
