@@ -496,7 +496,7 @@ body.size-modal-open{overflow:hidden}
 .btn-success{background:var(--green)!important;color:#fff!important;border-color:var(--green)!important}
 .field-hint{font-size:11px;color:var(--muted);margin-top:2px;display:block}
 .network-status-badge{margin-left:6px}
-.dashboard-date-nav{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dashboard-date-nav{display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap;flex-shrink:0;margin-left:auto}
 .dashboard-date-nav .button.subtle{background:transparent;color:var(--ink);border:1px solid var(--line);padding:4px 9px;font-size:11px;min-height:28px;border-radius:6px}
 .dashboard-date-nav .button.subtle.active{background:#252b39;color:#fff;border-color:#252b39}
 [data-theme="dark"] .dashboard-date-nav .button.subtle{background:#1c2130;color:#e8eaf0;border-color:#2b3142}

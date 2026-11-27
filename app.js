@@ -732,23 +732,27 @@ function renderTodaySchedule(currentDate) {
     </div>
   ` : '';
 
+  const renderTodayShell = (badgesHtml, bodyHtml) => `
+    <section class="panel today-schedule" id="today-schedule">
+      <div class="panel-head">
+        <h2>${icon('calendar')}今日の時間割</h2>
+        ${badgesHtml ? `<div class="panel-head-meta">${badgesHtml}</div>` : ''}
+        ${navControls}
+      </div>
+      ${subBanner}
+      ${bodyHtml}
+    </section>
+  `;
+
   if (!isSubstituted && (effectiveDay === 0 || effectiveDay === 6 || holidayEv)) {
     const restLabel = holidayEv?.title || holidayEv?.name || '休業日';
-    return subBanner + `
-      <section class="panel today-schedule" id="today-schedule">
-        <div class="panel-head">
-          <h2>${icon('calendar')}今日の時間割</h2>
-          <div class="panel-head-meta">
-            ${navControls}
-            <span class="badge yellow">${escapeHTML(restLabel)}</span>
-          </div>
-        </div>
-        <div class="dashboard-rest-card">
-          <p><strong>${escapeHTML(todayDateStr)}</strong> — ${escapeHTML(restLabel)}（授業予定なし）</p>
-          <a class="button" href="#timetable">${icon('calendar')}週間時間割を見る</a>
-        </div>
-      </section>
-    `;
+    return renderTodayShell(
+      `<span class="badge yellow">${escapeHTML(restLabel)}</span>`,
+      `<div class="dashboard-rest-card">
+        <p><strong>${escapeHTML(todayDateStr)}</strong> — ${escapeHTML(restLabel)}（授業予定なし）</p>
+        <a class="button" href="#timetable">${icon('calendar')}週間時間割を見る</a>
+      </div>`
+    );
   }
 
   const examEv = !isSubstituted ? events.find(e =>
@@ -757,57 +761,39 @@ function renderTodaySchedule(currentDate) {
   ) : null;
   if (examEv) {
     const examLabel = examEv.title || examEv.name || '定期試験期間';
-    return subBanner + `
-      <section class="panel today-schedule" id="today-schedule">
-        <div class="panel-head">
-          <h2>${icon('calendar')}今日の時間割</h2>
-          <div class="panel-head-meta">
-            ${navControls}
-            <span class="badge red">${escapeHTML(examLabel)}</span>
-          </div>
-        </div>
-        <div class="dashboard-rest-card">
-          <p><strong>${escapeHTML(todayDateStr)}</strong> — ${escapeHTML(examLabel)}</p>
-          ${FEATURE_FLAGS.exam
-            ? `<a class="button" href="#exam">${icon('document')}試験時間割を見る</a>`
-            : `<a class="button" href="#calendar">${icon('calendar')}年間予定を見る</a>`}
-        </div>
-      </section>
-    `;
+    return renderTodayShell(
+      `<span class="badge red">${escapeHTML(examLabel)}</span>`,
+      `<div class="dashboard-rest-card">
+        <p><strong>${escapeHTML(todayDateStr)}</strong> — ${escapeHTML(examLabel)}</p>
+        ${FEATURE_FLAGS.exam
+          ? `<a class="button" href="#exam">${icon('document')}試験時間割を見る</a>`
+          : `<a class="button" href="#calendar">${icon('calendar')}年間予定を見る</a>`}
+      </div>`
+    );
   }
 
   const dayIdx = effectiveDay - 1;
   const { grid, error: schedError } = selectedSchedule();
   if (schedError) {
-    return subBanner + `
-      <section class="panel today-schedule" id="today-schedule">
-        <div class="panel-head">
-          <h2>${icon('calendar')}今日の時間割</h2>
-          <div class="panel-head-meta">${navControls}</div>
-        </div>
-        <div class="dashboard-empty-card">
-          <p>${escapeHTML(schedError)}</p>
-          <button type="button" class="button profile-switch-trigger" id="home-fix-profile-btn">${icon('edit')}所属を設定する</button>
-        </div>
-      </section>
-    `;
+    return renderTodayShell(
+      '',
+      `<div class="dashboard-empty-card">
+        <p>${escapeHTML(schedError)}</p>
+        <button type="button" class="button profile-switch-trigger" id="home-fix-profile-btn">${icon('edit')}所属を設定する</button>
+      </div>`
+    );
   }
   const dayLessons = grid[dayIdx] || [];
   const hasClasses = dayLessons.some(slot => slot.length > 0);
 
   if (!hasClasses) {
-    return subBanner + `
-      <section class="panel today-schedule" id="today-schedule">
-        <div class="panel-head">
-          <h2>${icon('calendar')}今日の時間割</h2>
-          <div class="panel-head-meta">${navControls}</div>
-        </div>
-        <div class="dashboard-empty-card">
-          <p>${escapeHTML(todayDateStr)} — 授業予定なし</p>
-          <a class="button secondary" href="#timetable">${icon('calendar')}時間割を見る</a>
-        </div>
-      </section>
-    `;
+    return renderTodayShell(
+      '',
+      `<div class="dashboard-empty-card">
+        <p>${escapeHTML(todayDateStr)} — 授業予定なし</p>
+        <a class="button secondary" href="#timetable">${icon('calendar')}時間割を見る</a>
+      </div>`
+    );
   }
 
   const isLiveToday = dashboardOffsetDays === 0;
@@ -893,26 +879,17 @@ function renderTodaySchedule(currentDate) {
     }).join('');
   }).join('');
 
-  return subBanner + `
-    <section class="panel today-schedule" id="today-schedule">
-      <div class="panel-head">
-        <h2>${icon('calendar')}今日の時間割</h2>
-        <div class="panel-head-meta">
-          ${navControls}
-          ${allDoneToday ? '<span class="badge gray">授業終了</span>' : ''}
-          <span class="badge gray">${DAYS[dayIdx]}曜</span>
-        </div>
-      </div>
-      <div class="today-periods-list">
-        ${periodRows}
-      </div>
-      ${renderRoomPopoverBox()}
-      <div class="panel-footer panel-footer-split">
-        <span class="schedule-disclaimer">各授業の振り替え情報は<a href="${escapeHTML(MS365_PORTAL_URL)}" target="_blank" rel="noopener noreferrer">授業変更リスト ↗</a>をご確認ください。</span>
-        <a class="text-link" href="#timetable">週間時間割へ${icon('arrow')}</a>
-      </div>
-    </section>
-  `;
+  return renderTodayShell(
+    `${allDoneToday ? '<span class="badge gray">授業終了</span>' : ''}<span class="badge gray">${DAYS[dayIdx]}曜</span>`,
+    `<div class="today-periods-list">
+      ${periodRows}
+    </div>
+    ${renderRoomPopoverBox()}
+    <div class="panel-footer panel-footer-split">
+      <span class="schedule-disclaimer">各授業の振り替え情報は<a href="${escapeHTML(MS365_PORTAL_URL)}" target="_blank" rel="noopener noreferrer">授業変更リスト ↗</a>をご確認ください。</span>
+      <a class="text-link" href="#timetable">週間時間割へ${icon('arrow')}</a>
+    </div>`
+  );
 }
 
 function getExamCountdownInfo() {
@@ -1670,8 +1647,7 @@ function home() {
       <span class="term-badge badge blue">${escapeHTML(weekInfo.label)}</span>
       ${studentPillBtn()}
       <div class="date-block">
-        <strong>${longDate(displayDateKey)}</strong>
-        ${dashboardOffsetDays === 0 ? '' : `<small>基準日から${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日</small>`}
+        <strong>${longDate(displayDateKey)}${dashboardOffsetDays === 0 ? '' : ` (${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日)`}</strong>
       </div>
     </div>
   `;
