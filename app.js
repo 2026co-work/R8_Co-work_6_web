@@ -2297,10 +2297,9 @@ function linksView() {
 
 function renderTimetableBanners(date = new Date()) {
   const { dateStr, weekdayNum } = getJstParts(date);
-  const weekInfo = getAcademicWeek(date);
   const cal = calendarData || FALLBACK_CALENDAR;
   const events = Array.isArray(cal?.events) ? cal.events : [];
-  let banners = `<div class="timetable-banner week-banner" role="status"><span class="week-text">${escapeHTML(weekInfo.label)}</span></div>`;
+  let banners = '';
 
   const sub = cal?.daySubstitutions?.find(item => item.date === dateStr);
   if (sub) {

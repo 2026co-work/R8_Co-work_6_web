@@ -317,7 +317,7 @@ test('T3-P-12: F7 × F9 — Home dashboard today-schedule widget renders 専攻�
 
 test('T3-P-13: F7 × F11 — Calendar day substitution alert reflects simultaneously on home dashboard and timetable', async (t) => {
   const appCode = read('app.js');
-  const ready = (appCode.includes('day-substitution') || appCode.includes('振替') || appCode.includes('daySubstitutions')) && appCode.includes('week-banner');
+  const ready = (appCode.includes('day-substitution') || appCode.includes('振替') || appCode.includes('daySubstitutions')) && appCode.includes('timetable-banner');
   if (!requireOrSkip(t, ready, 'Day substitution banner integration', 'M3')) return;
 
   // 2026-11-25 is Wednesday with Monday schedule substitution (verified against official R8 calendar PDF)
@@ -464,10 +464,10 @@ test('T3-P-20: F10 × F11 — Academic term metadata synchronizes with calendar 
     mockDate: '2026-11-13T09:00:00+09:00'
   });
 
-  app.navigate('#timetable');
-  const ttHtml = app.elements['main'].innerHTML;
+  app.navigate('#calendar');
+  const calHtml = app.elements['main'].innerHTML;
 
-  assert.ok(ttHtml.includes('後期') && ttHtml.includes('週'), 'Timetable banner specifies term and week count');
+  assert.ok(calHtml.includes('後期') && calHtml.includes('週'), 'Calendar header specifies term and week count');
 });
 
 test('T3-P-21: F10 × F17 — Timetable export headers synchronize with dynamic term/year metadata', async (t) => {
