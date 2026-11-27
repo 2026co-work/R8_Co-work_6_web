@@ -462,7 +462,11 @@ function studentPillBtn() {
 
 function pageHelpBtn(page = 'home', spotlight = false) {
   const tipHtml = spotlight
-    ? `<span class="guide-spotlight-tip" role="status">まずは使い方を確認！</span>`
+    ? `<div class="guide-spotlight-tip" role="status">
+        <span class="guide-spotlight-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg></span>
+        <span>まずは使い方を確認！</span>
+        <button type="button" class="guide-spotlight-skip" id="guide-spotlight-skip">スキップ</button>
+      </div>`
     : '';
   return `<span class="page-help-wrap${spotlight ? ' is-spotlight-target' : ''}">
     <button type="button" class="button subtle page-help-btn${spotlight ? ' is-spotlight-target' : ''}" data-open-help="${escapeHTML(page)}" aria-label="${escapeHTML(names[page] || 'このページ')}の使い方">${icon('info')}使い方</button>
@@ -3630,6 +3634,7 @@ function render() {
       });
     });
   }
+  document.getElementById('guide-spotlight-skip')?.addEventListener('click', dismissHelpSpotlight);
   document.getElementById('help-modal-close')?.addEventListener('click', closeHelpModal);
   document.getElementById('help-modal-ok')?.addEventListener('click', closeHelpModal);
   document.getElementById('help-modal')?.addEventListener('click', e => {
