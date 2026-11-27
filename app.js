@@ -2424,7 +2424,7 @@ function timetable() {
     </div>`;
 }
 function getMaxCellHeightForA4(padding) {
-  const fixedH = (padding * 2) + 56; // スリム化した上下余白 + ヘッダー行 + thead
+  const fixedH = (padding * 2) + 80; // 上下余白 + ヘッダー行(約48px) + thead(約32px)
   return Math.max(80, Math.floor((778 - fixedH) / 4));
 }
 function getPresetConfig(mode, isA4) {
