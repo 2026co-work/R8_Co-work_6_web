@@ -451,13 +451,12 @@ test('IMP-14: Favicons, MS365 SharePoint URL, hidden exam/cafeteria nav, per-wee
   const homeHtml = app.document.getElementById('main')?.innerHTML || '';
   assert.match(homeHtml, /class="schedule-disclaimer">各授業の振り替え情報は<a href="https:\/\/kosenjp\.sharepoint\.com\/sites\/27akashi\/students-portal\/Lists\/henkou\/view1\.aspx/, 'Home timetable disclaimer links directly to 授業変更リスト');
 
-  // #calendar places external PDF and official calendar links in bottom .timetable-source
+  // #calendar places external PDF and official calendar links in bottom .timetable-source and export button below main calendar
   app.navigate('#calendar');
   const calHtml = app.document.getElementById('main')?.innerHTML || '';
   assert.match(calHtml, /<div class="timetable-source"[^>]*>.*明石高専 公式行事予定 ↗.*<\/div>/, 'Calendar places source links in bottom .timetable-source');
-  const toolbarMatch = calHtml.match(/<div class="calendar-toolbar">[\s\S]*?<\/div>/);
-  assert.ok(toolbarMatch, 'Calendar toolbar renders');
-  assert.doesNotMatch(toolbarMatch[0], /<a /, 'Calendar toolbar no longer contains external link buttons');
+  assert.match(calHtml, /class="calendar-export-footer"[\s\S]*?id="export-calendar-ics"/, 'Calendar export button is placed below calendar content');
+  assert.match(calHtml, /class="cal-view-tabs"/, 'Calendar uses segmented view tabs instead of pill chips');
 });
 
 test('IMP-15: Mobile-first onboarding banner, apple-touch-icon, 2-step spotlight tour, and page help modal work', () => {

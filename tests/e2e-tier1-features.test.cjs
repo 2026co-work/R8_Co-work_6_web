@@ -580,7 +580,7 @@ test('F11-T1-01: Timetable displays academic week counter banner', async (t) => 
   const ready = read('app.js').includes('timetable-banner') || read('app.js').includes('第') && read('app.js').includes('週');
   if (!requireOrSkip(t, ready, 'Week counter banner above timetable', 'M3')) return;
 
-  app.navigate('#timetable');
+  app.navigate('#home');
   assert.match(app.elements.main.innerHTML, /第\d+週|今週/);
 });
 
