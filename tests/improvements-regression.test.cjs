@@ -237,7 +237,7 @@ test('IMP-10: timetable room legends modal, exam countdown, calendar month/week 
   const calMonthHtml = calApp.document.getElementById('main')?.innerHTML || '';
   assert.match(calMonthHtml, /cal-month-grid/, 'calendar defaults to month grid');
   assert.match(calMonthHtml, /cal-month-week-tag/, 'calendar month cells render per-weekday week tags');
-  assert.match(calMonthHtml, /カレンダー形式で出力/, 'calendar exposes unified calendar export button');
+  assert.match(calMonthHtml, /プレビュー &amp; カレンダー形式で保存|プレビュー & カレンダー形式で保存/, 'calendar exposes unified calendar export button');
   assert.doesNotMatch(calMonthHtml, /今月へ|今日へ/, 'redundant 今月へ and 今日へ buttons are removed');
   assert.match(calMonthHtml, /is-holiday-cell/, 'holidays receive explicit holiday cell styling');
   assert.match(calMonthHtml, /cal-mobile-detail/, 'mobile day detail panel renders below calendar grid');
