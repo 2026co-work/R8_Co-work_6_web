@@ -504,10 +504,9 @@ test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar
   assert.match(app.document.getElementById('help-modal-title')?.textContent || '', /ポータルの使い方/, 'Help modal shows unified title');
   const ttHelpBody = app.document.getElementById('help-modal-body')?.innerHTML || '';
   assert.doesNotMatch(ttHelpBody, /data-help-tab/, 'Help modal does not fragment small content into tabs');
-  assert.doesNotMatch(ttHelpBody, /help-tips-box/, 'Tips are separated from main usage guide');
+  assert.doesNotMatch(ttHelpBody, /まずはこれだけ/, 'Help modal avoids verbose preamble');
+  assert.match(ttHelpBody, /help-install-details/, 'Home-screen install guide uses inline details instead of extra modal switch');
   assert.match(ttHelpBody, /is-current-guide/, 'Current page item is highlighted in unified guide');
-  app.context.updateHelpModalBody('timetable', true);
-  assert.match(app.document.getElementById('help-modal-body')?.innerHTML || '', /help-tips-box/, 'Tips view is accessible separately');
   app.context.closeHelpModal();
 
   app.navigate('#calendar');
