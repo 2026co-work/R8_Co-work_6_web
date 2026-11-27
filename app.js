@@ -291,6 +291,7 @@ let lastModalTrigger = null;
 let onboardingDismissed = false;
 let firstVisitSpotlightDismissed = false;
 let activeHelpTab = 'home';
+let draftProfile = null;
 let calendarSearchQuery = '';
 let calendarHidePast = false;
 let calendarViewMode = 'month';
@@ -4023,7 +4024,6 @@ function render() {
     }
     syncSizeControlsUI();
   });
-  let draftProfile = { ...studentSelection };
   const closeProfileModal = () => {
     const modal = document.getElementById('profile-switcher-modal');
     const wasOpen = modal && !modal.hidden;
@@ -4035,18 +4035,67 @@ function render() {
       lastModalTrigger = null;
     }
   };
-  const renderProfileModalFields = () => {
-    const wrap = document.getElementById('profile-modal-fields');
+  const syncProfileModalValidation = () => {
     const statusEl = document.getElementById('profile-modal-status');
     const saveBtn = document.getElementById('profile-modal-save');
-    if (!wrap) return;
-    wrap.innerHTML = buildStudentFilterControls(draftProfile, 'modal-student', 'data-modal-student');
     const needsCourse = Number(draftProfile.grade) < 6 && Number(draftProfile.grade) >= 4 && draftProfile.department === 'E' && !draftProfile.course;
     if (statusEl) {
       statusEl.hidden = !needsCourse;
       statusEl.textContent = needsCourse ? '4・5年生のE科はコース（ED・EJ）を選択してください。' : '';
     }
     if (saveBtn) saveBtn.disabled = Boolean(needsCourse);
+  };
+  const updateProfileModalFieldsInPlace = (changedKey) => {
+    const wrap = document.getElementById('profile-modal-fields');
+    if (!wrap) return;
+    const isAdv = Number(draftProfile.grade) >= 6;
+    const needsCourse = !isAdv && Number(draftProfile.grade) >= 4 && draftProfile.department === 'E';
+    const deptSel = document.getElementById('modal-student-department');
+    const clsSel = document.getElementById('modal-student-classGroup');
+    const typeSel = document.getElementById('modal-student-studentType');
+    const courseSel = document.getElementById('modal-student-course');
+    const artsSel = document.getElementById('modal-student-arts');
+    if (changedKey === 'grade' && deptSel) {
+      const deptOptions = isAdv
+        ? ADVANCED_DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || d])
+        : DEPARTMENTS.map(d => [d, DEPARTMENT_NAMES[d] || `${d}科`]);
+      const labelNode = deptSel.parentElement?.firstChild;
+      if (labelNode && labelNode.nodeType === 3) labelNode.nodeValue = isAdv ? '専攻' : '学科';
+      deptSel.innerHTML = deptOptions.map(([v, l]) => `<option value="${escapeHTML(v)}"${String(v) === String(draftProfile.department) ? ' selected' : ''}>${escapeHTML(l)}</option>`).join('');
+      deptSel.value = String(draftProfile.department);
+    }
+    if (clsSel) {
+      clsSel.disabled = Boolean(isAdv || Number(draftProfile.grade) >= 3);
+      clsSel.value = String(draftProfile.classGroup);
+    }
+    if (typeSel) {
+      typeSel.disabled = Boolean(isAdv);
+      typeSel.value = String(draftProfile.studentType);
+    }
+    if (courseSel) {
+      courseSel.disabled = Boolean(isAdv || !needsCourse);
+      courseSel.value = String(draftProfile.course || '');
+    }
+    if (artsSel?.parentElement) {
+      artsSel.parentElement.hidden = !(!isAdv && Number(draftProfile.grade) === 1);
+      artsSel.disabled = Boolean(isAdv || Number(draftProfile.grade) !== 1);
+      artsSel.value = String(draftProfile.arts || 'music');
+    } else if (!isAdv && Number(draftProfile.grade) === 1) {
+      renderProfileModalFields(true);
+      return;
+    }
+    syncProfileModalValidation();
+  };
+  const renderProfileModalFields = (forceRebuild = false) => {
+    const wrap = document.getElementById('profile-modal-fields');
+    if (!wrap) return;
+    if (!draftProfile) draftProfile = { ...studentSelection };
+    if (!forceRebuild && document.getElementById('modal-student-grade')) {
+      syncProfileModalValidation();
+      return;
+    }
+    wrap.innerHTML = buildStudentFilterControls(draftProfile, 'modal-student', 'data-modal-student');
+    syncProfileModalValidation();
     wrap.querySelectorAll?.('[data-modal-student]').forEach(sel => {
       sel.addEventListener('change', e => {
         const key = e.target.dataset.modalStudent;
@@ -4058,17 +4107,16 @@ function render() {
           if (isAdv && !ADVANCED_DEPARTMENTS.includes(draftProfile.department)) draftProfile.department = 'ME';
           else if (!isAdv && !DEPARTMENTS.includes(draftProfile.department)) draftProfile.department = 'M';
         }
-        const focusId = e.target.id;
-        renderProfileModalFields();
-        document.getElementById(focusId)?.focus?.({ preventScroll: true });
+        updateProfileModalFieldsInPlace(key);
       });
     });
   };
   const openProfileModal = () => {
     const modal = document.getElementById('profile-switcher-modal');
     if (!modal) return;
+    dismissHelpSpotlight();
     draftProfile = { ...studentSelection };
-    renderProfileModalFields();
+    renderProfileModalFields(true);
     lastModalTrigger = document.activeElement || null;
     modal.hidden = false;
     setModalBackdropInert(true, modal);
@@ -4095,7 +4143,7 @@ function render() {
     if (e.target === e.currentTarget) closeProfileModal();
   });
   document.getElementById('profile-modal-save')?.addEventListener('click', () => {
-    studentSelection = sanitizeSelection(draftProfile);
+    studentSelection = sanitizeSelection(draftProfile || studentSelection);
     onboardingDismissed = true;
     filterOpen = false;
     saveSelectionCookie();
@@ -4251,7 +4299,9 @@ function render() {
       status.hidden=false;
       status.textContent='選択条件を保存できませんでした。現在の画面では選択できますが、再訪時は設定が戻ります。';
     }
-    document.getElementById(id)?.focus({preventScroll:true});
+    if (typeof window === 'undefined' || typeof window.innerWidth !== 'number' || window.innerWidth > 760) {
+      document.getElementById(id)?.focus({preventScroll:true});
+    }
   }));
 }
 
