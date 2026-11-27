@@ -799,16 +799,20 @@ export async function exportTimetable(snapshot, format, filename, options = {}) 
   }
 
   // 3. JSON (.json)
-  if (format === 'json') {
-    const jsonString = generateJson(selectedLessons, studentLabel, options.updated, { includeEmpty, fiscalYear, term, semesterInfo });
+  if (format === 'json' || format === 'all-json') {
+    const jsonString = format === 'all-json'
+      ? generateAllLessonsJson(options.allLessons || selectedLessons, { fiscalYear, term, url: options.sourceUrl, updated: options.updated })
+      : generateJson(selectedLessons, studentLabel, options.updated, { includeEmpty, fiscalYear, term, semesterInfo });
     if (action === 'copy') {
       const ok = await copyTextToClipboard(jsonString);
       if (!ok) throw new Error('クリップボードへのコピーに失敗しました。');
-      return { success: true, message: 'JSONデータをクリップボードにコピーしました。' };
+      return { success: true, message: format === 'all-json' ? '全授業データのJSONをクリップボードにコピーしました。' : 'JSONデータをクリップボードにコピーしました。' };
     }
     const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
-    downloadBlob(blob, `${filename}.json`);
-    return { success: true, message: 'JSONファイル (.json) を保存しました。' };
+    const fyLabel = formatFiscalYearText(fiscalYear);
+    const outName = format === 'all-json' ? `明石高専_${fyLabel}${term}_全時間割データ.json` : `${filename}.json`;
+    downloadBlob(blob, outName);
+    return { success: true, message: format === 'all-json' ? '全授業データ（JSON）を保存しました。' : 'JSONファイル (.json) を保存しました。' };
   }
 
   // 4. テキスト (.txt & クリップボードコピー)
@@ -919,9 +923,9 @@ export async function exportCalendarIcs(calendarData, filename = 'akashi-kosen-c
 }
 
 /**
- * 全学科・全学年の時間割原本データ（JSON）のエクスポート
+ * 全学科・全学年の時間割原本データ（JSON文字列）を生成
  */
-export function exportAllLessonsJson(lessons, sourceInfo = {}) {
+export function generateAllLessonsJson(lessons, sourceInfo = {}) {
   const fyLabel = formatFiscalYearText(sourceInfo.fiscalYear);
   const termLabel = sourceInfo.term || '後期';
   const exportData = {
@@ -935,7 +939,16 @@ export function exportAllLessonsJson(lessons, sourceInfo = {}) {
     },
     lessons: lessons
   };
-  const jsonString = JSON.stringify(exportData, null, 2);
+  return JSON.stringify(exportData, null, 2);
+}
+
+/**
+ * 全学科・全学年の時間割原本データ（JSON）のエクスポート
+ */
+export function exportAllLessonsJson(lessons, sourceInfo = {}) {
+  const fyLabel = formatFiscalYearText(sourceInfo.fiscalYear);
+  const termLabel = sourceInfo.term || '後期';
+  const jsonString = generateAllLessonsJson(lessons, sourceInfo);
   const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
   downloadBlob(blob, `明石高専_${fyLabel}${termLabel}_全時間割データ.json`);
   return { success: true, message: '全時間割データ（JSON）をダウンロードしました。' };

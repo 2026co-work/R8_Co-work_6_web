@@ -113,6 +113,7 @@ const EXPORT_FORMAT_CONFIGS = {
   text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー・出力' },
   csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー・出力' },
   json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー・出力' },
+  'all-json': { copyLabel: '全授業JSONをコピー', downloadLabel: '全授業JSON保存', adjustLabel: 'プレビュー・出力' },
 };
 let currentExportFormat = 'pdf';
 let textExportOptions = { includeLocation: true, includeTeacher: true };
@@ -2365,7 +2366,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>カレンダー形式 (.ics)</option></select></label><div class="export-btn-group"><button class="button" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'プレビュー・出力')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（選択中の授業データ / .json）</option><option value="all-json"${currentExportFormat==='all-json'?' selected':''}>全授業データのJSONエクスポート (.json)</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>カレンダー形式 (.ics)</option></select></label><div class="export-btn-group"><button class="button" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'プレビュー・出力')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">
@@ -3213,7 +3214,7 @@ async function openDataPreviewModal(format) {
   const term = timetableMeta?.term || '後期';
   const updatedDate = timetableMeta?.updated || SOURCE?.updated || '2026-09-24';
 
-  const { generateCsv, generateText, generateJson, generateIcs } = await import('./timetable-export.js');
+  const { generateCsv, generateText, generateJson, generateAllLessonsJson, generateIcs } = await import('./timetable-export.js');
 
   const computePreviewText = () => {
     if (format === 'text') {
@@ -3224,6 +3225,9 @@ async function openDataPreviewModal(format) {
     }
     if (format === 'json') {
       return generateJson(lessons, label, updatedDate, { includeEmpty: exportIncludeEmpty, fiscalYear, term });
+    }
+    if (format === 'all-json') {
+      return generateAllLessonsJson(activeLessons, timetableMeta || SOURCE);
     }
     if (format === 'ics') {
       const holidayDates = getExpandedHolidayDates();
@@ -3299,6 +3303,16 @@ async function openDataPreviewModal(format) {
       const { exportAllLessonsJson } = await import('./timetable-export.js');
       exportAllLessonsJson(activeLessons, timetableMeta || SOURCE);
     });
+  } else if (format === 'all-json') {
+    title.textContent = '全授業データのJSONプレビュー';
+    setBtnContent(copyBtn, 'copy', '全授業JSONをコピー');
+    setBtnContent(actionBtn, 'download', '全授業JSON保存');
+    body.innerHTML = `
+      <div class="data-preview-options">
+        <span class="muted">全学年・全学科（${activeLessons.length}件）の授業データを出力します。</span>
+      </div>
+      <pre class="preview-code-block" id="data-preview-code">${escapeHTML(computePreviewText())}</pre>
+    `;
   } else if (format === 'ics') {
     title.textContent = 'iCal (.ics) 形式プレビュー';
     setBtnContent(copyBtn, 'copy', 'iCalをコピー');
@@ -3357,6 +3371,8 @@ async function downloadCurrentTimetable(action = 'download') {
     const result = await exportTimetable(snapshot, format, filename, {
       studentLabel: studentLabel(),
       selectedLessons: scheduleResult.selected || [],
+      allLessons: activeLessons,
+      sourceUrl: timetableMeta?.sourceUrl || SOURCE?.url,
       updated: timetableMeta?.updated || SOURCE?.updated || '2026-09-24',
       fiscalYear: timetableMeta?.fiscalYear || 2026,
       term: timetableMeta?.term || '後期',
