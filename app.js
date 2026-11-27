@@ -892,7 +892,7 @@ function renderTodaySchedule(currentDate) {
       </div>
       ${renderRoomPopoverBox()}
       <div class="panel-footer panel-footer-split">
-        <span class="schedule-disclaimer">基本時間割（年間予定の振替反映）です。個別の休講・連絡は公式案内をご確認ください。</span>
+        <span class="schedule-disclaimer">各授業の振り替え情報は<a href="${escapeHTML(MS365_PORTAL_URL)}" target="_blank" rel="noopener noreferrer">授業変更リスト ↗</a>をご確認ください。</span>
         <a class="text-link" href="#timetable">週間時間割へ${icon('arrow')}</a>
       </div>
     </section>
@@ -2744,7 +2744,7 @@ async function renderIcalPreviewBody() {
   if (titleEl) titleEl.textContent = 'カレンダー形式で出力 (.ics)';
 
   if (wantCalendar) {
-    previewEvents = filtered.events.filter(ev => icalModalState.includeExams || ev.type !== 'exam');
+    previewEvents = filtered.events;
     previewSubs = filtered.subs;
   } else if (wantLessons && icalModalState.mode === 'calendar') {
     previewEvents = filtered.events.filter(ev => ev.type === 'holiday');
@@ -2785,10 +2785,10 @@ async function renderIcalPreviewBody() {
       includeCalendarEvents: wantCalendar,
       calendarData: cal,
       calendarPeriod: calPeriod,
-      includeExams: icalModalState.includeExams
+      includeExams: true
     });
   } else if (wantCalendar) {
-    rawIcs = generateCalendarIcs(cal, { period: calPeriod, includeExams: icalModalState.includeExams });
+    rawIcs = generateCalendarIcs(cal, { period: calPeriod, includeExams: true });
   }
 
   const summaryParts = [];
@@ -2825,10 +2825,6 @@ async function renderIcalPreviewBody() {
         <button type="button" class="chip${calPeriod === 'kouki' ? ' active' : ''}" data-ical-period="kouki">後期</button>
         <button type="button" class="chip${calPeriod === 'all' ? ' active' : ''}" data-ical-period="all">通年</button>
       </div>
-    </div>
-    <div class="ical-option-row">
-      <span class="ical-option-label">定期試験</span>
-      <label><input type="checkbox" id="ical-opt-include-exams"${icalModalState.includeExams ? ' checked' : ''}> 定期試験期間を含める</label>
     </div>` : ''}
   </div>`;
 
@@ -2872,10 +2868,6 @@ async function renderIcalPreviewBody() {
   });
   bodyEl.querySelector?.('#ical-opt-include-cal')?.addEventListener('change', e => {
     icalModalState.includeCalendarEvents = Boolean(e.target.checked);
-    renderIcalPreviewBody();
-  });
-  bodyEl.querySelector?.('#ical-opt-include-exams')?.addEventListener('change', e => {
-    icalModalState.includeExams = Boolean(e.target.checked);
     renderIcalPreviewBody();
   });
   bodyEl.querySelectorAll?.('[data-ical-period]').forEach(btn => {
