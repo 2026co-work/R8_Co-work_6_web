@@ -109,7 +109,7 @@ function getExportTheme() {
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { copyLabel: null, downloadLabel: 'PDF保存', adjustLabel: 'プレビュー・PDF出力' },
   png: { copyLabel: '画像をコピー', downloadLabel: 'PNG保存', adjustLabel: 'プレビュー・PNG出力' },
-  ics: { copyLabel: null, downloadLabel: 'カレンダー形式で出力', adjustLabel: 'プレビュー・設定' },
+  ics: { copyLabel: null, downloadLabel: 'カレンダー形式で出力', adjustLabel: 'プレビュー & カレンダー形式で保存' },
   text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー・出力' },
   csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー・出力' },
   json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー・出力' },
@@ -2078,7 +2078,7 @@ function calendar() {
       </div>
       ${mainBodyHtml}
       <div class="calendar-export-footer" data-export-exclude>
-        <button type="button" class="button" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}カレンダー形式で出力</button>
+        <button type="button" class="button" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}プレビュー &amp; カレンダー形式で保存</button>
       </div>
       <div class="timetable-source" data-export-exclude><span>出典：${calSourceLinks}</span><span>最新の変更は公式案内をご確認ください。</span></div>
     </section>`;
