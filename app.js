@@ -2399,7 +2399,7 @@ function timetable() {
           </label>
           <label class="size-slider-item">
             <span class="size-slider-name">マスの高さ</span>
-            <input type="range" id="size-slider-cell" min="80" max="240" step="2" value="${exportSizeConfig.cellHeight}">
+            <input type="range" id="size-slider-cell" min="80" max="320" step="2" value="${exportSizeConfig.cellHeight}">
             <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
           </label>
           <label class="size-slider-item">
@@ -2426,7 +2426,7 @@ function timetable() {
     </div>`;
 }
 function getMaxCellHeightForA4(padding) {
-  const fixedH = (padding * 2) + 80; // 上下余白 + ヘッダー行(約48px) + thead(約32px)
+  const fixedH = (padding * 2) + 56; // スリム化した上下余白 + ヘッダー行 + thead
   return Math.max(80, Math.floor((778 - fixedH) / 4));
 }
 function getPresetConfig(mode, isA4) {
