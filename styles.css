@@ -1060,8 +1060,15 @@ details.timetable-controls[open]{box-shadow:none}
 .guide-spotlight-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.72);backdrop-filter:blur(2px);z-index:950}
 .page-help-wrap.is-spotlight-target{z-index:960}
 .page-help-btn.is-spotlight-target{background:var(--wine);color:#fff;border-color:var(--wine);box-shadow:0 0 0 4px rgba(244,214,170,.55),0 8px 24px rgba(0,0,0,.35);animation:spotlightPulse 1.8s ease-in-out infinite}
-.guide-spotlight-tip{position:absolute;top:calc(100% + 10px);right:0;white-space:nowrap;background:#fff;color:var(--ink);font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.28);z-index:965;pointer-events:none}
-.guide-spotlight-tip::before{content:'';position:absolute;bottom:100%;right:18px;border:6px solid transparent;border-bottom-color:#fff}
+.guide-spotlight-tip{position:absolute;top:calc(100% + 12px);right:0;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;background:#fff;color:var(--ink);font-size:12px;font-weight:700;padding:8px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.32);z-index:965;pointer-events:auto}
+.guide-spotlight-tip::before{content:'';position:absolute;bottom:100%;right:18px;border:7px solid transparent;border-bottom-color:#fff}
+.guide-spotlight-arrow{display:inline-flex;align-items:center;justify-content:center;color:var(--wine);animation:spotlightBounce 1.1s ease-in-out infinite}
+.guide-spotlight-arrow svg{width:18px;height:18px;stroke-width:2.4}
+.guide-spotlight-skip{border:1px solid var(--line);background:var(--surface-subtle);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer}
+.guide-spotlight-skip:hover{background:#eceef2;color:var(--ink)}
 [data-theme="dark"] .guide-spotlight-tip{background:#1f2536;color:#f3f5fa;border:1px solid #394158}
 [data-theme="dark"] .guide-spotlight-tip::before{border-bottom-color:#1f2536}
+[data-theme="dark"] .guide-spotlight-arrow{color:#f4a8b8}
+[data-theme="dark"] .guide-spotlight-skip{background:#283044;border-color:#3a445d;color:#cfd6e6}
 @keyframes spotlightPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes spotlightBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}

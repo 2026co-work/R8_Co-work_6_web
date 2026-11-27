@@ -473,7 +473,13 @@ test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar
   const helpModal = app.document.getElementById('help-modal');
   assert.equal(helpModal.hidden, true, 'Help modal is hidden initially');
   assert.match(homeHtml, /id="guide-spotlight-backdrop"/, 'First-visit spotlight backdrop renders on initial #home');
+  assert.match(homeHtml, /id="guide-spotlight-skip"/, 'First-visit spotlight includes skip button');
+  assert.match(homeHtml, /class="guide-spotlight-arrow"/, 'First-visit spotlight includes pointing arrow');
   assert.match(homeHtml, /data-open-help="home"/, '#home includes page help button');
+
+  app.document.getElementById('guide-spotlight-skip').click();
+  assert.equal(app.document.body.classList.contains('guide-spotlight-active'), false, 'Skip button dismisses first-visit spotlight');
+  assert.equal(helpModal.hidden, true, 'Skip button does not open help modal');
 
   app.document.getElementById('open-help-modal').click();
   assert.equal(helpModal.hidden, false, 'Clicking sidebar help button opens help modal');
