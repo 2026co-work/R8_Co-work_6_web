@@ -2983,7 +2983,7 @@ function syncSizeControlsUI() {
       exportSizeConfig.cellHeight = maxCellH;
     }
   } else {
-    if (cellIn) cellIn.max = '240';
+    if (cellIn) cellIn.max = '320';
   }
 
   if (padIn) padIn.value = String(exportSizeConfig.padding);
