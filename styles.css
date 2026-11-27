@@ -41,21 +41,21 @@
 .export-sheet .panel-head h2{font-size:18px}
 .export-sheet .export-header-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 14px;padding-bottom:10px;border-bottom:1.5px solid var(--line)}
 .export-sheet .export-header-main{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.export-sheet .export-title{font-size:calc(18px * var(--export-font-scale,1.05));font-weight:800;color:var(--wine);margin:0;line-height:1.2;letter-spacing:-0.01em}
-.export-sheet .export-badge-tag{font-size:calc(13px * var(--export-font-scale,1.05));font-weight:700;color:var(--ink);background:rgba(121,24,43,0.08);padding:3px 9px;border-radius:5px}
-.export-sheet .export-team-tag{font-size:calc(12px * var(--export-font-scale,1.05));color:var(--muted);font-weight:600}
+.export-sheet .export-title{font-size:18px;font-weight:800;color:var(--wine);margin:0;line-height:1.2;letter-spacing:-0.01em}
+.export-sheet .export-badge-tag{font-size:13px;font-weight:700;color:var(--ink);background:rgba(121,24,43,0.08);padding:3px 9px;border-radius:5px}
+.export-sheet .export-team-tag{font-size:12px;color:var(--muted);font-weight:600}
 .export-sheet .export-header-sub{text-align:right;flex-shrink:0}
 .export-sheet .export-pdf-date{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .export-sheet[data-theme="dark"] .export-badge-tag{background:rgba(244,168,184,0.15);color:#f4a8b8}
 .export-sheet[data-theme="dark"] .export-header-row{border-bottom-color:#2a3040}
 .export-sheet .real-timetable{min-width:0}
 .export-sheet .real-timetable th:first-child{position:static;box-shadow:none}
-.export-sheet .real-timetable th{font-size:calc(13.5px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable th{font-size:13px}
 .export-sheet .real-timetable .lesson-card{display:flex;flex-direction:column;gap:2px;justify-content:flex-start;height:auto;margin-bottom:8px}
 .export-sheet .real-timetable .lesson-card .badge{align-self:flex-start}
 .export-sheet .real-timetable .lesson-card strong{font-size:calc(14.5px * var(--export-font-scale,1.05))}
-.export-sheet .real-timetable .lesson-card small{font-size:calc(12px * var(--export-font-scale,1.05))}
-.export-sheet .real-timetable .lesson-location{font-size:calc(12.5px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable .lesson-card small{font-size:11.5px}
+.export-sheet .real-timetable .lesson-location{font-size:12px}
 .export-sheet .real-timetable td{height:var(--export-cell-h,172px);vertical-align:top;padding:8px 8px 14px;box-sizing:border-box}
 .export-sheet .real-timetable td[rowspan="2"]{height:calc(var(--export-cell-h,172px) * 2)}
 .export-sheet .real-timetable td[rowspan="3"]{height:calc(var(--export-cell-h,172px) * 3)}
