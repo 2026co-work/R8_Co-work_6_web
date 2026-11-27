@@ -1941,10 +1941,10 @@ function renderMonthCalendarGrid(config = {}) {
 
   return `<div class="calendar-month-view" id="${escapeHTML(viewId)}">
     <div class="cal-month-nav">
-      <button type="button" class="button secondary" ${navAttr}="-1" aria-label="前の月">← 前月</button>
-      <strong>${y}年 ${m}月</strong>
-      <button type="button" class="button secondary" ${navAttr}="0">今月</button>
-      <button type="button" class="button secondary" ${navAttr}="1" aria-label="次の月">翌月 →</button>
+      <button type="button" class="cal-nav-arrow" ${navAttr}="-1" aria-label="前の月">${icon('chevronLeft')}</button>
+      <strong class="cal-month-title">${y}年 ${m}月</strong>
+      <button type="button" class="cal-nav-arrow" ${navAttr}="1" aria-label="次の月">${icon('chevronRight')}</button>
+      <button type="button" class="cal-nav-today" ${navAttr}="0">今月</button>
     </div>
     <div class="cal-month-grid">
       ${['日', '月', '火', '水', '木', '金', '土'].map(w => `<div class="cal-month-head">${w}</div>`).join('')}
@@ -2068,20 +2068,21 @@ function calendar() {
         <h2>${icon('calendar')}行事予定表</h2>
         <span class="badge blue">${escapeHTML(weekInfo.label)} / 全15週</span>
       </div>
-      <div class="calendar-toolbar">
-        <button type="button" class="button" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}カレンダー形式で出力</button>
-      </div>
       <div class="calendar-filters" role="group" aria-label="年間予定の表示切替と移動">
-        <div class="filter-group">
-          <button type="button" class="chip${calendarViewMode === 'month' ? ' active' : ''}" data-cal-view="month" aria-pressed="${calendarViewMode === 'month' ? 'true' : 'false'}">カレンダー表示</button>
-          <button type="button" class="chip${calendarViewMode === 'list' ? ' active' : ''}" data-cal-view="list" aria-pressed="${calendarViewMode === 'list' ? 'true' : 'false'}">イベントだけ表示</button>
+        <div class="cal-view-tabs" role="tablist" aria-label="表示形式">
+          <button type="button" class="cal-view-tab${calendarViewMode === 'month' ? ' is-active' : ''}" data-cal-view="month" role="tab" aria-selected="${calendarViewMode === 'month' ? 'true' : 'false'}">カレンダー</button>
+          <button type="button" class="cal-view-tab${calendarViewMode === 'list' ? ' is-active' : ''}" data-cal-view="list" role="tab" aria-selected="${calendarViewMode === 'list' ? 'true' : 'false'}">イベント一覧</button>
         </div>
-        <div class="filter-group">
-          <button type="button" class="chip" data-cal-jump="zenki">前期へ (4月)</button>
-          <button type="button" class="chip" data-cal-jump="kouki">後期へ (9月)</button>
+        <div class="cal-term-jump">
+          <button type="button" class="cal-jump-link" data-cal-jump="zenki">前期 (4月)</button>
+          <span class="cal-jump-sep" aria-hidden="true">/</span>
+          <button type="button" class="cal-jump-link" data-cal-jump="kouki">後期 (9月)</button>
         </div>
       </div>
       ${mainBodyHtml}
+      <div class="calendar-export-footer" data-export-exclude>
+        <button type="button" class="button" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}カレンダー形式で出力</button>
+      </div>
       <div class="timetable-source" data-export-exclude><span>出典：${calSourceLinks}</span><span>最新の変更は公式案内をご確認ください。</span></div>
     </section>`;
 }

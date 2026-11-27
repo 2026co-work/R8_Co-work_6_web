@@ -535,9 +535,19 @@ body.size-modal-open{overflow:hidden}
 .exam-card-meta{font-size:12px;color:var(--muted);margin:0}
 
 /* 年間予定ビュー */
-.calendar-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-.calendar-filters{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 4px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.calendar-filters .filter-group{display:flex;flex-wrap:wrap;gap:6px}
+.calendar-filters{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;margin:6px 0 4px;border-bottom:1px solid var(--line)}
+.cal-view-tabs{display:inline-flex;align-items:center;gap:4px}
+.cal-view-tab{background:transparent;border:0;border-bottom:2px solid transparent;padding:8px 12px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:color .15s,border-color .15s}
+.cal-view-tab:hover{color:var(--ink)}
+.cal-view-tab.is-active{color:var(--wine);border-bottom-color:var(--wine)}
+[data-theme="dark"] .cal-view-tab.is-active{color:#f4a8b8;border-bottom-color:#f4a8b8}
+.cal-term-jump{display:inline-flex;align-items:center;gap:6px;padding-bottom:4px}
+.cal-jump-link{background:transparent;border:0;padding:4px 6px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:6px;transition:background .15s,color .15s}
+.cal-jump-link:hover{background:var(--surface-subtle);color:var(--wine)}
+[data-theme="dark"] .cal-jump-link:hover{background:#232838;color:#f4a8b8}
+.cal-jump-sep{font-size:11px;color:var(--line)}
+.calendar-export-footer{display:flex;justify-content:flex-end;margin-top:16px}
+.calendar-export-footer .button svg{width:15px;height:15px}
 .chip{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s}
 .chip:hover{border-color:var(--wine)}
 .chip.active{background:#252b39;color:#fff;border-color:#252b39}
@@ -659,8 +669,17 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 
 /* 試験カウントダウン・カレンダー月間グリッド・学食アレルゲン強調 */
 .exam-countdown-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
-.cal-month-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
-.cal-month-nav strong{min-width:96px;text-align:center;font-size:15px}
+.cal-month-nav{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:14px 0 12px}
+.cal-month-title{min-width:98px;text-align:center;font-size:15.5px;font-weight:700}
+.cal-nav-arrow{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);color:var(--ink);padding:0;cursor:pointer;transition:background .15s,border-color .15s}
+.cal-nav-arrow:hover{background:var(--surface-subtle);border-color:var(--wine);color:var(--wine)}
+.cal-nav-arrow svg{width:16px;height:16px}
+.cal-nav-today{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:4px 11px;font-size:11.5px;font-weight:600;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.cal-nav-today:hover{background:var(--surface-subtle);color:var(--wine);border-color:var(--wine)}
+[data-theme="dark"] .cal-nav-arrow{background:#1c2130;border-color:#2b3142;color:#e8eaf0}
+[data-theme="dark"] .cal-nav-arrow:hover{background:#262d40;border-color:#f4a8b8;color:#f4a8b8}
+[data-theme="dark"] .cal-nav-today{border-color:#2b3142;color:#a8b2c4}
+[data-theme="dark"] .cal-nav-today:hover{background:#262d40;border-color:#f4a8b8;color:#f4a8b8}
 .cal-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .cal-month-head{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:4px 0}
 .cal-month-cell{min-height:82px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:5px;display:flex;flex-direction:column;gap:3px;min-width:0;text-align:left;font:inherit;color:inherit}
@@ -1031,14 +1050,14 @@ details.timetable-controls[open]{box-shadow:none}
   .export-controls .button{width:100%;min-height:42px;padding:0 12px}
 
   /* #calendar フル幅7列グリッド（案A: ドット表示＋タップで下部詳細） */
-  .calendar-toolbar{gap:6px;margin-bottom:10px}
-  .calendar-toolbar .button{padding:7px 10px;font-size:11.5px;min-height:38px}
-  .calendar-filters{gap:6px;padding:8px 0;margin:8px 0 4px}
-  .calendar-filters .filter-group{gap:5px}
+  .calendar-export-footer{margin-top:12px}
+  .calendar-export-footer .button{width:100%;min-height:42px}
+  .calendar-filters{gap:4px 8px;margin:6px 0 4px}
+  .cal-view-tab{padding:7px 10px;font-size:12.5px}
+  .cal-jump-link{font-size:11.5px;padding:4px}
   .chip{padding:5px 10px;font-size:11.5px;min-height:32px}
-  .cal-month-nav{justify-content:space-between;gap:6px;margin:10px 0 8px}
-  .cal-month-nav .button{padding:6px 10px;font-size:11.5px;min-height:36px}
-  .cal-month-nav strong{min-width:auto;font-size:14px}
+  .cal-month-nav{justify-content:center;gap:8px;margin:10px 0 8px}
+  .cal-month-title{min-width:86px;font-size:14.5px}
   .cal-month-grid{gap:3px}
   .cal-month-head{font-size:10px;padding:3px 0}
   .cal-month-cell{min-height:48px;padding:4px 2px;border-radius:7px;gap:3px;align-items:center;justify-content:space-between;overflow:hidden}
