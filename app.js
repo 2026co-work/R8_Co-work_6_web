@@ -2301,7 +2301,7 @@ function renderTimetableBanners(date = new Date()) {
   const weekInfo = getAcademicWeek(date);
   const cal = calendarData || FALLBACK_CALENDAR;
   const events = Array.isArray(cal?.events) ? cal.events : [];
-  let banners = `<div class="timetable-banner week-banner" role="status"><span class="week-pill">${escapeHTML(weekInfo.label)}</span></div>`;
+  let banners = `<div class="timetable-banner week-banner" role="status"><span class="week-text">${escapeHTML(weekInfo.label)}</span></div>`;
 
   const sub = cal?.daySubstitutions?.find(item => item.date === dateStr);
   if (sub) {
@@ -2350,28 +2350,6 @@ function timetable() {
   const sourceUrl = normalizeAkashiUrl(timetableMeta?.sourceUrl || SOURCE?.url) || 'https://www.akashi.ac.jp/life/lesson.html';
   const sourcePdfUrl = getTimetablePdfUrl();
   const updatedText = timetableMeta?.updated || (timetableMeta?.updatedAt ? String(timetableMeta.updatedAt).slice(0, 10) : '') || SOURCE?.updated || '2026-09-24';
-  const legendEntries = Object.entries(activeRoomLegends || {});
-  const legendsBtnHtml = (!error && legendEntries.length > 0)
-    ? `<button type="button" class="button subtle" id="open-room-legends-modal">${icon('door')}教室略称 (${legendEntries.length})</button>`
-    : '';
-  const legendsModalHtml = legendEntries.length > 0
-    ? `<div class="data-preview-overlay" id="room-legends-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="教室略称・正式名称一覧">
-        <div class="data-preview-card room-legends-modal-card">
-          <div class="data-preview-head">
-            <h3>教室略称・正式名称一覧（${legendEntries.length}件）</h3>
-            <button type="button" class="button size-close-btn" id="room-legends-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
-          </div>
-          <div class="data-preview-body">
-            <div class="room-legends-modal-grid">
-              ${legendEntries.map(([k, v]) => `<div class="room-legend-row"><span class="room-legend-code">${escapeHTML(k)}</span><span>${escapeHTML(v)}</span></div>`).join('')}
-            </div>
-          </div>
-          <div class="data-preview-foot">
-            <button type="button" class="button secondary" id="room-legends-cancel">閉じる</button>
-          </div>
-        </div>
-      </div>`
-    : '';
 
   return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions">${themeToggleBtn()}${pageHelpBtn('timetable')}</div>`)}
     ${renderTimetableBanners(new Date())}
@@ -2391,8 +2369,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><div class="timetable-head-right" data-export-exclude>${legendsBtnHtml}<span class="badge">${totalPeriods}コマ</span></div></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>カレンダー形式 (.ics)</option></select></label><div class="export-btn-group"><button class="button" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'プレビュー・出力')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
-    ${legendsModalHtml}
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>カレンダー形式 (.ics)</option></select></label><div class="export-btn-group"><button class="button" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'プレビュー・出力')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
         <div class="size-paper-wrap" id="size-paper-wrap">

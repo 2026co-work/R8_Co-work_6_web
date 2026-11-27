@@ -213,14 +213,10 @@ test('IMP-10: timetable room legends modal, exam countdown, calendar month/week 
   ttApp.selectStudent({ grade: '4', department: 'M' });
   const ttHtml = ttApp.document.getElementById('main')?.innerHTML || '';
   assert.doesNotMatch(ttHtml, /timetable-search-input/, 'timetable search input is removed');
-  assert.ok(ttApp.document.getElementById('open-room-legends-modal'), 'room legends modal trigger button exists');
+  assert.equal(ttApp.document.getElementById('open-room-legends-modal')?.tagName === 'BUTTON', false, 'room legends header button is removed');
+  assert.doesNotMatch(ttHtml, /open-room-legends-modal/, 'room legends header button is removed from markup');
+  assert.doesNotMatch(ttHtml, /\d+コマ/, 'totalPeriods badge is removed from timetable header');
   assert.match(ttHtml, /lesson-location-btn/, 'room trigger buttons render inside timetable');
-  const roomModal = ttApp.document.getElementById('room-legends-modal');
-  roomModal.hidden = true;
-  ttApp.document.getElementById('open-room-legends-modal').click();
-  assert.equal(roomModal?.hidden, false, 'clicking room legends button opens popup modal');
-  ttApp.context.closeRoomLegendsModal();
-  assert.equal(roomModal?.hidden, true, 'closing room legends modal hides it');
 
   const sizeModal = ttApp.document.getElementById('export-size-modal');
   sizeModal.hidden = true;
@@ -302,7 +298,7 @@ test('IMP-11: MyLinks supports novalidate, duplicate URL rejection, manage-mode 
 
 test('IMP-12: keyboard shortcuts Alt+1..4 navigate active tabs', () => {
   const app = createAppInstance();
-  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'link-editor-modal', 'profile-switcher-modal'].forEach(id => {
+  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'help-modal', 'link-editor-modal', 'profile-switcher-modal'].forEach(id => {
     const el = app.document.getElementById(id);
     if (el) el.hidden = true;
   });
@@ -602,7 +598,7 @@ test('IMP-16: Plan A minimal speed-dial リンク集, icon-only toggle, hide/res
 
   // 4. Link editor modal open/close lifecycle
   app.navigate('#links');
-  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'profile-switcher-modal'].forEach(id => {
+  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'help-modal', 'profile-switcher-modal'].forEach(id => {
     const el = app.document.getElementById(id);
     if (el) el.hidden = true;
   });
