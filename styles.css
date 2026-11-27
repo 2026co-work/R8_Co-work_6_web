@@ -1048,4 +1048,20 @@ details.timetable-controls[open]{box-shadow:none}
   .ical-option-label{min-width:0;width:100%}
   .room-legends-modal-grid{grid-template-columns:1fr;gap:4px}
   .help-guide-list li{flex-direction:column;gap:2px;padding:8px 10px}
+  .guide-spotlight-tip{right:auto;left:0}
+  .guide-spotlight-tip::before{right:auto;left:18px}
 }
+
+/* ページ別使い方ボタン・初回訪問スポットライト */
+.page-help-wrap{position:relative;display:inline-flex;align-items:center}
+.page-help-btn{min-height:32px;padding:4px 10px;font-size:12px;gap:5px}
+.page-help-btn svg{width:15px;height:15px}
+.help-modal-tabs{margin-bottom:12px}
+.guide-spotlight-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.72);backdrop-filter:blur(2px);z-index:950}
+.page-help-wrap.is-spotlight-target{z-index:960}
+.page-help-btn.is-spotlight-target{background:var(--wine);color:#fff;border-color:var(--wine);box-shadow:0 0 0 4px rgba(244,214,170,.55),0 8px 24px rgba(0,0,0,.35);animation:spotlightPulse 1.8s ease-in-out infinite}
+.guide-spotlight-tip{position:absolute;top:calc(100% + 10px);right:0;white-space:nowrap;background:#fff;color:var(--ink);font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.28);z-index:965;pointer-events:none}
+.guide-spotlight-tip::before{content:'';position:absolute;bottom:100%;right:18px;border:6px solid transparent;border-bottom-color:#fff}
+[data-theme="dark"] .guide-spotlight-tip{background:#1f2536;color:#f3f5fa;border:1px solid #394158}
+[data-theme="dark"] .guide-spotlight-tip::before{border-bottom-color:#1f2536}
+@keyframes spotlightPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
