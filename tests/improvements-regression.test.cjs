@@ -176,7 +176,7 @@ test('IMP-07: calendar.json matches official R8 PDF substitutions (incl. 2026-11
   subApp.navigate('#home');
   const subHtml = subApp.document.getElementById('main')?.innerHTML || '';
   assert.match(subHtml, /月曜日/, '2026-11-25 home schedule reflects Monday substitution');
-  assert.match(subHtml, /基本時間割（年間予定の振替反映）/, 'Plan A disclaimer is shown on home schedule');
+  assert.match(subHtml, /各授業の振り替え情報は.*授業変更リスト/, 'Concise 授業変更リスト disclaimer is shown on home schedule');
 });
 
 test('IMP-08: Nov 24 no longer triggers false hardcoded exam banner', () => {
@@ -441,7 +441,13 @@ test('IMP-14: Favicons, MS365 SharePoint URL, hidden exam/cafeteria nav, per-wee
   assert.match(modalBody, /年間行事予定を含める/, 'Unified modal from #timetable offers calendar events toggle');
   assert.match(modalBody, /id="ical-opt-include-lessons" checked/, 'From #timetable, lessons start checked');
   assert.doesNotMatch(modalBody, /id="ical-opt-include-cal" checked/, 'From #timetable, calendar events start unchecked');
+  assert.doesNotMatch(modalBody, /ical-opt-include-exams/, 'Exam period checkbox is removed (always included)');
   app.context.closeIcalPreviewModal();
+
+  // #home timetable disclaimer uses concise 授業変更リスト link
+  app.navigate('#home');
+  const homeHtml = app.document.getElementById('main')?.innerHTML || '';
+  assert.match(homeHtml, /class="schedule-disclaimer">各授業の振り替え情報は<a href="https:\/\/kosenjp\.sharepoint\.com\/sites\/27akashi\/students-portal\/Lists\/henkou\/view1\.aspx/, 'Home timetable disclaimer links directly to 授業変更リスト');
 
   // #calendar places external PDF and official calendar links in bottom .timetable-source
   app.navigate('#calendar');
