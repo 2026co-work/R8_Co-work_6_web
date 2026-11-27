@@ -96,8 +96,7 @@ const DEPARTMENT_NAMES = {
 };
 const EXPORT_MODES = {
   web: { padding: 16, cellHeight: 140, fontScale: 100 },
-  a4fit: { padding: 16, cellHeight: 166, fontScale: 105 },
-  memo: { padding: 16, cellHeight: 220, fontScale: 95 },
+  a4fit: { padding: 16, cellHeight: 166, fontScale: 120 },
 };
 let exportSizeMode = 'web';
 let exportSizeConfig = { ...EXPORT_MODES.web };
@@ -2382,7 +2381,6 @@ function timetable() {
             <span class="size-preset-label">みため:</span>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'web' ? 'active' : ''}" data-size-mode="web" aria-pressed="${exportSizeMode === 'web' ? 'true' : 'false'}">標準</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'a4fit' ? 'active' : ''}" data-size-mode="a4fit" aria-pressed="${exportSizeMode === 'a4fit' ? 'true' : 'false'}">A4向け</button>
-            <button type="button" class="size-mode-btn ${exportSizeMode === 'memo' ? 'active' : ''}" data-size-mode="memo" aria-pressed="${exportSizeMode === 'memo' ? 'true' : 'false'}">メモ書き可</button>
             <button type="button" class="size-mode-btn ${exportSizeMode === 'custom' ? 'active' : ''}" data-size-mode="custom" aria-pressed="${exportSizeMode === 'custom' ? 'true' : 'false'}">カスタム</button>
             <button type="button" class="size-mode-btn reset" id="size-mode-reset">リセット</button>
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
@@ -2406,8 +2404,8 @@ function timetable() {
             <span class="size-slider-val" id="size-val-cell">${exportSizeConfig.cellHeight}px</span>
           </label>
           <label class="size-slider-item">
-            <span class="size-slider-name">文字の大きさ</span>
-            <input type="range" id="size-slider-font" min="80" max="130" step="1" value="${exportSizeConfig.fontScale}">
+            <span class="size-slider-name">授業名の大きさ</span>
+            <input type="range" id="size-slider-font" min="80" max="160" step="1" value="${exportSizeConfig.fontScale}">
             <span class="size-slider-val" id="size-val-font">${exportSizeConfig.fontScale}%</span>
           </label>
         </div>
@@ -2433,13 +2431,6 @@ function getMaxCellHeightForA4(padding) {
   return Math.max(80, Math.floor((778 - fixedH) / 4));
 }
 function getPresetConfig(mode, isA4) {
-  if (mode === 'memo') {
-    if (isA4) {
-      const maxH = getMaxCellHeightForA4(EXPORT_MODES.memo.padding);
-      return { ...EXPORT_MODES.memo, cellHeight: maxH };
-    }
-    return { ...EXPORT_MODES.memo };
-  }
   if (mode === 'a4fit') {
     const maxH = getMaxCellHeightForA4(EXPORT_MODES.a4fit.padding);
     return { ...EXPORT_MODES.a4fit, cellHeight: Math.min(EXPORT_MODES.a4fit.cellHeight, maxH) };
@@ -4217,6 +4208,8 @@ function render() {
     exportSizeMode = mode;
     if (mode === 'a4fit') {
       a4ModeEnabled = true;
+    } else if (mode === 'web') {
+      a4ModeEnabled = false;
     }
     const preset = getPresetConfig(mode, a4ModeEnabled);
     if (preset) {
