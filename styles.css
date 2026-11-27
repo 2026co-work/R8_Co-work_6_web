@@ -1068,10 +1068,11 @@ details.timetable-controls[open]{box-shadow:none}
   .ical-option-label{min-width:0;width:100%}
   .room-legends-modal-grid{grid-template-columns:1fr;gap:4px}
   .help-guide-list li{flex-direction:column;gap:2px;padding:8px 10px}
-  .guide-spotlight-tip{right:0;left:auto;max-width:calc(100vw - 28px);white-space:normal;flex-wrap:nowrap}
 }
 
 /* ページ別使い方ボタン・初回訪問スポットライト */
+.data-preview-card,.data-preview-body{min-width:0}
+.preview-code-block{max-width:100%;overflow-x:auto;box-sizing:border-box}
 .page-help-wrap{position:relative;display:inline-flex;align-items:center}
 .page-help-btn{min-height:32px;padding:4px 10px;font-size:12px;gap:5px}
 .page-help-btn svg{width:15px;height:15px}
@@ -1086,19 +1087,29 @@ details.timetable-controls[open]{box-shadow:none}
 .help-install-details{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12px}
 .help-install-details summary{cursor:pointer;font-weight:600;color:var(--wine);user-select:none}
 [data-theme="dark"] .help-install-details summary{color:#f4a8b8}
-.help-install-details p{margin:8px 0 2px;color:var(--muted);line-height:1.6}
+.help-install-list{margin:8px 0 2px;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--muted);line-height:1.55}
+.help-install-list strong{color:var(--ink)}
 .onboarding-sub{margin:2px 0 0;font-size:12px;color:var(--muted)}
 .guide-spotlight-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.72);backdrop-filter:blur(2px);z-index:950}
 .page-help-wrap.is-spotlight-target{z-index:960}
+.sidebar.is-spotlight-target,.floating-menu-toggle.is-spotlight-target{z-index:960!important;box-shadow:0 0 0 4px rgba(244,214,170,.65),0 8px 24px rgba(0,0,0,.38)}
 .page-help-btn.is-spotlight-target{background:var(--wine);color:#fff;border-color:var(--wine);box-shadow:0 0 0 4px rgba(244,214,170,.55),0 8px 24px rgba(0,0,0,.35);animation:spotlightPulse 1.8s ease-in-out infinite}
-.guide-spotlight-tip{position:absolute;top:calc(100% + 12px);right:0;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;background:#fff;color:var(--ink);font-size:12px;font-weight:700;padding:8px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.32);z-index:965;pointer-events:auto}
-.guide-spotlight-tip::before{content:'';position:absolute;bottom:100%;right:18px;border:7px solid transparent;border-bottom-color:#fff}
+.guide-spotlight-card{position:fixed;z-index:965;width:min(320px,calc(100vw - 28px));background:#fff;color:var(--ink);border-radius:12px;padding:12px 14px;box-shadow:0 10px 28px rgba(0,0,0,.36);display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.guide-spotlight-card[data-step="0"]{top:130px;left:256px}
+.guide-spotlight-card[data-step="1"]{top:68px;right:24px}
+@media(max-width:760px){
+  .guide-spotlight-card[data-step="0"]{top:60px;left:14px;right:auto}
+  .guide-spotlight-card[data-step="1"]{top:68px;left:14px;right:14px;width:auto;max-width:340px;margin-left:auto}
+}
+.guide-spotlight-head{display:flex;align-items:center;gap:6px;font-size:13px}
+.guide-spotlight-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.guide-spotlight-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+[data-theme="dark"] .guide-spotlight-card{background:#1f2536;color:#f3f5fa;border:1px solid #394158}
+[data-theme="dark"] .guide-spotlight-card p{color:#c5cde0}
 .guide-spotlight-arrow{display:inline-flex;align-items:center;justify-content:center;color:var(--wine);animation:spotlightBounce 1.1s ease-in-out infinite}
 .guide-spotlight-arrow svg{width:18px;height:18px;stroke-width:2.4}
-.guide-spotlight-skip{border:1px solid var(--line);background:var(--surface-subtle);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer}
+.guide-spotlight-skip{border:1px solid var(--line);background:var(--surface-subtle);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
 .guide-spotlight-skip:hover{background:#eceef2;color:var(--ink)}
-[data-theme="dark"] .guide-spotlight-tip{background:#1f2536;color:#f3f5fa;border:1px solid #394158}
-[data-theme="dark"] .guide-spotlight-tip::before{border-bottom-color:#1f2536}
 [data-theme="dark"] .guide-spotlight-arrow{color:#f4a8b8}
 [data-theme="dark"] .guide-spotlight-skip{background:#283044;border-color:#3a445d;color:#cfd6e6}
 @keyframes spotlightPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}

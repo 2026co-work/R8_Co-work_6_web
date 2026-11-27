@@ -464,10 +464,10 @@ test('IMP-14: Favicons, MS365 SharePoint URL, hidden exam/cafeteria nav, per-wee
   assert.doesNotMatch(toolbarMatch[0], /<a /, 'Calendar toolbar no longer contains external link buttons');
 });
 
-test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar help modal work', () => {
+test('IMP-15: Mobile-first onboarding banner, apple-touch-icon, 2-step spotlight tour, and page help modal work', () => {
   const idx = read('index.html');
   assert.match(idx, /rel="apple-touch-icon"/, 'index.html includes apple-touch-icon for iOS home screen');
-  assert.match(idx, /id="open-help-modal"/, 'index.html includes sidebar help button');
+  assert.doesNotMatch(idx, /id="open-help-modal"/, 'Sidebar help button is removed in favor of per-page help buttons');
 
   const app = createAppInstance({ mockDate: '2026-11-26T09:00:00+09:00' });
   app.navigate('#home');
@@ -480,16 +480,21 @@ test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar
   const helpModal = app.document.getElementById('help-modal');
   assert.equal(helpModal.hidden, true, 'Help modal is hidden initially');
   assert.match(homeHtml, /id="guide-spotlight-backdrop"/, 'First-visit spotlight backdrop renders on initial #home');
+  assert.match(homeHtml, /id="guide-spotlight-card"/, 'First-visit spotlight card renders on initial #home');
   assert.match(homeHtml, /id="guide-spotlight-skip"/, 'First-visit spotlight includes skip button');
-  assert.match(homeHtml, /class="guide-spotlight-arrow"/, 'First-visit spotlight includes pointing arrow');
+  assert.match(homeHtml, /id="guide-spotlight-next"/, 'First-visit spotlight starts at menu step with Next button');
   assert.match(homeHtml, /data-open-help="home"/, '#home includes page help button');
+
+  app.document.getElementById('guide-spotlight-next').click();
+  const step2Html = app.document.getElementById('main')?.innerHTML || '';
+  assert.match(step2Html, /id="guide-spotlight-open-help"/, 'Step 2 highlights per-page help button');
 
   app.document.getElementById('guide-spotlight-skip').click();
   assert.equal(app.document.body.classList.contains('guide-spotlight-active'), false, 'Skip button dismisses first-visit spotlight');
   assert.equal(helpModal.hidden, true, 'Skip button does not open help modal');
 
-  app.document.getElementById('open-help-modal').click();
-  assert.equal(helpModal.hidden, false, 'Clicking sidebar help button opens help modal');
+  app.context.openHelpModal('home');
+  assert.equal(helpModal.hidden, false, 'openHelpModal opens help modal');
   assert.equal(app.document.body.classList.contains('guide-spotlight-active'), false, 'Opening help dismisses first-visit spotlight');
   app.context.closeHelpModal();
   assert.equal(helpModal.hidden, true, 'closeHelpModal hides help modal');

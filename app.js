@@ -290,6 +290,7 @@ let selectedCafeteriaWeekIdx = -1;
 let lastModalTrigger = null;
 let onboardingDismissed = false;
 let firstVisitSpotlightDismissed = false;
+let spotlightStep = 0;
 let activeHelpTab = 'home';
 let draftProfile = null;
 let calendarSearchQuery = '';
@@ -462,16 +463,8 @@ function studentPillBtn() {
 }
 
 function pageHelpBtn(page = 'home', spotlight = false) {
-  const tipHtml = spotlight
-    ? `<div class="guide-spotlight-tip" role="status">
-        <span class="guide-spotlight-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg></span>
-        <span>まずは使い方を確認！</span>
-        <button type="button" class="guide-spotlight-skip" id="guide-spotlight-skip">スキップ</button>
-      </div>`
-    : '';
   return `<span class="page-help-wrap${spotlight ? ' is-spotlight-target' : ''}">
     <button type="button" class="button subtle page-help-btn${spotlight ? ' is-spotlight-target' : ''}" data-open-help="${escapeHTML(page)}" aria-label="${escapeHTML(names[page] || 'このページ')}の使い方">${icon('info')}使い方</button>
-    ${tipHtml}
   </span>`;
 }
 
@@ -1640,7 +1633,7 @@ function home() {
   const targetDate = new Date(now.getTime() + dashboardOffsetDays * 86400000);
   const displayDateKey = dateKey(targetDate);
   const weekInfo = getAcademicWeek(targetDate);
-  const showSpotlight = !cookieSaved && !firstVisitSpotlightDismissed;
+  const showSpotlight = !cookieSaved && !firstVisitSpotlightDismissed && spotlightStep === 1;
   const actions = `
     <div class="heading-actions">
       ${themeToggleBtn()}
@@ -2605,8 +2598,11 @@ function renderHelpGuideContent(focusKey = 'home') {
     }).join('')}</ul>
   </div>
   <details class="help-install-details">
-    <summary>アプリとしてホーム画面に追加する方法</summary>
-    <p>Safariは「共有」、Chromeは「⋮」から「ホーム画面に追加」を選ぶとアプリのように開けます。</p>
+    <summary>スマホで便利に使う（ホーム画面追加・通知・ウィジェット）</summary>
+    <ul class="help-install-list">
+      <li><strong>ホーム画面に追加：</strong>iPhone（Safari）は画面下の「共有」から、Android（Chrome）は右上の「⋮」から「ホーム画面に追加」を選ぶとアプリのように開けます。</li>
+      <li><strong>通知・ウィジェット連携：</strong>「年間予定」や「時間割」からカレンダー形式（.ics）で出力してお使いのカレンダーアプリに取り込むと、スマホの通知やウィジェットで予定を確認できます。</li>
+    </ul>
   </details>`;
 }
 
@@ -2650,8 +2646,8 @@ function dismissHelpSpotlight() {
     backdrop.hidden = true;
     backdrop.remove?.();
   }
+  document.getElementById('guide-spotlight-card')?.remove?.();
   document.querySelectorAll?.('.is-spotlight-target')?.forEach?.(el => el.classList?.remove?.('is-spotlight-target'));
-  document.querySelector?.('.guide-spotlight-tip')?.remove?.();
 }
 
 function openHelpModal(tab = null) {
@@ -3382,9 +3378,38 @@ function render() {
   }
   const main = document.getElementById('main');
   const spotlightActive = page === 'home' && !cookieSaved && !firstVisitSpotlightDismissed;
-  if (typeof document !== 'undefined') document.body?.classList?.toggle?.('guide-spotlight-active', spotlightActive);
+  if (typeof document !== 'undefined') {
+    document.body?.classList?.toggle?.('guide-spotlight-active', spotlightActive);
+    document.getElementById('menu-toggle')?.classList?.toggle?.('is-spotlight-target', spotlightActive && spotlightStep === 0);
+    document.getElementById('sidebar')?.classList?.toggle?.('is-spotlight-target', spotlightActive && spotlightStep === 0);
+  }
+  const spotlightCardHtml = spotlightActive
+    ? (spotlightStep === 0
+      ? `<div class="guide-spotlight-card" id="guide-spotlight-card" data-step="0" role="dialog" aria-label="初回案内 1/2" data-export-exclude>
+          <div class="guide-spotlight-head">
+            <span class="guide-spotlight-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg></span>
+            <strong>① メニューから画面を切り替え</strong>
+          </div>
+          <p>時間割・年間予定・リンク集へ移動できます（スマホでは左上の ≡ ボタン）。</p>
+          <div class="guide-spotlight-actions">
+            <button type="button" class="guide-spotlight-skip" id="guide-spotlight-skip">スキップ</button>
+            <button type="button" class="button" id="guide-spotlight-next" style="min-height:32px;padding:4px 12px;">次へ →</button>
+          </div>
+        </div>`
+      : `<div class="guide-spotlight-card" id="guide-spotlight-card" data-step="1" role="dialog" aria-label="初回案内 2/2" data-export-exclude>
+          <div class="guide-spotlight-head">
+            <span class="guide-spotlight-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg></span>
+            <strong>② 各ページの「使い方」</strong>
+          </div>
+          <p>操作に迷ったら、画面右上の「使い方」からいつでも確認できます。</p>
+          <div class="guide-spotlight-actions">
+            <button type="button" class="guide-spotlight-skip" id="guide-spotlight-skip">スキップ</button>
+            <button type="button" class="button" id="guide-spotlight-open-help" style="min-height:32px;padding:4px 12px;">使い方を開く</button>
+          </div>
+        </div>`)
+    : '';
   const spotlightBackdrop = spotlightActive
-    ? '<div class="guide-spotlight-backdrop" id="guide-spotlight-backdrop" data-export-exclude aria-hidden="true"></div>'
+    ? `<div class="guide-spotlight-backdrop" id="guide-spotlight-backdrop" data-export-exclude aria-hidden="true"></div>${spotlightCardHtml}`
     : '';
   const sharedModals = spotlightBackdrop + renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal();
   if (main) {
@@ -3472,15 +3497,7 @@ function render() {
   });
 
 
-  // 使い方ガイドモーダル
-  const openHelpBtn = document.getElementById('open-help-modal');
-  if (openHelpBtn && !openHelpBtn.dataset?.helpBound) {
-    if (openHelpBtn.dataset) openHelpBtn.dataset.helpBound = '1';
-    openHelpBtn.addEventListener('click', () => {
-      closeNavigation?.();
-      openHelpModal();
-    });
-  }
+  // 使い方ガイドモーダル & 初回ライトアップツアー
   if (typeof document.querySelectorAll === 'function') {
     document.querySelectorAll('[data-open-help]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3488,7 +3505,26 @@ function render() {
       });
     });
   }
-  document.getElementById('guide-spotlight-skip')?.addEventListener('click', dismissHelpSpotlight);
+  const spotlightNextBtn = document.getElementById('guide-spotlight-next');
+  if (spotlightNextBtn && !spotlightNextBtn.dataset?.spotlightNextBound) {
+    if (spotlightNextBtn.dataset) spotlightNextBtn.dataset.spotlightNextBound = '1';
+    spotlightNextBtn.addEventListener('click', () => {
+      spotlightStep = 1;
+      render();
+    });
+  }
+  const spotlightOpenHelpBtn = document.getElementById('guide-spotlight-open-help');
+  if (spotlightOpenHelpBtn && !spotlightOpenHelpBtn.dataset?.spotlightHelpBound) {
+    if (spotlightOpenHelpBtn.dataset) spotlightOpenHelpBtn.dataset.spotlightHelpBound = '1';
+    spotlightOpenHelpBtn.addEventListener('click', () => {
+      openHelpModal('home');
+    });
+  }
+  const spotlightSkipBtn = document.getElementById('guide-spotlight-skip');
+  if (spotlightSkipBtn && !spotlightSkipBtn.dataset?.spotlightSkipBound) {
+    if (spotlightSkipBtn.dataset) spotlightSkipBtn.dataset.spotlightSkipBound = '1';
+    spotlightSkipBtn.addEventListener('click', dismissHelpSpotlight);
+  }
   document.getElementById('help-modal-close')?.addEventListener('click', closeHelpModal);
   document.getElementById('help-modal-ok')?.addEventListener('click', closeHelpModal);
   document.getElementById('help-modal')?.addEventListener('click', e => {
