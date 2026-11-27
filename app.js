@@ -110,7 +110,7 @@ function getExportTheme() {
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { copyLabel: null, downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '画像をコピー', downloadLabel: 'PNG保存', adjustLabel: 'レイアウト調整' },
-  ics: { copyLabel: 'カレンダーをコピー', downloadLabel: 'カレンダー形式で出力', adjustLabel: 'プレビュー・設定' },
+  ics: { copyLabel: null, downloadLabel: 'カレンダー形式で出力', adjustLabel: 'プレビュー・設定' },
   text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー' },
   csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー' },
   json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー' },
@@ -2704,7 +2704,6 @@ function renderIcalPreviewModal() {
       <div class="data-preview-body" id="ical-modal-body"></div>
       <div class="data-preview-foot">
         <button type="button" class="button secondary" id="ical-modal-cancel">閉じる</button>
-        <button type="button" class="button export-copy-btn" id="ical-modal-copy">${icon('copy')}カレンダーをコピー</button>
         <button type="button" class="button" id="ical-modal-download">${icon('download')}カレンダー形式で出力 (.ics)</button>
       </div>
     </div>
@@ -2748,7 +2747,6 @@ function closeIcalPreviewModal() {
 async function renderIcalPreviewBody() {
   const titleEl = document.getElementById('ical-modal-title');
   const bodyEl = document.getElementById('ical-modal-body');
-  const copyBtn = document.getElementById('ical-modal-copy');
   const downloadBtn = document.getElementById('ical-modal-download');
   if (!bodyEl) return;
   const cal = calendarData || FALLBACK_CALENDAR;
@@ -2844,14 +2842,13 @@ async function renderIcalPreviewBody() {
 
   const summaryParts = [];
   if (wantLessons) {
-    summaryParts.push(`授業時間割（${studentShortLabel()}・${icalModalState.mode === 'calendar' ? '年間予定に準拠' : '単純繰り返し'}）`);
+    summaryParts.push(`授業時間割（${studentShortLabel()}・${icalModalState.mode === 'calendar' ? '年間予定に準拠' : '単純な4限×5日の繰り返し'}）`);
   }
   if (wantCalendar) {
     summaryParts.push(`年間行事予定（${periodLabel}：行事 ${previewEvents.length}件・振替 ${previewSubs.length}件）`);
   }
   const summaryText = summaryParts.length ? `出力対象: ${summaryParts.join(' ＋ ')}` : '出力対象を1つ以上選択してください。';
 
-  if (copyBtn) copyBtn.disabled = !summaryParts.length;
   if (downloadBtn) downloadBtn.disabled = !summaryParts.length;
 
   const profileNoteHtml = hasTimetable
@@ -2867,7 +2864,7 @@ async function renderIcalPreviewBody() {
     ${wantLessons ? `<div class="ical-option-row">
       <span class="ical-option-label">授業の反映</span>
       <label><input type="radio" name="ical-tt-mode" value="calendar"${icalModalState.mode === 'calendar' ? ' checked' : ''}> 年間予定に準拠（休講日除外・振替授業反映）</label>
-      <label><input type="radio" name="ical-tt-mode" value="simple"${icalModalState.mode === 'simple' ? ' checked' : ''}> 単純な4×5の週間繰り返し</label>
+      <label><input type="radio" name="ical-tt-mode" value="simple"${icalModalState.mode === 'simple' ? ' checked' : ''}> 単純な4限×5日の繰り返し</label>
     </div>` : ''}
     ${wantCalendar ? `<div class="ical-option-row">
       <span class="ical-option-label">対象期間</span>
@@ -2895,6 +2892,7 @@ async function renderIcalPreviewBody() {
     ${optionsHtml}
     <p class="ical-preview-summary">${escapeHTML(summaryText)}</p>
     ${calHtml}
+    <p class="ical-import-help">取り込み方法：保存した .ics を開く（iPhone）か、<a href="https://support.google.com/calendar/answer/37118?hl=ja" target="_blank" rel="noopener noreferrer">Googleカレンダー ↗</a>（PC版設定→インポート）／<a href="https://support.apple.com/ja-jp/guide/calendar/icl1023/mac" target="_blank" rel="noopener noreferrer">Appleカレンダー ↗</a> から読み込めます。</p>
     <details class="ical-raw-details">
       <summary>生成される .ics データを確認</summary>
       <pre class="preview-code-block" id="ical-preview-code" style="margin-top:8px;">${escapeHTML(rawIcs)}</pre>
@@ -3581,7 +3579,7 @@ function render() {
     }
     const res = await exportCalendarIcs(cal, `akashi-calendar-${fy}-${calPeriod}`, {
       period: calPeriod,
-      includeExams: icalModalState.includeExams,
+      includeExams: true,
       action
     });
     const ok = res?.success !== false;
@@ -3593,23 +3591,6 @@ function render() {
     return ok;
   }
 
-  document.getElementById('ical-modal-copy')?.addEventListener('click', async () => {
-    const copyBtnEl = document.getElementById('ical-modal-copy');
-    const origHtml = copyBtnEl?.innerHTML;
-    let ok = false;
-    try {
-      ok = await executeIcalModalExport('copy');
-    } catch {
-      ok = false;
-    }
-    if (copyBtnEl) {
-      setBtnContent(copyBtnEl, ok ? 'check' : 'alert', ok ? 'コピー完了' : 'コピー失敗');
-      const timer = setTimeout(() => {
-        if (origHtml != null) copyBtnEl.innerHTML = origHtml;
-      }, 1500);
-      timer?.unref?.();
-    }
-  });
   document.getElementById('ical-modal-download')?.addEventListener('click', async () => {
     const ok = await executeIcalModalExport('download');
     if (ok) closeIcalPreviewModal();

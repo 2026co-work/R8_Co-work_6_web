@@ -445,6 +445,9 @@ test('IMP-14: Favicons, MS365 SharePoint URL, hidden exam/cafeteria nav, per-wee
   assert.match(modalBody, /id="ical-opt-include-lessons" checked/, 'From #timetable, lessons start checked');
   assert.doesNotMatch(modalBody, /id="ical-opt-include-cal" checked/, 'From #timetable, calendar events start unchecked');
   assert.doesNotMatch(modalBody, /ical-opt-include-exams/, 'Exam period checkbox is removed (always included)');
+  assert.match(modalBody, /単純な4限×5日の繰り返し/, 'Simple mode label reads 単純な4限×5日の繰り返し');
+  assert.match(modalBody, /support\.google\.com\/calendar\/answer\/37118/, 'Calendar import help links to Google Calendar docs');
+  assert.equal(app.document.getElementById('ical-preview-modal')?.innerHTML?.includes('ical-modal-copy') || false, false, 'Unused calendar copy button is removed');
   app.context.closeIcalPreviewModal();
 
   // #home timetable disclaimer uses concise 授業変更リスト link
