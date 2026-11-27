@@ -1678,16 +1678,12 @@ function home() {
   const onboardingHtml = (!cookieSaved && !onboardingDismissed)
     ? `<div class="onboarding-banner" id="onboarding-banner" role="region" aria-label="初期設定">
         <div class="onboarding-body">
-          <div class="onboarding-title">はじめての方へ（現在は初期設定: <strong>${escapeHTML(studentLabel())}</strong>）</div>
-          <ol class="onboarding-steps">
-            <li><strong>所属を選ぶ</strong>（学年・学科・コースを設定）</li>
-            <li><strong>今日の時間割を見る</strong>（前日・翌日の切替や振替授業も反映）</li>
-            <li><strong>ホーム画面に追加／保存</strong>（スマホは「ホーム画面に追加」で毎回すぐ開けます）</li>
-          </ol>
+          <div class="onboarding-title">あなたの時間割・授業変更をすぐ表示</div>
+          <p class="onboarding-sub">仮設定中：<strong>${escapeHTML(studentLabel())}</strong></p>
         </div>
         <div class="onboarding-actions">
           <button type="button" class="button profile-switch-trigger" id="onboarding-open-profile">${icon('edit')}所属を選ぶ</button>
-          <button type="button" class="button subtle" id="onboarding-dismiss">閉じる</button>
+          <button type="button" class="button subtle" id="onboarding-dismiss">あとで</button>
         </div>
       </div>`
     : '';
@@ -2607,32 +2603,16 @@ function closeLinkEditorModal() {
 }
 
 const HELP_GUIDE_ITEMS = [
-  {
-    id: 'home',
-    title: 'ホーム',
-    summary: '今日の時間割（振替授業対応）とよく使うリンクをまとめて確認できます。右上の所属ボタン（例: 1-1-M）からいつでも所属を変更できます。'
-  },
-  {
-    id: 'timetable',
-    title: '時間割',
-    summary: '「変更する ▼」から学年・学科・クラス・コースを切り替え、「教室略称」やセルクリックで正式名称を確認できます。下部の保存形式から PNG（画像）・PDF（A4横）・カレンダー形式 (.ics) などで出力できます。'
-  },
-  {
-    id: 'calendar',
-    title: '年間予定',
-    summary: '「カレンダー表示」（曜日別第N週目・休日色分け・スマホは日付タップで詳細表示）と「イベントだけ表示」を切り替えられます。「カレンダー形式で出力」から自分の授業を含めた .ics も作成できます。'
-  },
-  {
-    id: 'links',
-    title: 'リンク集',
-    summary: '所属連動シラバス・授業変更リスト・Teams・Classroom・WebClass 等を収録。「＋追加」で自由に追加でき、「編集」から並び替えや非表示（ホームのリンクにも自動同期）が行えます。'
-  }
+  { id: 'home', title: 'ホーム', summary: '今日の時間割（振替対応）とよく使うリンクを確認' },
+  { id: 'timetable', title: '時間割', summary: 'クラス別の週間表。画像(PNG)や予定(.ics)保存も可' },
+  { id: 'calendar', title: '年間予定', summary: '授業週・休日・行事を確認。授業込みの予定出力も可' },
+  { id: 'links', title: 'リンク集', summary: 'シラバスや変更リストを収録。追加・並び替えも可' }
 ];
 
 const HELP_TIPS_ITEMS = [
-  ['ホーム画面に追加', 'iPhone（Safari）は「共有 → ホーム画面に追加」、Android（Chrome）は「メニュー(⋮) → ホーム画面に追加」でアプリのようにすぐ開けます'],
-  ['時間割の保存形式', 'スマホの写真保存には「PNG（画像）」、Google・Appleカレンダーへの一括登録には「カレンダー形式 (.ics)」、印刷には「PDF（A4横）」が便利です'],
-  ['ショートカット', 'PCでは Alt+1〜4 で各タブを素早く切り替えられます']
+  ['ホーム画面に追加', 'Safariは「共有」、Chromeは「⋮」から追加するとアプリ感覚で開けます'],
+  ['保存形式の目安', 'スマホ保存は PNG、カレンダー登録は .ics、印刷は PDF が便利です'],
+  ['所属の変更', '右上のクラス表示からいつでも切り替えられます']
 ];
 
 function renderHelpGuideContent(focusKey = 'home', showTips = false) {
@@ -2643,11 +2623,18 @@ function renderHelpGuideContent(focusKey = 'home', showTips = false) {
     </div>`;
   }
   const activeKey = HELP_GUIDE_ITEMS.some(item => item.id === focusKey) ? focusKey : 'home';
-  return `<div class="help-section">
+  const quickAction = !cookieSaved
+    ? `<button type="button" class="button" id="help-modal-pick-profile" style="min-height:32px;padding:4px 10px;white-space:nowrap;">所属を選ぶ</button>`
+    : '';
+  return `<div class="help-quickstart">
+      <span><strong>まずはこれだけ：</strong>右上のクラス表示から所属を選ぶと、自分の時間割が出ます。</span>
+      ${quickAction}
+    </div>
+    <div class="help-section">
     <ul class="help-guide-list">${HELP_GUIDE_ITEMS.map(item => {
       const isCurrent = item.id === activeKey;
       return `<li class="${isCurrent ? 'is-current-guide' : ''}">
-        <strong>${escapeHTML(item.title)}${isCurrent ? ' <span class="badge blue">現在の画面</span>' : ''}</strong>
+        <strong>${escapeHTML(item.title)}${isCurrent ? ' <span class="badge blue">表示中</span>' : ''}</strong>
         <span>${escapeHTML(item.summary)}</span>
       </li>`;
     }).join('')}</ul>
@@ -2685,6 +2672,10 @@ function updateHelpModalBody(focusKey = activeHelpTab, showTips = false) {
   }
   if (bodyEl) {
     bodyEl.innerHTML = renderHelpGuideContent(activeHelpTab, helpModalShowingTips);
+    bodyEl.querySelector?.('#help-modal-pick-profile')?.addEventListener('click', () => {
+      closeHelpModal();
+      document.getElementById('open-profile-switcher')?.click();
+    });
   }
 }
 

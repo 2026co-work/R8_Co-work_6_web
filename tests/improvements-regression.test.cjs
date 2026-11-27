@@ -466,7 +466,8 @@ test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar
   const app = createAppInstance({ mockDate: '2026-11-26T09:00:00+09:00' });
   app.navigate('#home');
   const homeHtml = app.document.getElementById('main')?.innerHTML || '';
-  assert.match(homeHtml, /class="onboarding-steps"/, 'Initial #home renders 3-step onboarding list');
+  assert.match(homeHtml, /id="onboarding-banner"/, 'Initial #home renders concise onboarding banner');
+  assert.match(homeHtml, /あなたの時間割・授業変更をすぐ表示/, 'Onboarding banner states core value concisely');
   assert.match(homeHtml, /所属を選ぶ/, 'Onboarding CTA lets user pick profile directly');
   assert.match(homeHtml, /id="help-modal"/, 'Help modal is mounted');
 
