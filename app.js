@@ -2069,6 +2069,11 @@ function calendar() {
   const zenkiPdfUrl = normalizeAkashiUrl(data.meta?.zenkiPdfUrl, '');
   const koukiPdfUrl = normalizeAkashiUrl(data.meta?.koukiPdfUrl, '');
   const calSourceUrl = normalizeAkashiUrl(data.meta?.sourceUrl, 'https://www.akashi.ac.jp/life/calendar.html');
+  const calSourceLinks = [
+    `<a href="${escapeHTML(calSourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 公式行事予定 ↗</a>`,
+    zenkiPdfUrl ? `<a href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期PDF ↗</a>` : '',
+    koukiPdfUrl ? `<a href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期PDF ↗</a>` : ''
+  ].filter(Boolean).join(' / ');
 
   const mainBodyHtml = calendarViewMode === 'month'
     ? renderCalendarMonthGrid(events, subs, todayStr)
@@ -2082,9 +2087,6 @@ function calendar() {
       </div>
       <div class="calendar-toolbar">
         <button type="button" class="button" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}カレンダー形式で出力</button>
-        ${zenkiPdfUrl ? `<a class="button subtle" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期PDF${icon('external')}</a>` : ''}
-        ${koukiPdfUrl ? `<a class="button subtle" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期PDF${icon('external')}</a>` : ''}
-        <a class="text-link" href="${escapeHTML(calSourceUrl)}" target="_blank" rel="noopener noreferrer">公式行事予定${icon('arrow')}</a>
       </div>
       <div class="calendar-filters" role="group" aria-label="年間予定の表示切替と移動">
         <div class="filter-group">
@@ -2097,6 +2099,7 @@ function calendar() {
         </div>
       </div>
       ${mainBodyHtml}
+      <div class="timetable-source" data-export-exclude><span>出典：${calSourceLinks}</span><span>最新の変更は公式案内をご確認ください。</span></div>
     </section>`;
 }
 function calendarView() { return calendar(); }
