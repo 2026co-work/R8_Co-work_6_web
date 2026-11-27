@@ -2580,34 +2580,21 @@ function closeLinkEditorModal() {
 }
 
 const HELP_GUIDE_ITEMS = [
-  { id: 'home', title: 'ホーム', summary: '今日の時間割（振替対応）とよく使うリンクを確認' },
-  { id: 'timetable', title: '時間割', summary: 'クラス別の週間表。画像(PNG)や予定(.ics)保存も可' },
-  { id: 'calendar', title: '年間予定', summary: '授業週・休日・行事を確認。授業込みの予定出力も可' },
-  { id: 'links', title: 'リンク集', summary: 'シラバスや変更リストを収録。追加・並び替えも可' }
+  { id: 'home', title: 'ホーム', summary: '今日の時間割（振替対応）とよく使うリンクを見られます。' },
+  { id: 'timetable', title: '時間割', summary: 'クラス別の週間表を見たり、画像や予定ファイルで保存したりできます。' },
+  { id: 'calendar', title: '年間予定', summary: '授業週や休日・行事を確認し、授業込みの予定ファイルも出力できます。' },
+  { id: 'links', title: 'リンク集', summary: 'シラバスや変更リストをまとめ、リンクの追加や並び替えもできます。' }
 ];
 
-const HELP_TIPS_ITEMS = [
-  ['ホーム画面に追加', 'Safariは「共有」、Chromeは「⋮」から追加するとアプリ感覚で開けます'],
-  ['保存形式の目安', 'スマホ保存は PNG、カレンダー登録は .ics、印刷は PDF が便利です'],
-  ['所属の変更', '右上のクラス表示からいつでも切り替えられます']
-];
-
-function renderHelpGuideContent(focusKey = 'home', showTips = false) {
-  if (showTips) {
-    return `<div class="help-tips-box">
-      <h4>スマホ活用・便利なTips</h4>
-      <ul>${HELP_TIPS_ITEMS.map(([k, v]) => `<li><strong>${escapeHTML(k)}</strong>：${escapeHTML(v)}</li>`).join('')}</ul>
-    </div>`;
-  }
+function renderHelpGuideContent(focusKey = 'home') {
   const activeKey = HELP_GUIDE_ITEMS.some(item => item.id === focusKey) ? focusKey : 'home';
   const quickAction = !cookieSaved
-    ? `<button type="button" class="button" id="help-modal-pick-profile" style="min-height:32px;padding:4px 10px;white-space:nowrap;">所属を選ぶ</button>`
+    ? `<div class="help-quickstart">
+        <span>自分のクラスを設定して始めましょう</span>
+        <button type="button" class="button" id="help-modal-pick-profile" style="min-height:32px;padding:4px 12px;white-space:nowrap;">所属を選ぶ →</button>
+      </div>`
     : '';
-  return `<div class="help-quickstart">
-      <span><strong>まずはこれだけ：</strong>右上のクラス表示から所属を選ぶと、自分の時間割が出ます。</span>
-      ${quickAction}
-    </div>
-    <div class="help-section">
+  return `${quickAction}<div class="help-section">
     <ul class="help-guide-list">${HELP_GUIDE_ITEMS.map(item => {
       const isCurrent = item.id === activeKey;
       return `<li class="${isCurrent ? 'is-current-guide' : ''}">
@@ -2615,7 +2602,11 @@ function renderHelpGuideContent(focusKey = 'home', showTips = false) {
         <span>${escapeHTML(item.summary)}</span>
       </li>`;
     }).join('')}</ul>
-  </div>`;
+  </div>
+  <details class="help-install-details">
+    <summary>アプリとしてホーム画面に追加する方法</summary>
+    <p>Safariは「共有」、Chromeは「⋮」から「ホーム画面に追加」を選ぶとアプリのように開けます。</p>
+  </details>`;
 }
 
 function renderHelpModal() {
@@ -2625,30 +2616,23 @@ function renderHelpModal() {
         <h3 id="help-modal-title">${icon('info')}ポータルの使い方</h3>
         <button type="button" class="button size-close-btn" id="help-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
       </div>
-      <div class="data-preview-body" id="help-modal-body">${renderHelpGuideContent(activeHelpTab, false)}</div>
-      <div class="data-preview-foot help-modal-foot">
-        <button type="button" class="button subtle" id="help-modal-tips-toggle">スマホ活用・Tipsを見る</button>
+      <div class="data-preview-body" id="help-modal-body">${renderHelpGuideContent(activeHelpTab)}</div>
+      <div class="data-preview-foot">
         <button type="button" class="button" id="help-modal-ok">閉じる</button>
       </div>
     </div>
   </div>`;
 }
 
-let helpModalShowingTips = false;
-function updateHelpModalBody(focusKey = activeHelpTab, showTips = false) {
+function updateHelpModalBody(focusKey = activeHelpTab) {
   activeHelpTab = HELP_GUIDE_ITEMS.some(item => item.id === focusKey) ? focusKey : 'home';
-  helpModalShowingTips = Boolean(showTips);
   const titleEl = document.getElementById('help-modal-title');
   const bodyEl = document.getElementById('help-modal-body');
-  const tipsBtn = document.getElementById('help-modal-tips-toggle');
   if (titleEl) {
-    titleEl.innerHTML = `${icon('info')}${helpModalShowingTips ? 'スマホ活用・Tips' : 'ポータルの使い方'}`;
-  }
-  if (tipsBtn) {
-    tipsBtn.textContent = helpModalShowingTips ? '使い方に戻る' : 'スマホ活用・Tipsを見る';
+    titleEl.innerHTML = `${icon('info')}ポータルの使い方`;
   }
   if (bodyEl) {
-    bodyEl.innerHTML = renderHelpGuideContent(activeHelpTab, helpModalShowingTips);
+    bodyEl.innerHTML = renderHelpGuideContent(activeHelpTab);
     bodyEl.querySelector?.('#help-modal-pick-profile')?.addEventListener('click', () => {
       closeHelpModal();
       document.getElementById('open-profile-switcher')?.click();
@@ -3508,9 +3492,6 @@ function render() {
       });
     });
   }
-  document.getElementById('help-modal-tips-toggle')?.addEventListener('click', () => {
-    updateHelpModalBody(activeHelpTab, !helpModalShowingTips);
-  });
   document.getElementById('guide-spotlight-skip')?.addEventListener('click', dismissHelpSpotlight);
   document.getElementById('help-modal-close')?.addEventListener('click', closeHelpModal);
   document.getElementById('help-modal-ok')?.addEventListener('click', closeHelpModal);
