@@ -423,6 +423,25 @@ test('IMP-14: Favicons, MS365 SharePoint URL, hidden exam/cafeteria nav, per-wee
   assert.match(koukiCalIcs, /後期/, 'Kouki calendar iCal labeled 後期');
   assert.match(koukiCalIcs, /20261123/, 'Kouki includes November holiday');
   assert.doesNotMatch(koukiCalIcs, /20260407/, 'Kouki excludes April start');
+
+  // Unified calendar export modal works identically from #calendar and #timetable
+  app.context.__TIMETABLE_EXPORT_MODULE__ = exp;
+  app.selectStudent({ grade: '4', department: 'M' });
+  await app.context.openIcalPreviewModal('calendar', 'all');
+  let modalBody = app.document.getElementById('ical-modal-body')?.innerHTML || '';
+  assert.match(modalBody, /自分の授業を含める/, 'Unified modal from #calendar offers lesson toggle');
+  assert.match(modalBody, /年間行事予定を含める/, 'Unified modal from #calendar offers calendar events toggle');
+  assert.doesNotMatch(modalBody, /id="ical-opt-include-lessons" checked/, 'From #calendar, lessons start unchecked');
+  assert.match(modalBody, /id="ical-opt-include-cal" checked/, 'From #calendar, calendar events start checked');
+  app.context.closeIcalPreviewModal();
+
+  await app.context.openIcalPreviewModal('timetable');
+  modalBody = app.document.getElementById('ical-modal-body')?.innerHTML || '';
+  assert.match(modalBody, /自分の授業を含める/, 'Unified modal from #timetable offers lesson toggle');
+  assert.match(modalBody, /年間行事予定を含める/, 'Unified modal from #timetable offers calendar events toggle');
+  assert.match(modalBody, /id="ical-opt-include-lessons" checked/, 'From #timetable, lessons start checked');
+  assert.doesNotMatch(modalBody, /id="ical-opt-include-cal" checked/, 'From #timetable, calendar events start unchecked');
+  app.context.closeIcalPreviewModal();
 });
 
 test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar help modal work', () => {

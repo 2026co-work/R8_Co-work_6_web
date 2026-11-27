@@ -110,7 +110,7 @@ function getExportTheme() {
 const EXPORT_FORMAT_CONFIGS = {
   pdf: { copyLabel: null, downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
   png: { copyLabel: '画像をコピー', downloadLabel: 'PNG保存', adjustLabel: 'レイアウト調整' },
-  ics: { copyLabel: 'iCalをコピー', downloadLabel: 'iCal保存 (.ics)', adjustLabel: 'オプション・プレビュー' },
+  ics: { copyLabel: 'カレンダーをコピー', downloadLabel: 'カレンダー形式で出力', adjustLabel: 'プレビュー・設定' },
   text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー' },
   csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー' },
   json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー' },
@@ -301,6 +301,7 @@ let dragLinkId = '';
 let lastLinksSnapshot = null;
 let icalModalState = {
   source: 'timetable',
+  includeLessons: true,
   mode: 'calendar',
   includeCalendarEvents: false,
   includeExams: true,
@@ -2403,7 +2404,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><div class="timetable-head-right" data-export-exclude>${legendsBtnHtml}<span class="badge">${totalPeriods}コマ</span></div></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>iCal（カレンダー / .ics）</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${icon('copy')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'コピー')}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('download')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><div class="timetable-head-right" data-export-exclude>${legendsBtnHtml}<span class="badge">${totalPeriods}コマ</span></div></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>カレンダー形式 (.ics)</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${icon('copy')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'コピー')}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('download')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     ${legendsModalHtml}
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
@@ -2640,17 +2641,17 @@ function closeHelpModal() {
 }
 
 function renderIcalPreviewModal() {
-  return `<div class="data-preview-overlay" id="ical-preview-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="iCal出力プレビュー">
+  return `<div class="data-preview-overlay" id="ical-preview-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="カレンダー形式で出力プレビュー">
     <div class="data-preview-card ical-modal-card">
       <div class="data-preview-head">
-        <h3 id="ical-modal-title">iCal (.ics) 出力プレビュー</h3>
+        <h3 id="ical-modal-title">カレンダー形式で出力 (.ics)</h3>
         <button type="button" class="button size-close-btn" id="ical-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
       </div>
       <div class="data-preview-body" id="ical-modal-body"></div>
       <div class="data-preview-foot">
         <button type="button" class="button secondary" id="ical-modal-cancel">閉じる</button>
-        <button type="button" class="button export-copy-btn" id="ical-modal-copy">${icon('copy')}iCalをコピー</button>
-        <button type="button" class="button" id="ical-modal-download">${icon('download')}iCal保存 (.ics)</button>
+        <button type="button" class="button export-copy-btn" id="ical-modal-copy">${icon('copy')}カレンダーをコピー</button>
+        <button type="button" class="button" id="ical-modal-download">${icon('download')}カレンダー形式で出力 (.ics)</button>
       </div>
     </div>
   </div>`;
@@ -2693,6 +2694,8 @@ function closeIcalPreviewModal() {
 async function renderIcalPreviewBody() {
   const titleEl = document.getElementById('ical-modal-title');
   const bodyEl = document.getElementById('ical-modal-body');
+  const copyBtn = document.getElementById('ical-modal-copy');
+  const downloadBtn = document.getElementById('ical-modal-download');
   if (!bodyEl) return;
   const cal = calendarData || FALLBACK_CALENDAR;
   const todayStr = dateKey(new Date());
@@ -2702,6 +2705,14 @@ async function renderIcalPreviewBody() {
   const allEvents = Array.isArray(cal.events) ? cal.events : [];
   const allSubs = Array.isArray(cal.daySubstitutions) ? cal.daySubstitutions : [];
   const lessonWeeksMap = computeAcademicLessonWeeks(cal);
+
+  const sched = selectedSchedule();
+  const hasTimetable = !sched.error;
+  if (!hasTimetable && icalModalState.includeLessons) {
+    icalModalState.includeLessons = false;
+  }
+  const wantLessons = hasTimetable && Boolean(icalModalState.includeLessons);
+  const wantCalendar = Boolean(icalModalState.includeCalendarEvents);
 
   const filterByPeriod = (period) => {
     if (!period || period === 'all') return { events: allEvents, subs: allSubs };
@@ -2717,28 +2728,30 @@ async function renderIcalPreviewBody() {
     };
   };
 
-  const { generateIcs, generateCalendarIcs } = await import('./timetable-export.js');
+  const { generateIcs, generateCalendarIcs } = await (globalThis.__TIMETABLE_EXPORT_MODULE__ ? Promise.resolve(globalThis.__TIMETABLE_EXPORT_MODULE__) : import('./timetable-export.js'));
+  const calPeriod = icalModalState.period || (term === '前期' ? 'zenki' : 'kouki');
+  const periodLabel = calPeriod === 'zenki' ? '前期' : (calPeriod === 'kouki' ? '後期' : '通年');
+  const filtered = filterByPeriod(calPeriod);
+
   let previewEvents = [];
   let previewSubs = [];
   let scheduleOverlay = null;
   let rawIcs = '';
-  let summaryText = '';
-  let optionsHtml = '';
 
-  if (icalModalState.source === 'timetable') {
-    if (titleEl) titleEl.textContent = `時間割 iCal (.ics) 出力設定・プレビュー（${studentShortLabel()}）`;
+  if (titleEl) titleEl.textContent = 'カレンダー形式で出力 (.ics)';
+
+  if (wantCalendar) {
+    previewEvents = filtered.events.filter(ev => icalModalState.includeExams || ev.type !== 'exam');
+    previewSubs = filtered.subs;
+  } else if (wantLessons && icalModalState.mode === 'calendar') {
+    previewEvents = filtered.events.filter(ev => ev.type === 'holiday');
+    previewSubs = filtered.subs;
+  }
+
+  if (wantLessons) {
     const semInfo = getActiveSemesterInfo();
     const holidayDates = getExpandedHolidayDates();
-    const lessons = selectedSchedule().selected || [];
-    const calPeriod = term === '前期' ? 'zenki' : 'kouki';
-    if (icalModalState.includeCalendarEvents) {
-      const filtered = filterByPeriod(calPeriod);
-      previewEvents = filtered.events.filter(ev => icalModalState.includeExams || ev.type !== 'exam');
-      previewSubs = filtered.subs;
-    } else if (icalModalState.mode === 'calendar') {
-      const filtered = filterByPeriod(calPeriod);
-      previewSubs = filtered.subs;
-    }
+    const lessons = sched.selected || [];
     const subMap = new Map();
     for (const s of allSubs) {
       if (!s?.date) continue;
@@ -2766,48 +2779,55 @@ async function renderIcalPreviewBody() {
       holidays: holidayDates,
       mode: icalModalState.mode,
       daySubstitutions: allSubs,
-      includeCalendarEvents: icalModalState.includeCalendarEvents,
+      includeCalendarEvents: wantCalendar,
       calendarData: cal,
       calendarPeriod: calPeriod,
       includeExams: icalModalState.includeExams
     });
-    summaryText = icalModalState.mode === 'calendar'
-      ? `年間予定に準拠（休講日を除外・振替授業日を反映）${icalModalState.includeCalendarEvents ? '＋年間行事予定を同梱' : ''}`
-      : `単純な4×5の週間繰り返し（期末まで毎週）${icalModalState.includeCalendarEvents ? '＋年間行事予定を同梱' : ''}`;
-    optionsHtml = `<div class="ical-options-box">
-      <div class="ical-option-row">
-        <span class="ical-option-label">授業の反映</span>
-        <label><input type="radio" name="ical-tt-mode" value="calendar"${icalModalState.mode === 'calendar' ? ' checked' : ''}> 年間予定に準拠（休講日除外・振替授業反映）</label>
-        <label><input type="radio" name="ical-tt-mode" value="simple"${icalModalState.mode === 'simple' ? ' checked' : ''}> 単純な4×5の週間繰り返し</label>
-      </div>
-      <div class="ical-option-row">
-        <span class="ical-option-label">行事の同梱</span>
-        <label><input type="checkbox" id="ical-opt-include-cal"${icalModalState.includeCalendarEvents ? ' checked' : ''}> 年間行事予定（祝日・試験・振替・行事）も含める</label>
-      </div>
-    </div>`;
-  } else {
-    const periodLabel = icalModalState.period === 'zenki' ? '前期' : (icalModalState.period === 'kouki' ? '後期' : '通年');
-    if (titleEl) titleEl.textContent = `年間行事予定 iCal (.ics) プレビュー（${periodLabel}）`;
-    const filtered = filterByPeriod(icalModalState.period);
-    previewEvents = filtered.events.filter(ev => icalModalState.includeExams || ev.type !== 'exam');
-    previewSubs = filtered.subs;
-    rawIcs = generateCalendarIcs(cal, { period: icalModalState.period, includeExams: icalModalState.includeExams });
-    summaryText = `出力対象: ${periodLabel}（行事 ${previewEvents.length}件・振替授業 ${previewSubs.length}件）`;
-    optionsHtml = `<div class="ical-options-box">
-      <div class="ical-option-row">
-        <span class="ical-option-label">対象期間</span>
-        <div class="filter-group">
-          <button type="button" class="chip${icalModalState.period === 'zenki' ? ' active' : ''}" data-ical-period="zenki">前期</button>
-          <button type="button" class="chip${icalModalState.period === 'kouki' ? ' active' : ''}" data-ical-period="kouki">後期</button>
-          <button type="button" class="chip${icalModalState.period === 'all' ? ' active' : ''}" data-ical-period="all">通年</button>
-        </div>
-      </div>
-      <div class="ical-option-row">
-        <span class="ical-option-label">オプション</span>
-        <label><input type="checkbox" id="ical-opt-include-exams"${icalModalState.includeExams ? ' checked' : ''}> 定期試験期間を含める</label>
-      </div>
-    </div>`;
+  } else if (wantCalendar) {
+    rawIcs = generateCalendarIcs(cal, { period: calPeriod, includeExams: icalModalState.includeExams });
   }
+
+  const summaryParts = [];
+  if (wantLessons) {
+    summaryParts.push(`授業時間割（${studentShortLabel()}・${icalModalState.mode === 'calendar' ? '年間予定に準拠' : '単純繰り返し'}）`);
+  }
+  if (wantCalendar) {
+    summaryParts.push(`年間行事予定（${periodLabel}：行事 ${previewEvents.length}件・振替 ${previewSubs.length}件）`);
+  }
+  const summaryText = summaryParts.length ? `出力対象: ${summaryParts.join(' ＋ ')}` : '出力対象を1つ以上選択してください。';
+
+  if (copyBtn) copyBtn.disabled = !summaryParts.length;
+  if (downloadBtn) downloadBtn.disabled = !summaryParts.length;
+
+  const profileNoteHtml = hasTimetable
+    ? ''
+    : ' <button type="button" class="link-btn" id="ical-open-profile-btn" style="font-size:0.85em;margin-left:4px;">所属を設定</button>';
+
+  const optionsHtml = `<div class="ical-options-box">
+    <div class="ical-option-row">
+      <span class="ical-option-label">出力対象</span>
+      <label><input type="checkbox" id="ical-opt-include-lessons"${wantLessons ? ' checked' : ''}${hasTimetable ? '' : ' disabled'}> 自分の授業を含める（${hasTimetable ? escapeHTML(studentShortLabel()) : '所属未設定'}）${profileNoteHtml}</label>
+      <label><input type="checkbox" id="ical-opt-include-cal"${wantCalendar ? ' checked' : ''}> 年間行事予定を含める（祝日・試験・振替・行事）</label>
+    </div>
+    ${wantLessons ? `<div class="ical-option-row">
+      <span class="ical-option-label">授業の反映</span>
+      <label><input type="radio" name="ical-tt-mode" value="calendar"${icalModalState.mode === 'calendar' ? ' checked' : ''}> 年間予定に準拠（休講日除外・振替授業反映）</label>
+      <label><input type="radio" name="ical-tt-mode" value="simple"${icalModalState.mode === 'simple' ? ' checked' : ''}> 単純な4×5の週間繰り返し</label>
+    </div>` : ''}
+    ${wantCalendar ? `<div class="ical-option-row">
+      <span class="ical-option-label">対象期間</span>
+      <div class="filter-group">
+        <button type="button" class="chip${calPeriod === 'zenki' ? ' active' : ''}" data-ical-period="zenki">前期</button>
+        <button type="button" class="chip${calPeriod === 'kouki' ? ' active' : ''}" data-ical-period="kouki">後期</button>
+        <button type="button" class="chip${calPeriod === 'all' ? ' active' : ''}" data-ical-period="all">通年</button>
+      </div>
+    </div>
+    <div class="ical-option-row">
+      <span class="ical-option-label">定期試験</span>
+      <label><input type="checkbox" id="ical-opt-include-exams"${icalModalState.includeExams ? ' checked' : ''}> 定期試験期間を含める</label>
+    </div>` : ''}
+  </div>`;
 
   const calHtml = renderMonthCalendarGrid({
     year: icalModalState.year,
@@ -2815,7 +2835,7 @@ async function renderIcalPreviewBody() {
     events: previewEvents,
     subs: previewSubs,
     todayStr,
-    lessonWeeksMap: (icalModalState.source === 'calendar' || icalModalState.mode === 'calendar') ? lessonWeeksMap : null,
+    lessonWeeksMap: (wantCalendar || icalModalState.mode === 'calendar') ? lessonWeeksMap : null,
     scheduleOverlay,
     navAttr: 'data-ical-month',
     viewId: 'ical-preview-calendar'
@@ -2831,6 +2851,14 @@ async function renderIcalPreviewBody() {
     </details>
   `;
 
+  bodyEl.querySelector?.('#ical-open-profile-btn')?.addEventListener('click', () => {
+    closeIcalPreviewModal();
+    document.getElementById('open-profile-switcher')?.click();
+  });
+  bodyEl.querySelector?.('#ical-opt-include-lessons')?.addEventListener('change', e => {
+    icalModalState.includeLessons = Boolean(e.target.checked);
+    renderIcalPreviewBody();
+  });
   bodyEl.querySelectorAll?.('input[name="ical-tt-mode"]').forEach(r => {
     r.addEventListener('change', e => {
       if (e.target.checked) {
@@ -2853,7 +2881,6 @@ async function renderIcalPreviewBody() {
       icalModalState.period = p;
       const [nowY, nowM] = todayStr.slice(0, 7).split('-').map(Number);
       if (p === 'zenki') { icalModalState.year = fy; icalModalState.month = 4; }
-      else if (p === 'kouki') { icalModalState.year = nowY; icalModalState.month = nowM; }
       else { icalModalState.year = nowY; icalModalState.month = nowM; }
       renderIcalPreviewBody();
     });
@@ -2881,8 +2908,11 @@ async function openIcalPreviewModal(source = 'timetable', period = null) {
   const todayStr = dateKey(new Date());
   const [nowY, nowM] = todayStr.slice(0, 7).split('-').map(Number);
   const fy = Number(timetableMeta?.fiscalYear) || 2026;
+  const hasTimetable = !selectedSchedule().error;
   icalModalState.source = source === 'calendar' ? 'calendar' : 'timetable';
-  if (source === 'calendar') {
+  if (icalModalState.source === 'calendar') {
+    icalModalState.includeLessons = false;
+    icalModalState.includeCalendarEvents = true;
     icalModalState.period = period || 'all';
     if (icalModalState.period === 'zenki') {
       icalModalState.year = fy;
@@ -2892,6 +2922,9 @@ async function openIcalPreviewModal(source = 'timetable', period = null) {
       icalModalState.month = nowM;
     }
   } else {
+    icalModalState.includeLessons = hasTimetable;
+    icalModalState.includeCalendarEvents = !hasTimetable;
+    icalModalState.period = timetableMeta?.term === '前期' ? 'zenki' : 'kouki';
     icalModalState.year = nowY;
     icalModalState.month = nowM;
   }
@@ -3244,6 +3277,7 @@ async function downloadCurrentTimetable(action = 'download') {
       daySubstitutions: Array.isArray(calendarData?.daySubstitutions) ? calendarData.daySubstitutions : [],
       includeCalendarEvents: icalModalState.includeCalendarEvents,
       calendarData: calendarData || FALLBACK_CALENDAR,
+      calendarPeriod: icalModalState.period,
       includeExams: icalModalState.includeExams,
       sizeConfig: { ...exportSizeConfig },
       a4Mode: a4ModeEnabled,
@@ -3446,28 +3480,63 @@ function render() {
   document.getElementById('ical-preview-modal')?.addEventListener('click', e => {
     if (e.target === e.currentTarget) closeIcalPreviewModal();
   });
+  async function executeIcalModalExport(action) {
+    const sched = selectedSchedule();
+    const wantLessons = !sched.error && Boolean(icalModalState.includeLessons);
+    const wantCalendar = Boolean(icalModalState.includeCalendarEvents);
+    if (!wantLessons && !wantCalendar) return false;
+    const { exportTimetable, exportCalendarIcs } = await import('./timetable-export.js');
+    const cal = calendarData || FALLBACK_CALENDAR;
+    const fy = Number(timetableMeta?.fiscalYear) || 2026;
+    const fyLabel = formatFiscalYear(fy);
+    const term = timetableMeta?.term || '後期';
+    const calPeriod = icalModalState.period || (term === '前期' ? 'zenki' : 'kouki');
+    if (wantLessons) {
+      const filename = `${fyLabel}${term}時間割-${studentShortLabel()}`.replace(/[\\/:*?"<>|]/g, '_');
+      const res = await exportTimetable(null, 'ics', filename, {
+        studentLabel: studentLabel(),
+        selectedLessons: sched.selected || [],
+        updated: timetableMeta?.updated || SOURCE?.updated || '2026-09-24',
+        fiscalYear: fy,
+        term,
+        semesterInfo: getActiveSemesterInfo(),
+        holidays: getExpandedHolidayDates(),
+        mode: icalModalState.mode,
+        daySubstitutions: Array.isArray(cal?.daySubstitutions) ? cal.daySubstitutions : [],
+        includeCalendarEvents: wantCalendar,
+        calendarData: cal,
+        calendarPeriod: calPeriod,
+        includeExams: icalModalState.includeExams,
+        action
+      });
+      const ok = res?.success !== false;
+      if (ok) {
+        showToast(action === 'copy'
+          ? 'カレンダーをクリップボードにコピーしました。'
+          : 'カレンダー (.ics) ファイルを保存しました。');
+      }
+      return ok;
+    }
+    const res = await exportCalendarIcs(cal, `akashi-calendar-${fy}-${calPeriod}`, {
+      period: calPeriod,
+      includeExams: icalModalState.includeExams,
+      action
+    });
+    const ok = res?.success !== false;
+    if (ok) {
+      showToast(action === 'copy'
+        ? '年間行事予定のカレンダーテキストをコピーしました。'
+        : '年間行事予定 (.ics) ファイルを保存しました。');
+    }
+    return ok;
+  }
+
   document.getElementById('ical-modal-copy')?.addEventListener('click', async () => {
     const copyBtnEl = document.getElementById('ical-modal-copy');
     const origHtml = copyBtnEl?.innerHTML;
     let ok = false;
     try {
-      if (icalModalState.source === 'timetable') {
-        const prevFmt = currentExportFormat;
-        currentExportFormat = 'ics';
-        ok = await downloadCurrentTimetable('copy');
-        currentExportFormat = prevFmt;
-      } else {
-        const { exportCalendarIcs } = await import('./timetable-export.js');
-        const cal = calendarData || FALLBACK_CALENDAR;
-        const fy = timetableMeta?.fiscalYear || 2026;
-        const res = await exportCalendarIcs(cal, `akashi-calendar-${fy}-${icalModalState.period}`, {
-          period: icalModalState.period,
-          includeExams: icalModalState.includeExams,
-          action: 'copy'
-        });
-        ok = res?.success !== false;
-        if (ok) showToast('年間行事予定のiCalテキストをコピーしました。');
-      }
+      ok = await executeIcalModalExport('copy');
     } catch {
       ok = false;
     }
@@ -3480,26 +3549,8 @@ function render() {
     }
   });
   document.getElementById('ical-modal-download')?.addEventListener('click', async () => {
-    if (icalModalState.source === 'timetable') {
-      closeIcalPreviewModal();
-      const prevFmt = currentExportFormat;
-      currentExportFormat = 'ics';
-      const fmtSel = document.getElementById('export-format');
-      if (fmtSel) fmtSel.value = 'ics';
-      await downloadCurrentTimetable('download');
-      currentExportFormat = prevFmt;
-    } else {
-      const { exportCalendarIcs } = await import('./timetable-export.js');
-      const cal = calendarData || FALLBACK_CALENDAR;
-      const fy = timetableMeta?.fiscalYear || 2026;
-      const pLabel = icalModalState.period === 'zenki' ? '前期' : (icalModalState.period === 'kouki' ? '後期' : '通年');
-      await exportCalendarIcs(cal, `akashi-calendar-${fy}-${icalModalState.period}`, {
-        period: icalModalState.period,
-        includeExams: icalModalState.includeExams
-      });
-      closeIcalPreviewModal();
-      showToast(`年間行事予定（${pLabel} .ics）を保存しました。`);
-    }
+    const ok = await executeIcalModalExport('download');
+    if (ok) closeIcalPreviewModal();
   });
 
   // リンク集：アイコンのみ切替・編集モード切替・初期設定に戻す
