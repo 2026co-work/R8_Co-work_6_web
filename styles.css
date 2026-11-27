@@ -50,11 +50,12 @@
 .export-sheet[data-theme="dark"] .export-header-row{border-bottom-color:#2a3040}
 .export-sheet .real-timetable{min-width:0}
 .export-sheet .real-timetable th:first-child{position:static;box-shadow:none}
-.export-sheet .real-timetable th{font-size:calc(12.5px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable th{font-size:calc(13.5px * var(--export-font-scale,1.05))}
 .export-sheet .real-timetable .lesson-card{display:flex;flex-direction:column;gap:2px;justify-content:flex-start;height:auto;margin-bottom:8px}
 .export-sheet .real-timetable .lesson-card .badge{align-self:flex-start}
-.export-sheet .real-timetable .lesson-card strong{font-size:calc(13px * var(--export-font-scale,1.05))}
-.export-sheet .real-timetable .lesson-card small{font-size:calc(11px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable .lesson-card strong{font-size:calc(14.5px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable .lesson-card small{font-size:calc(12px * var(--export-font-scale,1.05))}
+.export-sheet .real-timetable .lesson-location{font-size:calc(12.5px * var(--export-font-scale,1.05))}
 .export-sheet .real-timetable td{height:var(--export-cell-h,172px);vertical-align:top;padding:8px 8px 14px;box-sizing:border-box}
 .export-sheet .real-timetable td[rowspan="2"]{height:calc(var(--export-cell-h,172px) * 2)}
 .export-sheet .real-timetable td[rowspan="3"]{height:calc(var(--export-cell-h,172px) * 3)}
@@ -432,8 +433,14 @@ body.size-modal-open{overflow:hidden}
   .workspace{margin:0!important}
   main{max-width:none!important;padding:0!important;margin:0!important;min-height:0!important}
   .panel,.exam-card,.cafeteria-menu-item,.calendar-event-item{background:#ffffff!important;color:#111111!important;border-color:#d1d5db!important;box-shadow:none!important;break-inside:avoid;page-break-inside:avoid}
+  .real-timetable{min-width:0!important;width:100%!important}
   .real-timetable td,.real-timetable th,.real-timetable th:first-child{position:static!important;box-shadow:none!important;background:#ffffff!important;color:#111111!important}
-  .real-timetable thead th{background:#f3f4f6!important;color:#79182b!important}
+  .real-timetable thead th{background:#f3f4f6!important;color:#79182b!important;font-size:11pt!important;padding:8px 6px!important}
+  .real-timetable tbody th{font-size:10.5pt!important;padding:10px 4px!important}
+  .real-timetable tbody th small{font-size:8.5pt!important}
+  .real-timetable td{height:auto!important;padding:8px 7px!important}
+  .real-timetable .lesson-card strong{font-size:11pt!important;line-height:1.35!important}
+  .real-timetable .lesson-card small,.real-timetable .lesson-location{font-size:9pt!important;line-height:1.3!important}
   .real-timetable td.schedule-cell:not(.schedule-empty){background:#fafafa!important}
 }
 
