@@ -472,10 +472,36 @@ test('IMP-15: Mobile-first 3-step onboarding card, apple-touch-icon, and sidebar
 
   const helpModal = app.document.getElementById('help-modal');
   assert.equal(helpModal.hidden, true, 'Help modal is hidden initially');
+  assert.match(homeHtml, /id="guide-spotlight-backdrop"/, 'First-visit spotlight backdrop renders on initial #home');
+  assert.match(homeHtml, /data-open-help="home"/, '#home includes page help button');
+
   app.document.getElementById('open-help-modal').click();
   assert.equal(helpModal.hidden, false, 'Clicking sidebar help button opens help modal');
+  assert.equal(app.document.body.classList.contains('guide-spotlight-active'), false, 'Opening help dismisses first-visit spotlight');
   app.context.closeHelpModal();
   assert.equal(helpModal.hidden, true, 'closeHelpModal hides help modal');
+  app.navigate('#home');
+  assert.doesNotMatch(app.document.getElementById('main')?.innerHTML || '', /id="guide-spotlight-backdrop"/, 'Spotlight stays dismissed on re-render');
+
+  // Page-specific help guides on #timetable, #calendar, and #links
+  app.selectStudent({ grade: '4', department: 'M' });
+  app.navigate('#timetable');
+  assert.match(app.document.getElementById('main')?.innerHTML || '', /data-open-help="timetable"/, '#timetable includes page help button');
+  app.context.openHelpModal('timetable');
+  assert.match(app.document.getElementById('help-modal-title')?.textContent || '', /時間割の使い方/, 'Timetable help modal shows timetable guide');
+  app.context.closeHelpModal();
+
+  app.navigate('#calendar');
+  assert.match(app.document.getElementById('main')?.innerHTML || '', /data-open-help="calendar"/, '#calendar includes page help button');
+  app.context.openHelpModal('calendar');
+  assert.match(app.document.getElementById('help-modal-title')?.textContent || '', /年間予定の使い方/, 'Calendar help modal shows calendar guide');
+  app.context.closeHelpModal();
+
+  app.navigate('#links');
+  assert.match(app.document.getElementById('main')?.innerHTML || '', /data-open-help="links"/, '#links includes page help button');
+  app.context.openHelpModal('links');
+  assert.match(app.document.getElementById('help-modal-title')?.textContent || '', /リンク集の使い方/, 'Links help modal shows links guide');
+  app.context.closeHelpModal();
 });
 
 test('IMP-16: Plan A minimal speed-dial リンク集, icon-only toggle, hide/restore defaults, unified reorder, and #home sync work', () => {

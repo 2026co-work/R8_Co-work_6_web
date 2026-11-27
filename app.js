@@ -289,6 +289,8 @@ let calendarFilterCategory = 'all';
 let selectedCafeteriaWeekIdx = -1;
 let lastModalTrigger = null;
 let onboardingDismissed = false;
+let firstVisitSpotlightDismissed = false;
+let activeHelpTab = 'home';
 let calendarSearchQuery = '';
 let calendarHidePast = false;
 let calendarViewMode = 'month';
@@ -456,6 +458,16 @@ function getThemeButtonMeta(mode = currentTheme) {
 
 function studentPillBtn() {
   return `<button type="button" class="student-pill badge gray profile-switch-trigger" id="open-profile-switcher" aria-label="所属 ${escapeHTML(studentLabel())} を変更" title="学年・学科・コースを変更">${escapeHTML(studentShortLabel())} ▾</button>`;
+}
+
+function pageHelpBtn(page = 'home', spotlight = false) {
+  const tipHtml = spotlight
+    ? `<span class="guide-spotlight-tip" role="status">まずは使い方を確認！</span>`
+    : '';
+  return `<span class="page-help-wrap${spotlight ? ' is-spotlight-target' : ''}">
+    <button type="button" class="button subtle page-help-btn${spotlight ? ' is-spotlight-target' : ''}" data-open-help="${escapeHTML(page)}" aria-label="${escapeHTML(names[page] || 'このページ')}の使い方">${icon('info')}使い方</button>
+    ${tipHtml}
+  </span>`;
 }
 
 function buildStudentFilterControls(selection, prefix = 'student', dataAttr = 'data-student') {
@@ -1646,9 +1658,11 @@ function home() {
   const targetDate = new Date(now.getTime() + dashboardOffsetDays * 86400000);
   const displayDateKey = dateKey(targetDate);
   const weekInfo = getAcademicWeek(targetDate);
+  const showSpotlight = !cookieSaved && !firstVisitSpotlightDismissed;
   const actions = `
     <div class="heading-actions">
       ${themeToggleBtn()}
+      ${pageHelpBtn('home', showSpotlight)}
       <span class="term-badge badge blue">${escapeHTML(weekInfo.label)}</span>
       ${studentPillBtn()}
       <div class="date-block">
@@ -1736,7 +1750,7 @@ function extractExamEntries(data, selection) {
 }
 
 function exam() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${pageHelpBtn('exam')}${studentPillBtn()}</div>`;
   const meta = examData?.meta || FALLBACK_EXAM.meta || {};
   const isPublished = meta.status === 'published';
   const notice = meta.noticeText || '定期試験時間割は、試験開始10日前の正午にこちらで発表します。（10日前の正午発表）';
@@ -1989,7 +2003,7 @@ function renderCalendarMonthGrid(events, subs, todayStr) {
 }
 
 function calendar() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${pageHelpBtn('calendar')}${studentPillBtn()}</div>`;
   const nowDate = new Date();
   const todayStr = dateKey(nowDate);
   const weekInfo = getAcademicWeek(nowDate);
@@ -2146,7 +2160,7 @@ function renderCafeteriaDayCard(day, todayStr = '', allergenAlert = '') {
 }
 
 function cafeteria() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${pageHelpBtn('cafeteria')}${studentPillBtn()}</div>`;
   const todayStr = dateKey(new Date());
   const data = cafeteriaData || FALLBACK_CAFETERIA;
   const meta = data.meta || FALLBACK_CAFETERIA.meta || {};
@@ -2272,7 +2286,7 @@ function renderLinkEditorModal(resolvedLinks = []) {
 }
 
 function linksView() {
-  const actions = `<div class="heading-actions">${themeToggleBtn()}${studentPillBtn()}</div>`;
+  const actions = `<div class="heading-actions">${themeToggleBtn()}${pageHelpBtn('links')}${studentPillBtn()}</div>`;
   const linksState = loadLinksState();
   const resolvedLinks = getResolvedLinks(studentSelection, linksState);
   const customized = isLinksCustomized(linksState);
@@ -2389,7 +2403,7 @@ function timetable() {
       </div>`
     : '';
 
-  return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions">${themeToggleBtn()}</div>`)}
+  return `${heading(`${fyText} ${termText}時間割`,'',`<div class="heading-actions">${themeToggleBtn()}${pageHelpBtn('timetable')}</div>`)}
     ${renderTimetableBanners(new Date())}
     <details class="panel timetable-controls" id="filter-details" ${filterOpen ? 'open' : ''}>
       <summary class="panel-head filter-summary">
@@ -2588,32 +2602,154 @@ function closeLinkEditorModal() {
   }
 }
 
+const HELP_GUIDE_TABS = [
+  { id: 'home', label: '全体（ホーム）' },
+  { id: 'timetable', label: '時間割' },
+  { id: 'calendar', label: '年間予定' },
+  { id: 'links', label: 'リンク集' }
+];
+
+const HELP_GUIDE_DATA = {
+  home: {
+    title: 'ポータルの使い方（全体ガイド）',
+    sections: [
+      {
+        heading: '4つの画面',
+        type: 'list',
+        items: [
+          ['ホーム', '今日の時間割（振替授業対応）とよく使うリンク'],
+          ['時間割', '週間表・教室略称の確認と PNG / PDF / カレンダー(.ics)出力'],
+          ['年間予定', '行事カレンダー・曜日別の第N週目・前期/後期/通年 .ics 出力'],
+          ['リンク集', 'シラバス・授業変更リスト・よく使うサイトの登録と並び替え']
+        ]
+      },
+      {
+        heading: 'スマホで便利に使う',
+        type: 'tips',
+        items: [
+          ['ホーム画面に追加', 'iPhone（Safari）は「共有 → ホーム画面に追加」、Android（Chrome）は「メニュー(⋮) → ホーム画面に追加」'],
+          ['時間割の保存', 'スマホは「PNG（画像）」で写真保存、または「カレンダー形式 (.ics)」でカレンダー登録が扱いやすいです'],
+          ['所属の変更', '画面右上の所属ボタン（例: <code>1-1-M</code>）からいつでも変更できます']
+        ]
+      }
+    ]
+  },
+  timetable: {
+    title: '時間割の使い方',
+    sections: [
+      {
+        heading: '時間割の表示・切り替え',
+        type: 'list',
+        items: [
+          ['所属の変更', '上部の「変更する ▼」を開き、学年・学科・クラス・コースを選んで「決定」を押します（専攻科・留学生にも対応）'],
+          ['教室略称の確認', '時間割右上の「教室略称」ボタン、または授業セルの教室名をクリックすると正式名称を確認できます'],
+          ['今日の列', '平日は当日の曜日列がハイライトされ、スマホでは今日の列付近へ自動スクロールします']
+        ]
+      },
+      {
+        heading: '保存・出力形式の使い分け',
+        type: 'tips',
+        items: [
+          ['PNG（画像）', 'スマホの写真フォルダに保存したり待ち受けに使う場合に最適です'],
+          ['PDF（A4横）', 'A4横1枚に収まるレイアウトで印刷・配布したい場合に適しています（「レイアウト調整」で余白・文字倍率変更可）'],
+          ['カレンダー形式 (.ics)', 'GoogleカレンダーやAppleカレンダーへ授業予定を一括登録できます（「プレビュー・設定」で年間予定の同梱も可能）']
+        ]
+      }
+    ]
+  },
+  calendar: {
+    title: '年間予定の使い方',
+    sections: [
+      {
+        heading: '表示と確認方法',
+        type: 'list',
+        items: [
+          ['2つの表示モード', '「カレンダー表示」（月間マス目・曜日別の第N週目・休日色分け）と「イベントだけ表示」（前期/後期一覧）を切り替えられます'],
+          ['スマホでの確認', 'カレンダーの日付セルをタップすると、カレンダー下部にその日の授業実施・行事詳細が表示されます'],
+          ['前期・後期へ移動', '「前期へ (4月)」「後期へ (9月)」ボタンで目的の学期へすぐ移動できます']
+        ]
+      },
+      {
+        heading: 'カレンダー形式で出力 (.ics)',
+        type: 'tips',
+        items: [
+          ['年間行事＋自分の授業', '「カレンダー形式で出力」を開き「自分の授業を含める」をONにすると、行事と時間割をまとめて1つの `.ics` にできます'],
+          ['対象期間の選択', '前期・後期・通年から選んでプレビューを確認したうえでコピーまたは保存できます（定期試験期間は常に含まれます）']
+        ]
+      }
+    ]
+  },
+  links: {
+    title: 'リンク集の使い方',
+    sections: [
+      {
+        heading: '標準リンクとカスタマイズ',
+        type: 'list',
+        items: [
+          ['標準リンク', '所属連動シラバス・授業変更リスト・Teams・Classroom・WebClass・物理ページ（1〜2年）・JR/山陽電車運行情報を収録'],
+          ['＋追加', 'グリッド内の「＋追加」から自由にURLを登録、またはプリセットからワンタップで追加できます'],
+          ['編集モード', '上部の「編集」を押すと、並び替え・URL編集・非表示や「初期設定に戻す」が行えます']
+        ]
+      },
+      {
+        heading: 'ホーム画面との連動',
+        type: 'tips',
+        items: [
+          ['自動同期', 'ここで追加・並び替え・非表示にした内容は、ホーム画面の「リンク」にもそのまま反映されます'],
+          ['アイコンのみ', '「アイコンのみ」をONにすると文字ラベルを隠して省スペースで並べられます']
+        ]
+      }
+    ]
+  },
+  exam: {
+    title: '定期試験の使い方',
+    sections: [
+      {
+        heading: '試験日程の確認',
+        type: 'list',
+        items: [
+          ['発表タイミング', '定期試験時間割は試験開始10日前の正午に公式発表されます'],
+          ['検索・絞込', '公開後は科目名や実施日での絞り込み・確認が可能です']
+        ]
+      }
+    ]
+  },
+  cafeteria: {
+    title: '学食メニューの使い方',
+    sections: [
+      {
+        heading: 'メニューとアレルゲン確認',
+        type: 'list',
+        items: [
+          ['週替わり表示', '週ごとの営業日・休業日と日替わりメニューを確認できます'],
+          ['アレルゲン確認', '特定原材料8品目などの表示に対応しています']
+        ]
+      }
+    ]
+  }
+};
+
+function renderHelpGuideContent(tabKey) {
+  const key = Object.hasOwn(HELP_GUIDE_DATA, tabKey) ? tabKey : 'home';
+  const data = HELP_GUIDE_DATA[key];
+  const tabsHtml = `<div class="filter-group help-modal-tabs" role="tablist" aria-label="使い方カテゴリ">${HELP_GUIDE_TABS.map(t => `<button type="button" class="chip${key === t.id ? ' active' : ''}" role="tab" aria-selected="${key === t.id ? 'true' : 'false'}" data-help-tab="${t.id}">${escapeHTML(t.label)}</button>`).join('')}</div>`;
+  const sectionsHtml = data.sections.map(sec => {
+    if (sec.type === 'tips') {
+      return `<div class="help-tips-box"><h4>${escapeHTML(sec.heading)}</h4><ul>${sec.items.map(([k, v]) => `<li><strong>${escapeHTML(k)}</strong>：${v}</li>`).join('')}</ul></div>`;
+    }
+    return `<div class="help-section"><h4>${escapeHTML(sec.heading)}</h4><ul class="help-guide-list">${sec.items.map(([k, v]) => `<li><strong>${escapeHTML(k)}</strong><span>${escapeHTML(v)}</span></li>`).join('')}</ul></div>`;
+  }).join('');
+  return `${tabsHtml}${sectionsHtml}`;
+}
+
 function renderHelpModal() {
   return `<div class="data-preview-overlay" id="help-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="ポータルの使い方">
     <div class="data-preview-card help-modal-card">
       <div class="data-preview-head">
-        <h3>${icon('info')}使い方ガイド</h3>
+        <h3 id="help-modal-title">${icon('info')}ポータルの使い方（全体ガイド）</h3>
         <button type="button" class="button size-close-btn" id="help-modal-close" aria-label="閉じる" style="min-height:30px;padding:0 8px;">${icon('close')}</button>
       </div>
-      <div class="data-preview-body">
-        <div class="help-section">
-          <h4>4つの画面</h4>
-          <ul class="help-guide-list">
-            <li><strong>ホーム</strong><span>今日の時間割（振替授業対応）とよく使うリンク</span></li>
-            <li><strong>時間割</strong><span>週間表・教室略称の確認と PNG / PDF / iCal 保存</span></li>
-            <li><strong>年間予定</strong><span>行事カレンダー・曜日別の第N週目・前期/後期/通年 iCal</span></li>
-            <li><strong>リンク集</strong><span>シラバス・授業変更リスト・よく使うサイトの登録と並び替え</span></li>
-          </ul>
-        </div>
-        <div class="help-tips-box">
-          <h4>スマホで便利に使う</h4>
-          <ul>
-            <li><strong>ホーム画面に追加</strong>：iPhone（Safari）は「共有 → ホーム画面に追加」、Android（Chrome）は「メニュー(⋮) → ホーム画面に追加」</li>
-            <li><strong>時間割の保存</strong>：スマホは「PNG（画像）」で写真保存、または「iCal（.ics）」でカレンダー登録が扱いやすいです</li>
-            <li><strong>所属の変更</strong>：画面右上の所属ボタン（例: <code>1-1-M</code>）からいつでも変更できます</li>
-          </ul>
-        </div>
-      </div>
+      <div class="data-preview-body" id="help-modal-body">${renderHelpGuideContent(activeHelpTab)}</div>
       <div class="data-preview-foot">
         <button type="button" class="button" id="help-modal-ok">閉じる</button>
       </div>
@@ -2621,9 +2757,40 @@ function renderHelpModal() {
   </div>`;
 }
 
-function openHelpModal() {
+function updateHelpModalBody(tabKey) {
+  const key = Object.hasOwn(HELP_GUIDE_DATA, tabKey) ? tabKey : 'home';
+  activeHelpTab = key;
+  const titleEl = document.getElementById('help-modal-title');
+  const bodyEl = document.getElementById('help-modal-body');
+  if (titleEl) titleEl.innerHTML = `${icon('info')}${escapeHTML(HELP_GUIDE_DATA[key].title)}`;
+  if (bodyEl) {
+    bodyEl.innerHTML = renderHelpGuideContent(key);
+    bodyEl.querySelectorAll?.('[data-help-tab]').forEach(btn => {
+      btn.addEventListener('click', () => updateHelpModalBody(btn.dataset?.helpTab || 'home'));
+    });
+  }
+}
+
+function dismissHelpSpotlight() {
+  firstVisitSpotlightDismissed = true;
+  if (typeof document === 'undefined') return;
+  document.body?.classList?.remove?.('guide-spotlight-active');
+  const backdrop = document.getElementById('guide-spotlight-backdrop');
+  if (backdrop) {
+    backdrop.hidden = true;
+    backdrop.remove?.();
+  }
+  document.querySelectorAll?.('.is-spotlight-target')?.forEach?.(el => el.classList?.remove?.('is-spotlight-target'));
+  document.querySelector?.('.guide-spotlight-tip')?.remove?.();
+}
+
+function openHelpModal(tab = null) {
   const modal = document.getElementById('help-modal');
   if (!modal) return;
+  dismissHelpSpotlight();
+  const rawHash = (typeof location !== 'undefined' ? (location.hash.slice(1).split('?')[0].split('/')[0] || 'home').trim() : 'home');
+  const targetTab = tab || (Object.hasOwn(HELP_GUIDE_DATA, rawHash) ? rawHash : 'home');
+  updateHelpModalBody(targetTab);
   lastModalTrigger = document.activeElement || null;
   modal.hidden = false;
   setModalBackdropInert(true, modal);
@@ -3346,7 +3513,12 @@ function render() {
     footerMeta.textContent = `${fyLabel}${termLabel}`;
   }
   const main = document.getElementById('main');
-  const sharedModals = renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal();
+  const spotlightActive = page === 'home' && !cookieSaved && !firstVisitSpotlightDismissed;
+  if (typeof document !== 'undefined') document.body?.classList?.toggle?.('guide-spotlight-active', spotlightActive);
+  const spotlightBackdrop = spotlightActive
+    ? '<div class="guide-spotlight-backdrop" id="guide-spotlight-backdrop" data-export-exclude aria-hidden="true"></div>'
+    : '';
+  const sharedModals = spotlightBackdrop + renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal();
   if (main) {
     if (page === 'home') main.innerHTML = home() + sharedModals;
     else if (page === 'timetable') {
@@ -3444,6 +3616,18 @@ function render() {
     openHelpBtn.addEventListener('click', () => {
       closeNavigation?.();
       openHelpModal();
+    });
+  }
+  if (typeof document.querySelectorAll === 'function') {
+    document.querySelectorAll('[data-open-help]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openHelpModal(btn.dataset?.openHelp || 'home');
+      });
+    });
+    document.querySelectorAll('[data-help-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        updateHelpModalBody(btn.dataset?.helpTab || 'home');
+      });
     });
   }
   document.getElementById('help-modal-close')?.addEventListener('click', closeHelpModal);
