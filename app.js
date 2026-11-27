@@ -40,7 +40,7 @@ const icons = {
 };
 const FEATURE_FLAGS = { exam: false, cafeteria: false };
 const MS365_PORTAL_URL = 'https://kosenjp.sharepoint.com/sites/27akashi/students-portal/Lists/henkou/view1.aspx?viewid=a5680f87%2D5471%2D4706%2D9536%2Dd4998c34ff72';
-const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar:'年間予定',cafeteria:'食堂メニュー',links:'リンク集'};
+const names={home:'ホーム',timetable:'時間割',exam:'定期試験',calendar:'年間予定',cafeteria:'食堂メニュー',links:'リンク集',guide:'詳しい操作ガイド'};
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${icons[name] || icons.info}"/></svg>`;
 const setBtnContent = (el, iconName, text) => {
   if (!el) return;
@@ -2540,9 +2540,9 @@ function closeLinkEditorModal() {
 
 const HELP_GUIDE_ITEMS = [
   { id: 'home', title: 'ホーム', summary: '今日の時間割とよく使うリンクを見られます。' },
-  { id: 'timetable', title: '時間割', summary: 'クラス別の週間表を見たり、画像や予定ファイルで保存したりできます。' },
-  { id: 'calendar', title: '年間予定', summary: '授業週や休日・行事を確認し、授業込みの予定ファイルも出力できます。' },
-  { id: 'links', title: 'リンク集', summary: 'シラバスや変更リストをまとめ、リンクの追加や並び替えもできます。' }
+  { id: 'timetable', title: '時間割', summary: '時間割を見たり、それを画像やカレンダーに登録できる形で保存できます。' },
+  { id: 'calendar', title: '年間予定', summary: '高専祭などのイベントや期末週間などを確認し、カレンダーで保存できます。' },
+  { id: 'links', title: 'リンク集', summary: 'シラバスやTeams、授業変更リストへのリンクがあります。欲しいリンクを追加することもできます。' }
 ];
 
 function renderHelpGuideContent(focusKey = 'home') {
@@ -2563,12 +2563,107 @@ function renderHelpGuideContent(focusKey = 'home') {
     }).join('')}</ul>
   </div>
   <details class="help-install-details">
-    <summary>スマホで便利に使う（ホーム画面追加・通知・ウィジェット）</summary>
+    <summary>スマホで便利に使う（ホーム画面追加・カレンダー連携）</summary>
     <ul class="help-install-list">
-      <li><strong>ホーム画面に追加：</strong>iPhone（Safari）は画面下の「共有」から、Android（Chrome）は右上の「⋮」から「ホーム画面に追加」を選ぶとアプリのように開けます。</li>
-      <li><strong>通知・ウィジェット連携：</strong>「年間予定」や「時間割」からカレンダー形式（.ics）で出力してお使いのカレンダーアプリに取り込むと、スマホの通知やウィジェットで予定を確認できます。</li>
+      <li><strong>ホーム画面に追加：</strong>Safariの「共有」やChromeの「⋮」から「ホーム画面に追加」を選ぶとアプリのように開けます。</li>
+      <li><strong>カレンダー連携（.ics）：</strong>時間割や行事予定を .ics で保存してカレンダーアプリに取り込むと、通知やウィジェットで確認できます。</li>
     </ul>
-  </details>`;
+  </details>
+  <div class="help-guide-cta">
+    <a href="#guide" class="button secondary" id="help-open-guide-page">${icon('document')}詳しい操作ガイド（画像付き）はこちら →</a>
+  </div>`;
+}
+
+function renderPhoneInstallMockup(kind) {
+  if (kind === 'ios') {
+    return `<svg class="guide-mockup-svg" viewBox="0 0 260 150" role="img" aria-label="iPhone Safariでホーム画面に追加する手順図">
+      <rect x="8" y="6" width="244" height="138" rx="14" class="gm-frame"/>
+      <rect x="20" y="18" width="220" height="22" rx="6" class="gm-bar"/>
+      <text x="130" y="33" text-anchor="middle" class="gm-text-muted">Safari でポータルを開く</text>
+      <rect x="20" y="50" width="220" height="48" rx="8" class="gm-sheet"/>
+      <rect x="30" y="60" width="200" height="28" rx="6" class="gm-highlight"/>
+      <text x="44" y="79" class="gm-text-accent">＋ ホーム画面に追加</text>
+      <rect x="20" y="108" width="220" height="26" rx="6" class="gm-bar"/>
+      <circle cx="130" cy="121" r="11" class="gm-highlight-circle"/>
+      <path d="M130 126v-10m0 0-3.5 3.5m3.5-3.5 3.5 3.5" class="gm-stroke-accent"/>
+      <text x="150" y="125" class="gm-text-muted">← 共有ボタン</text>
+    </svg>`;
+  }
+  return `<svg class="guide-mockup-svg" viewBox="0 0 260 150" role="img" aria-label="Android Chromeでホーム画面に追加する手順図">
+    <rect x="8" y="6" width="244" height="138" rx="14" class="gm-frame"/>
+    <rect x="20" y="16" width="220" height="26" rx="6" class="gm-bar"/>
+    <text x="32" y="33" class="gm-text-muted">Chrome でポータルを開く</text>
+    <circle cx="224" cy="29" r="10" class="gm-highlight-circle"/>
+    <text x="224" y="33" text-anchor="middle" class="gm-text-accent">⋮</text>
+    <rect x="64" y="48" width="166" height="84" rx="8" class="gm-sheet"/>
+    <text x="78" y="70" class="gm-text-muted">新しいタブ</text>
+    <rect x="72" y="80" width="150" height="28" rx="6" class="gm-highlight"/>
+    <text x="84" y="99" class="gm-text-accent">ホーム画面に追加</text>
+    <text x="78" y="123" class="gm-text-muted">共有...</text>
+  </svg>`;
+}
+
+function guide() {
+  return `${heading('詳しい操作ガイド', '', `<div class="heading-actions"><a href="#home" class="button subtle">← ポータルに戻る</a>${themeToggleBtn()}</div>`)}
+    <section class="panel guide-section">
+      <div class="panel-head"><h2>${icon('monitor')}1. スマホのホーム画面に追加する（アプリのように使う）</h2></div>
+      <p class="guide-lead">ブラウザの「ホーム画面に追加」を使うと、アイコンから1タップで起動でき、アドレスバーなしの広い画面で使えます。</p>
+      <div class="guide-two-col">
+        <article class="guide-card">
+          <h3>iPhone（Safari）の場合</h3>
+          <figure class="guide-figure">${renderPhoneInstallMockup('ios')}</figure>
+          <ol class="guide-steps">
+            <li><strong>Safari</strong> でこのポータルを開きます。</li>
+            <li>画面下の <strong>共有ボタン（□に↑）</strong> をタップします。</li>
+            <li>メニュー内の <strong>「ホーム画面に追加」</strong> を選び、右上の「追加」を押します。</li>
+          </ol>
+        </article>
+        <article class="guide-card">
+          <h3>Android（Chrome）の場合</h3>
+          <figure class="guide-figure">${renderPhoneInstallMockup('android')}</figure>
+          <ol class="guide-steps">
+            <li><strong>Chrome</strong> でこのポータルを開きます。</li>
+            <li>画面右上の <strong>メニュー（⋮）</strong> をタップします。</li>
+            <li><strong>「ホーム画面に追加」</strong>（または「アプリをインストール」）を選びます。</li>
+          </ol>
+        </article>
+      </div>
+    </section>
+    <section class="panel guide-section">
+      <div class="panel-head"><h2>${icon('document')}2. 時間割を画像（PNG）・PDFで保存する</h2></div>
+      <p class="guide-lead">印刷向けのA4横レイアウトや、スマホのロック画面・メモ向けの縦長マスに調整してそのまま保存できます。</p>
+      <div class="guide-media-row">
+        <ol class="guide-steps">
+          <li><a href="#timetable" class="guide-inline-link">時間割ページ</a> 上部で自分の <strong>学年・学科・クラス</strong> を選択します。</li>
+          <li>表の下にある「保存形式」から <strong>PDF（A4横）</strong> または <strong>PNG（画像）</strong> を選び、<strong>「プレビュー・出力」</strong> ボタンを押します。</li>
+          <li>プレビュー画面で「標準 / A4向け / カスタム」や「文字サイズ」「マスの高さ」「白背景 / 暗背景」を調整し、保存ボタンを押します。</li>
+        </ol>
+        <figure class="guide-figure guide-screenshot-figure">
+          <img src="./guide/timetable-export.png" alt="時間割ページの保存形式選択画面" loading="lazy">
+          <figcaption>時間割表の下にある保存形式から、PDF・PNG・カレンダー形式などを選べます。</figcaption>
+        </figure>
+      </div>
+    </section>
+    <section class="panel guide-section">
+      <div class="panel-head"><h2>${icon('calendar')}3. 時間割や行事予定をカレンダーアプリに取り込む（.ics）</h2></div>
+      <p class="guide-lead">授業スケジュールや高専祭・期末試験などの行事予定を <code>.ics</code> ファイルで書き出し、スマホの通知やウィジェットで確認できます。</p>
+      <div class="guide-media-row">
+        <ol class="guide-steps">
+          <li><a href="#calendar" class="guide-inline-link">行事予定ページ</a> または <a href="#timetable" class="guide-inline-link">時間割ページ</a>（保存形式「カレンダー形式 (.ics)」）から <strong>「プレビュー &amp; カレンダー形式で保存」</strong> を押します。</li>
+          <li>書き出し対象（自分の授業 / 年間行事予定）や期間を確認し、<strong>「カレンダー形式で出力 (.ics)」</strong> を押して保存します。</li>
+          <li>保存したファイルを iPhone 標準カレンダーや Google カレンダーで開くと、予定が一括登録されます。</li>
+        </ol>
+        <figure class="guide-figure guide-screenshot-figure">
+          <img src="./guide/ical-export.png" alt="カレンダー形式で保存のプレビューモーダル" loading="lazy">
+          <figcaption>対象データと件数をプレビューしてから .ics ファイルを保存できます。</figcaption>
+        </figure>
+      </div>
+      <div class="guide-footer-nav">
+        <a href="#home" class="button subtle">← ホームへ戻る</a>
+        <a href="#timetable" class="button secondary">時間割を見る →</a>
+        <a href="#calendar" class="button secondary">行事予定を見る →</a>
+      </div>
+    </section>`;
 }
 
 function renderHelpModal() {
@@ -2598,6 +2693,9 @@ function updateHelpModalBody(focusKey = activeHelpTab) {
     bodyEl.querySelector?.('#help-modal-pick-profile')?.addEventListener('click', () => {
       closeHelpModal();
       document.getElementById('open-profile-switcher')?.click();
+    });
+    bodyEl.querySelector?.('#help-open-guide-page')?.addEventListener('click', () => {
+      closeHelpModal();
     });
   }
 }
@@ -3398,6 +3496,7 @@ function render() {
     else if (page === 'calendar') main.innerHTML = calendar() + sharedModals;
     else if (page === 'cafeteria') main.innerHTML = cafeteria() + sharedModals;
     else if (page === 'links') main.innerHTML = linksView() + sharedModals;
+    else if (page === 'guide') main.innerHTML = guide() + sharedModals;
     for (const modalId of ['ical-preview-modal', 'room-legends-modal', 'help-modal', 'link-editor-modal']) {
       const mEl = document.getElementById(modalId);
       if (mEl) mEl.hidden = true;
