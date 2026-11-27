@@ -633,7 +633,11 @@ button.student-pill.profile-switch-trigger:hover{border-color:var(--wine);color:
 [data-theme="dark"] .real-timetable td.is-today-col.schedule-cell:not(.schedule-empty){background:#291f2e}
 [data-theme="dark"] .real-timetable td.is-today-col.schedule-empty{background:#1b202e}
 .export-sheet .real-timetable thead th.is-today-col{background:#f8f1f3;border-bottom-color:var(--line)}
+.export-sheet .real-timetable td.is-today-col.schedule-cell:not(.schedule-empty){background:#fcf9fa}
+.export-sheet .real-timetable td.is-today-col.schedule-empty{background:#ffffff}
 .export-sheet[data-theme="dark"] .real-timetable thead th.is-today-col{background:#251820;border-bottom-color:var(--line)}
+.export-sheet[data-theme="dark"] .real-timetable td.is-today-col.schedule-cell:not(.schedule-empty){background:#221d27}
+.export-sheet[data-theme="dark"] .real-timetable td.is-today-col.schedule-empty{background:#171b26}
 
 /* 時間割内ハイライト検索 & タップ対応教室凡例ポップオーバー */
 .timetable-head-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
