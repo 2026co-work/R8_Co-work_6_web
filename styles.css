@@ -1059,6 +1059,10 @@ details.timetable-controls[open]{box-shadow:none}
 .help-guide-list li.is-current-guide{border-color:var(--blue);background:#f4f8fd}
 [data-theme="dark"] .help-guide-list li.is-current-guide{border-color:#5a8fd6;background:#192338}
 .help-modal-foot{justify-content:space-between}
+#help-modal-title{display:inline-flex;align-items:center;gap:8px}
+.help-quickstart{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:#f8f1f3;border:1px solid #ead4d9;font-size:12.5px;margin-bottom:10px}
+[data-theme="dark"] .help-quickstart{background:#231b24;border-color:#442c37}
+.onboarding-sub{margin:2px 0 0;font-size:12px;color:var(--muted)}
 .guide-spotlight-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.72);backdrop-filter:blur(2px);z-index:950}
 .page-help-wrap.is-spotlight-target{z-index:960}
 .page-help-btn.is-spotlight-target{background:var(--wine);color:#fff;border-color:var(--wine);box-shadow:0 0 0 4px rgba(244,214,170,.55),0 8px 24px rgba(0,0,0,.35);animation:spotlightPulse 1.8s ease-in-out infinite}
