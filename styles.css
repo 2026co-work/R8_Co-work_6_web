@@ -387,7 +387,7 @@ body.size-modal-open{overflow:hidden}
 .size-a4-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;cursor:pointer;margin-left:8px;padding:4px 8px;border-radius:4px;background:rgba(121,24,43,0.06);border:1px solid rgba(121,24,43,0.18);user-select:none}
 [data-theme="dark"] .size-a4-toggle{background:transparent;border-color:#3a4258;color:#c9d0df}
 [data-theme="dark"] .size-a4-toggle:has(input:checked){background:rgba(244,168,184,0.14);border-color:rgba(244,168,184,0.38);color:#f4a8b8}
-.size-overlay-controls .button{min-height:40px}
+.size-overlay-controls .button{min-height:40px;height:40px;padding-top:0;padding-bottom:0;display:inline-flex;align-items:center;justify-content:center}
 .size-close-btn{min-height:40px;padding:0 18px;font-size:13px;font-weight:700}
 .data-preview-head .size-close-btn{min-width:36px;min-height:36px;padding:0 10px}
 .profile-switch-trigger{min-height:34px;padding:4px 12px}
