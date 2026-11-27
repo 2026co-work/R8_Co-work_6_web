@@ -177,6 +177,9 @@ test('IMP-07: calendar.json matches official R8 PDF substitutions (incl. 2026-11
   const subHtml = subApp.document.getElementById('main')?.innerHTML || '';
   assert.match(subHtml, /月曜日/, '2026-11-25 home schedule reflects Monday substitution');
   assert.match(subHtml, /各授業の振り替え情報は.*授業変更リスト/, 'Concise 授業変更リスト disclaimer is shown on home schedule');
+  // #home date nav controls stay pinned at the right end of .panel-head (after any badges) and subBanner stays below .panel-head
+  assert.match(subHtml, /<div class="panel-head">[\s\S]*?<span class="badge gray">月曜<\/span><\/div>\s*<div class="dashboard-date-nav"/, 'Date nav controls follow status badges at the right edge');
+  assert.match(subHtml, /<div class="panel-head">[\s\S]*?<\/div>\s*<div class="alert alert-warning day-sub-alert">/, 'Substitution alert renders below .panel-head so nav buttons do not jump vertically');
 });
 
 test('IMP-08: Nov 24 no longer triggers false hardcoded exam banner', () => {
