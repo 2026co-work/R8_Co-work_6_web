@@ -238,12 +238,14 @@ test('IMP-10: timetable room legends modal, exam countdown, calendar month/week 
   const calMonthHtml = calApp.document.getElementById('main')?.innerHTML || '';
   assert.match(calMonthHtml, /cal-month-grid/, 'calendar defaults to month grid');
   assert.match(calMonthHtml, /cal-month-week-tag/, 'calendar month cells render per-weekday week tags');
-  assert.match(calMonthHtml, /前期 iCal DL/, 'calendar exposes zenki iCal DL');
-  assert.match(calMonthHtml, /後期 iCal DL/, 'calendar exposes kouki iCal DL');
-  assert.match(calMonthHtml, /通年 iCal DL/, 'calendar exposes all-year iCal DL');
+  assert.match(calMonthHtml, /カレンダー形式で出力/, 'calendar exposes unified calendar export button');
+  assert.doesNotMatch(calMonthHtml, /今月へ|今日へ/, 'redundant 今月へ and 今日へ buttons are removed');
+  assert.match(calMonthHtml, /is-holiday-cell/, 'holidays receive explicit holiday cell styling');
+  assert.match(calMonthHtml, /cal-mobile-detail/, 'mobile day detail panel renders below calendar grid');
   calApp.run("calendarViewMode = 'list'; render();");
   const calListHtml = calApp.document.getElementById('main')?.innerHTML || '';
-  assert.ok(calApp.document.getElementById('calendar-search-input'), 'calendar search input exists in list view');
+  assert.doesNotMatch(calListHtml, /calendar-search-input/, 'calendar search bar is removed');
+  assert.doesNotMatch(calListHtml, /data-cal-cat=|calendar-hide-past-btn/, 'redundant event category filters are removed');
   assert.match(calListHtml, /cal-anchor-zenki/, 'list view includes zenki anchor divider');
   assert.match(calListHtml, /cal-anchor-kouki/, 'list view includes kouki anchor divider');
 
@@ -295,9 +297,9 @@ test('IMP-11: MyLinks supports novalidate, duplicate URL rejection, manage-mode 
   assert.equal(restored[0].id, first.item.id);
 });
 
-test('IMP-12: keyboard shortcuts Alt+1..4 navigate active tabs and / focuses calendar search only outside inputs', () => {
+test('IMP-12: keyboard shortcuts Alt+1..4 navigate active tabs', () => {
   const app = createAppInstance();
-  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'profile-switcher-modal'].forEach(id => {
+  ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'link-editor-modal', 'profile-switcher-modal'].forEach(id => {
     const el = app.document.getElementById(id);
     if (el) el.hidden = true;
   });
@@ -324,34 +326,6 @@ test('IMP-12: keyboard shortcuts Alt+1..4 navigate active tabs and / focuses cal
     preventDefault() {},
   });
   assert.equal(app.window.location.hash, '#calendar', 'Alt+3 navigates to #calendar');
-  app.window.dispatchEvent({ type: 'hashchange' });
-  app.run("calendarViewMode = 'list'; render();");
-
-  const searchInput = app.document.getElementById('calendar-search-input');
-  assert.ok(searchInput, 'calendar search input rendered in list mode');
-  assert.notEqual(app.document.activeElement, searchInput);
-
-  app.window.dispatchEvent({
-    type: 'keydown',
-    key: '/',
-    altKey: false,
-    ctrlKey: false,
-    metaKey: false,
-    target: { tagName: 'INPUT' },
-    preventDefault() {},
-  });
-  assert.notEqual(app.document.activeElement, searchInput, '/ inside INPUT does not steal focus');
-
-  app.window.dispatchEvent({
-    type: 'keydown',
-    key: '/',
-    altKey: false,
-    ctrlKey: false,
-    metaKey: false,
-    target: { tagName: 'BODY' },
-    preventDefault() {},
-  });
-  assert.equal(app.document.activeElement, searchInput, '/ outside inputs focuses calendar search input');
 });
 
 test('IMP-13: v3 data honesty, verified PDF URLs, contrast fix, and copy/emoji cleanup invariants hold', () => {
@@ -571,7 +545,8 @@ test('IMP-17: Phase 2 flat frameless layout and 390px mobile responsive rules ho
   assert.match(css, /\.panel\{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none\}/, '.panel card box chrome is stripped');
   assert.match(css, /\.dashboard-col-side\{[^}]*border-left:1px solid var\(--line\)/, '#home desktop columns use subtle hairline divider');
   assert.match(css, /@media\(max-width:760px\)\{[\s\S]*main\{padding:12px 12px 24px/, 'Mobile main uses 12px compact horizontal padding');
-  assert.match(css, /@media\(max-width:480px\)\{[\s\S]*\.cal-month-grid\{gap:2px\}/, '390px calendar month grid uses tight 2px gap');
+  assert.match(css, /@media\(max-width:480px\)\{[\s\S]*\.cal-month-grid\{gap:3px\}/, '390px calendar month grid uses tight 3px gap');
+  assert.match(css, /\.cal-mobile-detail\{display:flex/, '390px calendar renders mobile detail panel below grid');
   assert.match(css, /@media\(max-width:480px\)\{[\s\S]*\.data-preview-card\{max-height:calc\(100dvh - 20px\)/, 'Mobile modals fit inside 100dvh');
   assert.match(css, /@media\(max-width:480px\)\{[\s\S]*font-size:16px;min-height:42px/, 'Mobile form inputs enforce 16px to avoid iOS zoom');
   assert.ok(css.includes('.size-paper.a4-mode .real-timetable{height:auto!important}'), 'A4 timetable CSS invariant preserved');

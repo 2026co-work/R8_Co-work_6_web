@@ -293,6 +293,7 @@ let calendarSearchQuery = '';
 let calendarHidePast = false;
 let calendarViewMode = 'month';
 let calendarMonthOffset = 0;
+let calendarSelectedDate = '';
 let selectedAllergenFilter = '';
 let myLinksManageMode = false;
 let linkModalMode = 'add';
@@ -1830,17 +1831,26 @@ function renderMonthCalendarGrid(config = {}) {
     lessonWeeksMap = null,
     scheduleOverlay = null,
     navAttr = 'data-cal-month',
-    viewId = 'calendar-month-view'
+    viewId = 'calendar-month-view',
+    selectable = false,
+    selectedDate = ''
   } = config;
   const firstOfTarget = new Date(Date.UTC(year, month - 1, 1));
   const y = firstOfTarget.getUTCFullYear();
   const m = firstOfTarget.getUTCMonth() + 1;
+  const monthPrefix = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}`;
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const firstDow = firstOfTarget.getUTCDay();
+  const resolvedSelected = selectable
+    ? (selectedDate && selectedDate.startsWith(monthPrefix)
+        ? selectedDate
+        : (todayStr.startsWith(monthPrefix) ? todayStr : `${monthPrefix}-01`))
+    : '';
+  let selectedDetailInfo = null;
   const cells = [];
   for (let i = 0; i < firstDow; i++) cells.push('<div class="cal-month-cell is-pad"></div>');
   for (let d = 1; d <= daysInMonth; d++) {
-    const ds = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const ds = `${monthPrefix}-${String(d).padStart(2, '0')}`;
     const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
     const dayEvents = events.filter(ev => {
       const s = ev.date || ev.startDate || '';
@@ -1851,8 +1861,8 @@ function renderMonthCalendarGrid(config = {}) {
     const weekInfo = lessonWeeksMap ? lessonWeeksMap.get(ds) : null;
     const weekTagHtml = weekInfo
       ? (weekInfo.isSpare
-          ? '<span class="cal-month-week-tag is-spare" title="予備日">予備日</span>'
-          : `<span class="cal-month-week-tag${weekInfo.isSubstituted ? ' is-sub' : ''}" title="${escapeHTML(`${weekInfo.term} ${weekInfo.dayLabel}曜 第${weekInfo.weekNum}週${weekInfo.isSubstituted ? '（振替）' : ''}`)}">${escapeHTML(`${weekInfo.dayLabel}${weekInfo.weekNum}週`)}</span>`)
+          ? '<span class="cal-month-week-tag is-spare" title="予備日">予備</span>'
+          : `<span class="cal-month-week-tag${weekInfo.isSubstituted ? ' is-sub' : ''}" title="${escapeHTML(`${weekInfo.term} ${weekInfo.dayLabel}曜 第${weekInfo.weekNum}週${weekInfo.isSubstituted ? '（振替）' : ''}`)}">${escapeHTML(`${weekInfo.dayLabel}${weekInfo.weekNum}`)}</span>`)
       : '';
 
     const lessonPills = [];
@@ -1880,22 +1890,71 @@ function renderMonthCalendarGrid(config = {}) {
       }
     }
 
+    const eventDots = [];
     const eventPills = [
       ...dayEvents.slice(0, scheduleOverlay ? 1 : 2).map(ev => {
         const cls = ev.type === 'exam' ? 'is-exam' : ((ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false) ? 'is-holiday' : 'is-event');
+        eventDots.push(`<span class="cal-dot ${cls}"></span>`);
         return `<span class="cal-month-pill ${cls}" title="${escapeHTML(ev.title || ev.name || '')}">${escapeHTML(ev.title || ev.name || '')}</span>`;
       }),
-      ...(subDay ? [`<span class="cal-month-pill is-sub">${escapeHTML(String(subDay.substituteDay || '月').replace(/曜日$/, ''))}曜授業</span>`] : [])
+      ...(subDay ? (() => {
+        eventDots.push('<span class="cal-dot is-sub"></span>');
+        return [`<span class="cal-month-pill is-sub">${escapeHTML(String(subDay.substituteDay || '月').replace(/曜日$/, ''))}曜授業</span>`];
+      })() : [])
     ];
     const allPills = [...eventPills, ...lessonPills].slice(0, 4);
     const totalItems = dayEvents.length + (subDay ? 1 : 0) + lessonPills.length;
     const extraCount = Math.max(0, totalItems - allPills.length);
-    const isRest = dayEvents.some(e => e.type === 'holiday' || e.type === 'vacation' || e.type === 'break') || dow === 0 || dow === 6;
-    cells.push(`<div class="cal-month-cell${ds === todayStr ? ' is-today' : ''}${isRest ? ' is-rest' : ''}" data-date="${ds}">
+    const isHoliday = !subDay && dayEvents.some(e => e.type === 'holiday' || e.type === 'vacation' || e.type === 'break' || e.hasClasses === false);
+    const isWeekend = dow === 0 || dow === 6;
+    const isSelected = selectable && ds === resolvedSelected;
+    if (isSelected) {
+      selectedDetailInfo = { ds, dow, dayEvents, subDay, weekInfo, isHoliday, isWeekend };
+    }
+    const cellCls = [
+      'cal-month-cell',
+      ds === todayStr ? 'is-today' : '',
+      isSelected ? 'is-selected' : '',
+      isHoliday ? 'is-holiday-cell is-rest' : (isWeekend ? 'is-weekend is-rest' : ''),
+      dow === 0 ? 'is-sun' : (dow === 6 ? 'is-sat' : '')
+    ].filter(Boolean).join(' ');
+
+    const innerHtml = `
       <div class="cal-month-cell-head"><span class="cal-month-daynum">${d}</span>${weekTagHtml}</div>
+      <div class="cal-month-dots" aria-hidden="true">${eventDots.slice(0, 3).join('')}</div>
       <div class="cal-month-pills">${allPills.join('')}${extraCount > 0 ? `<span class="cal-month-more">+${extraCount}</span>` : ''}</div>
-    </div>`);
+    `;
+    if (selectable) {
+      cells.push(`<button type="button" class="${cellCls}" data-date="${ds}" data-cal-select="${ds}" aria-pressed="${isSelected ? 'true' : 'false'}">${innerHtml}</button>`);
+    } else {
+      cells.push(`<div class="${cellCls}" data-date="${ds}">${innerHtml}</div>`);
+    }
   }
+
+  let mobileDetailHtml = '';
+  if (selectable && selectedDetailInfo) {
+    const { ds, dow, dayEvents, subDay, weekInfo, isHoliday, isWeekend } = selectedDetailInfo;
+    const dowName = ['日', '月', '火', '水', '木', '金', '土'][dow] || '';
+    const detailItems = [];
+    for (const ev of dayEvents) {
+      detailItems.push(`<span class="badge ${ev.type === 'exam' ? 'red' : (ev.hasClasses === false || ['holiday', 'break', 'vacation'].includes(ev.type) ? 'yellow' : 'blue')}">${escapeHTML(ev.title || ev.name || '行事')}</span>`);
+    }
+    if (subDay) {
+      const sDay = String(subDay.substituteDay || '月').replace(/曜日$/, '');
+      detailItems.push(`<span class="badge blue">${escapeHTML(`${sDay}曜日授業を実施`)}${subDay.note ? `（${escapeHTML(subDay.note)}）` : ''}</span>`);
+    }
+    const weekText = weekInfo
+      ? (weekInfo.isSpare ? '予備日' : `${weekInfo.term} ${weekInfo.dayLabel}曜 第${weekInfo.weekNum}週${weekInfo.isSubstituted ? '（振替）' : ''}`)
+      : (isHoliday ? '休業日' : (isWeekend ? '週末・休業日' : '授業日外'));
+    mobileDetailHtml = `<div class="cal-mobile-detail" id="cal-mobile-detail" aria-live="polite">
+      <div class="cal-mobile-detail-head">
+        <strong>${escapeHTML(ds)} (${dowName})</strong>
+        <span class="cal-mobile-week-meta">${escapeHTML(weekText)}</span>
+      </div>
+      <div class="cal-mobile-detail-body">${detailItems.length ? detailItems.join('') : '<span class="hint" style="margin:0;">予定・行事はありません。</span>'}</div>
+    </div>`;
+  }
+
   return `<div class="calendar-month-view" id="${escapeHTML(viewId)}">
     <div class="cal-month-nav">
       <button type="button" class="button secondary" ${navAttr}="-1" aria-label="前の月">← 前月</button>
@@ -1907,6 +1966,7 @@ function renderMonthCalendarGrid(config = {}) {
       ${['日', '月', '火', '水', '木', '金', '土'].map(w => `<div class="cal-month-head">${w}</div>`).join('')}
       ${cells.join('')}
     </div>
+    ${mobileDetailHtml}
   </div>`;
 }
 
@@ -1921,7 +1981,9 @@ function renderCalendarMonthGrid(events, subs, todayStr) {
     todayStr,
     lessonWeeksMap: computeAcademicLessonWeeks(calendarData || FALLBACK_CALENDAR),
     navAttr: 'data-cal-month',
-    viewId: 'calendar-month-view'
+    viewId: 'calendar-month-view',
+    selectable: true,
+    selectedDate: calendarSelectedDate
   });
 }
 
@@ -1948,27 +2010,7 @@ function calendar() {
     event: { cls: 'blue', label: '行事' }
   };
 
-  const qLower = calendarSearchQuery.trim().toLowerCase();
-
-  const sortedEvents = [...events]
-    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
-    .filter(ev => {
-      const start = String(ev.date || ev.startDate || '');
-      const endSafe = String(ev.endDate || start);
-      if (calendarHidePast && endSafe && endSafe < todayStr) return false;
-      if (calendarFilterCategory === 'holiday') {
-        return ev.type === 'holiday' || ev.type === 'break' || ev.type === 'vacation' || ev.hasClasses === false;
-      }
-      if (calendarFilterCategory === 'exam') return ev.type === 'exam';
-      if (calendarFilterCategory === 'event') {
-        return !['holiday', 'break', 'vacation', 'exam'].includes(ev.type);
-      }
-      return true;
-    });
-
-  const filteredSubs = (calendarFilterCategory === 'holiday' || calendarFilterCategory === 'exam')
-    ? []
-    : subs.filter(s => s && (!calendarHidePast || String(s.date || '') >= todayStr));
+  const sortedEvents = [...events].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 
   const timelineEntries = [
     ...sortedEvents.map(ev => {
@@ -1979,12 +2021,10 @@ function calendar() {
       const b = badgeMap[ev.type] || { cls: 'blue', label: ev.hasClasses === false ? '休業' : '予定' };
       const isToday = start && (todayStr >= start && todayStr <= endRaw);
       const isPast = !isToday && endRaw && endRaw < todayStr;
-      const textForSearch = `${start} ${endRaw} ${title} ${ev.note || ''} ${b.label}`.toLowerCase();
-      const hiddenBySearch = Boolean(qLower && !textForSearch.includes(qLower));
       return {
         sortDate: start,
         isKouki: start >= koukiStart || Number(start.slice(5, 7)) <= 3,
-        html: `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}"${hiddenBySearch ? ' style="display:none;"' : ''}>
+        html: `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(start)}" data-type="${escapeHTML(ev.type || 'event')}">
       <span class="calendar-event-date">${escapeHTML(start + end)}</span>
       ${isToday ? '<span class="badge red">本日</span>' : ''}
       <span class="badge ${b.cls}">${escapeHTML(b.label)}</span>
@@ -1993,17 +2033,15 @@ function calendar() {
     </li>`
       };
     }),
-    ...filteredSubs.map(s => {
+    ...subs.filter(Boolean).map(s => {
       const ds = String(s.date || '');
       const title = `${String(s.substituteDay || '月').replace(/曜日$/, '')}曜日授業を実施`;
       const isToday = ds === todayStr;
       const isPast = ds < todayStr;
-      const textForSearch = `${ds} 授業振替 ${title} ${s.note || ''}`.toLowerCase();
-      const hiddenBySearch = Boolean(qLower && !textForSearch.includes(qLower));
       return {
         sortDate: ds,
         isKouki: ds >= koukiStart || Number(ds.slice(5, 7)) <= 3,
-        html: `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(ds)}" data-type="substitution"${hiddenBySearch ? ' style="display:none;"' : ''}>
+        html: `<li class="calendar-event-item${isPast ? ' is-past' : ''}${isToday ? ' is-today' : ''}" data-date="${escapeHTML(ds)}" data-type="substitution">
       <span class="calendar-event-date">${escapeHTML(ds)}</span>
       ${isToday ? '<span class="badge red">本日</span>' : ''}
       <span class="badge blue">授業振替</span>
@@ -2027,7 +2065,6 @@ function calendar() {
   }
   const eventRows = groupedListParts.join('');
 
-  const catChip = (key, label) => `<button type="button" class="chip${calendarFilterCategory === key ? ' active' : ''}" data-cal-cat="${key}" aria-pressed="${calendarFilterCategory === key ? 'true' : 'false'}">${label}</button>`;
   const zenkiPdfUrl = normalizeAkashiUrl(data.meta?.zenkiPdfUrl, '');
   const koukiPdfUrl = normalizeAkashiUrl(data.meta?.koukiPdfUrl, '');
   const calSourceUrl = normalizeAkashiUrl(data.meta?.sourceUrl, 'https://www.akashi.ac.jp/life/calendar.html');
@@ -2043,11 +2080,9 @@ function calendar() {
         <span class="badge blue">${escapeHTML(weekInfo.label)} / 全15週</span>
       </div>
       <div class="calendar-toolbar">
-        <button type="button" class="button" id="export-calendar-ics-zenki" data-open-ical-preview="calendar:zenki">${icon('download')}前期 iCal DL</button>
-        <button type="button" class="button" id="export-calendar-ics-kouki" data-open-ical-preview="calendar:kouki">${icon('download')}後期 iCal DL</button>
-        <button type="button" class="button secondary" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}通年 iCal DL</button>
-        ${zenkiPdfUrl ? `<a class="button subtle" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期PDF</a>` : ''}
-        ${koukiPdfUrl ? `<a class="button subtle" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期PDF</a>` : ''}
+        <button type="button" class="button" id="export-calendar-ics" data-open-ical-preview="calendar:all">${icon('download')}カレンダー形式で出力</button>
+        ${zenkiPdfUrl ? `<a class="button subtle" href="${escapeHTML(zenkiPdfUrl)}" target="_blank" rel="noopener noreferrer">前期PDF${icon('external')}</a>` : ''}
+        ${koukiPdfUrl ? `<a class="button subtle" href="${escapeHTML(koukiPdfUrl)}" target="_blank" rel="noopener noreferrer">後期PDF${icon('external')}</a>` : ''}
         <a class="text-link" href="${escapeHTML(calSourceUrl)}" target="_blank" rel="noopener noreferrer">公式行事予定${icon('arrow')}</a>
       </div>
       <div class="calendar-filters" role="group" aria-label="年間予定の表示切替と移動">
@@ -2058,17 +2093,7 @@ function calendar() {
         <div class="filter-group">
           <button type="button" class="chip" data-cal-jump="zenki">前期へ (4月)</button>
           <button type="button" class="chip" data-cal-jump="kouki">後期へ (9月)</button>
-          <button type="button" class="chip" data-cal-jump="current">今月へ</button>
-          <button type="button" class="chip" id="calendar-jump-today" data-cal-jump="today">今日へ</button>
         </div>
-        ${calendarViewMode === 'list' ? `
-        <div class="filter-group">${catChip('all', 'すべて')}${catChip('holiday', '祝日・休業')}${catChip('exam', '定期試験')}${catChip('event', '学校行事')}</div>
-        <div class="filter-group">
-          <button type="button" class="chip${calendarHidePast ? ' active' : ''}" id="calendar-hide-past-btn" aria-pressed="${calendarHidePast ? 'true' : 'false'}">今後のみ</button>
-        </div>` : ''}
-      </div>
-      <div class="exam-search-bar"${calendarViewMode === 'month' ? ' hidden' : ''}>
-        <input type="search" id="calendar-search-input" value="${escapeHTML(calendarSearchQuery)}" placeholder="行事名・日付で検索..." aria-label="年間予定検索">
       </div>
       ${mainBodyHtml}
     </section>`;
@@ -3674,9 +3699,11 @@ function render() {
         anchor?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       });
     });
-    document.querySelectorAll('[data-cal-cat]').forEach(btn => {
+    document.querySelectorAll('[data-cal-select]').forEach(btn => {
       btn.addEventListener('click', () => {
-        calendarFilterCategory = btn.dataset?.calCat || 'all';
+        const ds = btn.dataset?.calSelect || '';
+        if (!ds) return;
+        calendarSelectedDate = ds;
         render();
       });
     });
@@ -3690,6 +3717,7 @@ function render() {
       btn.addEventListener('click', () => {
         const delta = Number(btn.dataset?.calMonth);
         calendarMonthOffset = delta === 0 ? 0 : (calendarMonthOffset + delta);
+        calendarSelectedDate = '';
         render();
       });
     });
