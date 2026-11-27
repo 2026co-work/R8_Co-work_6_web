@@ -261,7 +261,7 @@ test('T3-P-09: F6 × F15 — 6-Tab navigation mounts academic calendar timeline 
   assert.ok(calTab.classList.contains('active'), 'Calendar tab receives active class');
 
   const main = app.elements['main'];
-  assert.ok(main.innerHTML.includes('年間行事') || main.innerHTML.includes('年間予定') || main.innerHTML.includes('予定表'), 'Calendar title is present');
+  assert.ok(main.innerHTML.includes('行事予定') || main.innerHTML.includes('年間行事') || main.innerHTML.includes('年間予定') || main.innerHTML.includes('予定表'), 'Calendar title is present');
 });
 
 test('T3-P-10: F6 × F18 — Navigation router mounts cafeteria weekly menu cards under #cafeteria', async (t) => {

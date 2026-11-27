@@ -535,8 +535,9 @@ body.size-modal-open{overflow:hidden}
 .exam-card-meta{font-size:12px;color:var(--muted);margin:0}
 
 /* 年間予定ビュー */
-.calendar-filters{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;margin:6px 0 4px;border-bottom:1px solid var(--line)}
+.calendar-filters{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 14px;margin:0 0 6px;border-bottom:1px solid var(--line)}
 .cal-view-tabs{display:inline-flex;align-items:center;gap:4px}
+.cal-week-badge{margin-left:auto;align-self:center;white-space:nowrap}
 .cal-view-tab{background:transparent;border:0;border-bottom:2px solid transparent;padding:8px 12px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:color .15s,border-color .15s}
 .cal-view-tab:hover{color:var(--ink)}
 .cal-view-tab.is-active{color:var(--wine);border-bottom-color:var(--wine)}
@@ -1052,8 +1053,10 @@ details.timetable-controls[open]{box-shadow:none}
   /* #calendar フル幅7列グリッド（案A: ドット表示＋タップで下部詳細） */
   .calendar-export-footer{margin-top:12px}
   .calendar-export-footer .button{width:100%;min-height:42px}
-  .calendar-filters{gap:4px 8px;margin:6px 0 4px}
+  .calendar-filters{gap:6px 8px;margin:0 0 6px}
   .cal-view-tab{padding:7px 10px;font-size:12.5px}
+  .cal-week-badge{font-size:11px;padding:3px 8px}
+  .cal-term-jump{flex-basis:100%;justify-content:flex-end;padding-bottom:6px}
   .cal-jump-link{font-size:11.5px;padding:4px}
   .chip{padding:5px 10px;font-size:11.5px;min-height:32px}
   .cal-month-nav{justify-content:center;gap:8px;margin:10px 0 8px}
