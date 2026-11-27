@@ -108,12 +108,12 @@ function getExportTheme() {
   return exportThemeOverride || resolveEffectiveTheme(currentTheme);
 }
 const EXPORT_FORMAT_CONFIGS = {
-  pdf: { copyLabel: null, downloadLabel: 'PDF保存', adjustLabel: 'レイアウト調整' },
-  png: { copyLabel: '画像をコピー', downloadLabel: 'PNG保存', adjustLabel: 'レイアウト調整' },
+  pdf: { copyLabel: null, downloadLabel: 'PDF保存', adjustLabel: 'プレビュー・PDF出力' },
+  png: { copyLabel: '画像をコピー', downloadLabel: 'PNG保存', adjustLabel: 'プレビュー・PNG出力' },
   ics: { copyLabel: null, downloadLabel: 'カレンダー形式で出力', adjustLabel: 'プレビュー・設定' },
-  text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー' },
-  csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー' },
-  json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー' },
+  text: { copyLabel: 'テキストをコピー', downloadLabel: 'テキスト保存', adjustLabel: 'プレビュー・出力' },
+  csv: { copyLabel: 'CSVをコピー', downloadLabel: 'CSV保存', adjustLabel: 'プレビュー・出力' },
+  json: { copyLabel: 'JSONをコピー', downloadLabel: 'JSON保存', adjustLabel: 'プレビュー・出力' },
 };
 let currentExportFormat = 'pdf';
 let textExportOptions = { includeLocation: true, includeTeacher: true };
@@ -491,7 +491,7 @@ function buildStudentFilterControls(selection, prefix = 'student', dataAttr = 'd
   return field('学年', 'grade', gradeOptions) +
     field(isAdvanced ? '専攻' : '学科', 'department', deptOptions) +
     field('クラス', 'classGroup', [1, 2, 3, 4].map(n => [n, `${n}組`]), isAdvanced || Number(s.grade) >= 3) +
-    field('留学生区分', 'studentType', [['regular', '一般学生'], ['international', '留学生']], isAdvanced) +
+    field('留学生区分', 'studentType', [['regular', '留学生でない'], ['international', '留学生']], isAdvanced) +
     field('コース（4・5年E科）', 'course', [['', '選択してください'], ['EJ', COURSE_LABELS.EJ], ['ED', COURSE_LABELS.ED]], isAdvanced || !needsCourse) +
     (!isAdvanced && Number(s.grade) === 1 ? field('芸術選択', 'arts', [['music', '音楽'], ['art', '美術']]) : '');
 }
@@ -2398,7 +2398,7 @@ function timetable() {
         </div>
       </div>
     </details>
-    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><div class="timetable-head-right" data-export-exclude>${legendsBtnHtml}<span class="badge">${totalPeriods}コマ</span></div></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>カレンダー形式 (.ics)</option></select></label><div class="export-btn-group"><button class="button export-copy-btn" id="export-copy" type="button" ${error || exportInProgress ? 'disabled' : ''} ${EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel ? '' : 'hidden'}>${icon('copy')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.copyLabel||'コピー')}</button><button class="button" id="export-download" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('download')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel||'保存')}</button><button class="button secondary" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'調整')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
+    <section class="panel timetable-panel" id="timetable-sheet"><div class="panel-head"><h2>${escapeHTML(studentLabel())}</h2><div class="timetable-head-right" data-export-exclude>${legendsBtnHtml}<span class="badge">${totalPeriods}コマ</span></div></div>${error?`<p class="info-note" role="status">${escapeHTML(error)}</p>`:table}${renderRoomPopoverBox()}<div class="timetable-source" data-export-exclude><span>出典：<a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">明石高専 ↗</a> / <a href="${escapeHTML(sourcePdfUrl)}" target="_blank" rel="noopener noreferrer">原本PDF ↗</a>（${escapeHTML(fyText)}${escapeHTML(termText)}）</span><span>休講・変更は公式案内をご確認ください。</span></div><div class="export-controls" data-export-exclude><label class="field">保存形式<select id="export-format" ${error || exportInProgress ? 'disabled' : ''}><option value="pdf"${currentExportFormat==='pdf'?' selected':''}>PDF（A4横）</option><option value="png"${currentExportFormat==='png'?' selected':''}>PNG（画像）</option><option value="text"${currentExportFormat==='text'?' selected':''}>テキスト（.txt）</option><option value="csv"${currentExportFormat==='csv'?' selected':''}>CSV（Excel用 / .csv）</option><option value="json"${currentExportFormat==='json'?' selected':''}>JSON（データ / .json）</option><option value="ics"${currentExportFormat==='ics'?' selected':''}>カレンダー形式 (.ics)</option></select></label><div class="export-btn-group"><button class="button" id="export-adjust-open" type="button" ${error || exportInProgress ? 'disabled' : ''}>${icon('sliders')}${exportInProgress?'作成中…':escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.adjustLabel||'プレビュー・出力')}</button></div></div><p id="export-status" class="export-status" role="status" data-export-exclude hidden></p></section>
     ${legendsModalHtml}
     <div class="size-overlay" id="export-size-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-label="サイズ調整">
       <div class="size-overlay-viewport" id="size-overlay-viewport">
@@ -2418,8 +2418,9 @@ function timetable() {
             <label class="size-a4-toggle"><input type="checkbox" id="size-toggle-a4" ${a4ModeEnabled ? 'checked' : ''}> A4枠を表示</label>
             <button type="button" class="size-mode-btn" id="size-modal-theme-toggle" title="出力用テーマ切り替え（サイト本体には影響しません）">${getExportTheme() === 'dark' ? `${icon('sun')}白背景で出力` : `${icon('moon')}暗背景で出力`}</button>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <button type="button" class="button" id="size-modal-save-btn">${icon('download')}このサイズで保存</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="button export-copy-btn" id="size-modal-copy-btn" ${currentExportFormat === 'png' ? '' : 'hidden'}>${icon('copy')}画像をコピー</button>
+            <button type="button" class="button" id="size-modal-save-btn">${icon('download')}${escapeHTML(EXPORT_FORMAT_CONFIGS[currentExportFormat]?.downloadLabel || 'このサイズで保存')}</button>
             <button type="button" class="button size-close-btn" id="export-size-close">閉じる</button>
           </div>
         </div>
@@ -2580,7 +2581,7 @@ function closeLinkEditorModal() {
 }
 
 const HELP_GUIDE_ITEMS = [
-  { id: 'home', title: 'ホーム', summary: '今日の時間割（振替対応）とよく使うリンクを見られます。' },
+  { id: 'home', title: 'ホーム', summary: '今日の時間割とよく使うリンクを見られます。' },
   { id: 'timetable', title: '時間割', summary: 'クラス別の週間表を見たり、画像や予定ファイルで保存したりできます。' },
   { id: 'calendar', title: '年間予定', summary: '授業週や休日・行事を確認し、授業込みの予定ファイルも出力できます。' },
   { id: 'links', title: 'リンク集', summary: 'シラバスや変更リストをまとめ、リンクの追加や並び替えもできます。' }
@@ -3413,34 +3414,29 @@ function render() {
     }
   }
   const formatSelect = document.getElementById('export-format');
-  const copyBtn = document.getElementById('export-copy');
-  const downloadBtn = document.getElementById('export-download');
   const adjustBtn = document.getElementById('export-adjust-open');
 
   const syncExportFormatUI = () => {
     const fmt = formatSelect?.value || currentExportFormat;
     currentExportFormat = fmt;
     const cfg = EXPORT_FORMAT_CONFIGS[fmt] || EXPORT_FORMAT_CONFIGS.pdf;
-    if (copyBtn && !exportInProgress) {
-      if (cfg.copyLabel) {
-        copyBtn.hidden = false;
-        setBtnContent(copyBtn, 'copy', cfg.copyLabel);
-      } else {
-        copyBtn.hidden = true;
-      }
-    }
-    if (downloadBtn && !exportInProgress) {
-      setBtnContent(downloadBtn, 'download', cfg.downloadLabel);
-    }
-    if (adjustBtn) {
+    if (adjustBtn && !exportInProgress) {
       setBtnContent(adjustBtn, 'sliders', cfg.adjustLabel);
     }
+    const sizeCopyBtn = document.getElementById('size-modal-copy-btn');
+    const sizeSaveBtn = document.getElementById('size-modal-save-btn');
+    if (sizeCopyBtn) sizeCopyBtn.hidden = fmt !== 'png';
+    if (sizeSaveBtn) setBtnContent(sizeSaveBtn, 'download', cfg.downloadLabel || '保存');
   };
 
   formatSelect?.addEventListener('change', syncExportFormatUI);
-  copyBtn?.addEventListener('click', () => downloadCurrentTimetable('copy'));
-  downloadBtn?.addEventListener('click', () => downloadCurrentTimetable('download'));
-  adjustBtn?.addEventListener('click', openExportAdjustModal);
+  adjustBtn?.addEventListener('click', () => {
+    syncExportFormatUI();
+    openExportAdjustModal();
+  });
+  document.getElementById('size-modal-copy-btn')?.addEventListener('click', () => {
+    downloadCurrentTimetable('copy');
+  });
   document.getElementById('size-modal-theme-toggle')?.addEventListener('click', () => {
     exportThemeOverride = getExportTheme() === 'dark' ? 'light' : 'dark';
     syncExportThemeUI();
