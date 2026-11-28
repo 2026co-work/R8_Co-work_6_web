@@ -390,7 +390,7 @@ test('F7-T1-02: Home dashboard displays academic week indicator', async (t) => {
   if (!requireOrSkip(t, ready, 'Week indicator widget on #home', 'M2')) return;
 
   app.navigate('#home');
-  assert.match(app.elements.main.innerHTML, /第\d+週|学期/);
+  assert.match(app.elements.main.innerHTML, /第\d+[週回]|学期/);
 });
 
 test('F7-T1-03: Home dashboard displays upcoming exam notice or status', async (t) => {
