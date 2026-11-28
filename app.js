@@ -2618,7 +2618,59 @@ function dismissHelpSpotlight() {
     backdrop.remove?.();
   }
   document.getElementById('guide-spotlight-card')?.remove?.();
+  document.getElementById('guide-spotlight-pointer')?.remove?.();
   document.querySelectorAll?.('.is-spotlight-target')?.forEach?.(el => el.classList?.remove?.('is-spotlight-target'));
+}
+
+function positionSpotlightPointer() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  const pointer = document.getElementById('guide-spotlight-pointer');
+  const card = document.getElementById('guide-spotlight-card');
+  if (!pointer || !card) return;
+  const step = Number(card.dataset?.step ?? 0);
+  let target = null;
+  if (step === 0) {
+    const toggle = document.getElementById('menu-toggle');
+    const toggleRect = typeof toggle?.getBoundingClientRect === 'function' ? toggle.getBoundingClientRect() : null;
+    if (toggleRect && toggleRect.width > 0 && toggleRect.height > 0) {
+      target = toggle;
+    } else {
+      target = document.querySelector?.('#sidebar nav') || document.getElementById('sidebar');
+    }
+  } else {
+    target = document.querySelector?.('.page-help-btn');
+  }
+  if (!target || typeof target.getBoundingClientRect !== 'function') {
+    pointer.hidden = true;
+    return;
+  }
+  const rect = target.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    pointer.hidden = true;
+    return;
+  }
+  const vw = window.innerWidth || 390;
+  const vh = window.innerHeight || 844;
+  const cardRect = typeof card.getBoundingClientRect === 'function' ? card.getBoundingClientRect() : { top: vh - 160 };
+  const maxBottom = Math.max(120, (cardRect.top || vh - 160) - 56);
+  const tx = rect.left + rect.width / 2;
+  const ty = rect.top + rect.height / 2;
+  // 画面中央側の余白に向けて矢印を配置し、ターゲット中心を指す
+  const vx = (vw / 2) - tx;
+  const vy = (vh / 2) - ty;
+  const len = Math.hypot(vx, vy) || 1;
+  const ux = vx / len;
+  const uy = vy / len;
+  const edgeOffsetX = (rect.width / 2) * Math.abs(ux);
+  const edgeOffsetY = (rect.height / 2) * Math.abs(uy);
+  const dist = Math.hypot(edgeOffsetX, edgeOffsetY) + 38;
+  const ax = Math.min(Math.max(24, tx + ux * dist), vw - 24);
+  const ay = Math.min(Math.max(24, ty + uy * dist), maxBottom);
+  const angleDeg = Math.atan2(ty - ay, tx - ax) * (180 / Math.PI) + 90;
+  pointer.hidden = false;
+  pointer.style.left = `${Math.round(ax)}px`;
+  pointer.style.top = `${Math.round(ay)}px`;
+  pointer.style.setProperty('--pointer-angle', `${angleDeg.toFixed(1)}deg`);
 }
 
 function openHelpModal(tab = null) {
@@ -3373,29 +3425,32 @@ function render() {
     ? (spotlightStep === 0
       ? `<div class="guide-spotlight-card" id="guide-spotlight-card" data-step="0" role="dialog" aria-label="初回案内 1/2" data-export-exclude>
           <div class="guide-spotlight-head">
-            <span class="guide-spotlight-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg></span>
-            <strong>① メニューから画面を切り替え</strong>
+            <span class="guide-spotlight-step">1 / 2</span>
+            <strong>メニューから画面を切り替え</strong>
           </div>
           <p>時間割・年間予定・リンク集へ移動できます（スマホでは左上の ≡ ボタン）。</p>
           <div class="guide-spotlight-actions">
             <button type="button" class="guide-spotlight-skip" id="guide-spotlight-skip">スキップ</button>
-            <button type="button" class="button" id="guide-spotlight-next" style="min-height:32px;padding:4px 12px;">次へ →</button>
+            <button type="button" class="button" id="guide-spotlight-next">次へ →</button>
           </div>
         </div>`
       : `<div class="guide-spotlight-card" id="guide-spotlight-card" data-step="1" role="dialog" aria-label="初回案内 2/2" data-export-exclude>
           <div class="guide-spotlight-head">
-            <span class="guide-spotlight-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg></span>
-            <strong>② 各ページの「使い方」</strong>
+            <span class="guide-spotlight-step">2 / 2</span>
+            <strong>各ページの「使い方」</strong>
           </div>
           <p>操作に迷ったら、画面右上の「使い方」からいつでも確認できます。</p>
           <div class="guide-spotlight-actions">
             <button type="button" class="guide-spotlight-skip" id="guide-spotlight-skip">スキップ</button>
-            <button type="button" class="button" id="guide-spotlight-open-help" style="min-height:32px;padding:4px 12px;">使い方を開く</button>
+            <button type="button" class="button" id="guide-spotlight-open-help">使い方を開く</button>
           </div>
         </div>`)
     : '';
+  const spotlightPointerHtml = spotlightActive
+    ? `<div class="guide-spotlight-pointer" id="guide-spotlight-pointer" aria-hidden="true" hidden data-export-exclude><svg viewBox="0 0 24 44"><path d="M12 40V6m0 0-7 8m7-8 7 8"/></svg></div>`
+    : '';
   const spotlightBackdrop = spotlightActive
-    ? `<div class="guide-spotlight-backdrop" id="guide-spotlight-backdrop" data-export-exclude aria-hidden="true"></div>${spotlightCardHtml}`
+    ? `<div class="guide-spotlight-backdrop" id="guide-spotlight-backdrop" data-export-exclude aria-hidden="true"></div>${spotlightPointerHtml}${spotlightCardHtml}`
     : '';
   const sharedModals = spotlightBackdrop + renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal();
   if (main) {
@@ -3419,6 +3474,14 @@ function render() {
     else if (page === 'calendar') main.innerHTML = calendar() + sharedModals;
     else if (page === 'cafeteria') main.innerHTML = cafeteria() + sharedModals;
     else if (page === 'links') main.innerHTML = linksView() + sharedModals;
+    if (!globalListenersBound && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('resize', positionSpotlightPointer);
+      window.addEventListener('scroll', positionSpotlightPointer, { passive: true });
+    }
+    if (spotlightActive) {
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(positionSpotlightPointer);
+      else positionSpotlightPointer();
+    }
     for (const modalId of ['ical-preview-modal', 'room-legends-modal', 'help-modal', 'link-editor-modal']) {
       const mEl = document.getElementById(modalId);
       if (mEl) mEl.hidden = true;

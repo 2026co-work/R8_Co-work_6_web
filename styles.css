@@ -1118,24 +1118,21 @@ details.timetable-controls[open]{box-shadow:none}
 .page-help-wrap.is-spotlight-target{z-index:960}
 .sidebar.is-spotlight-target,.floating-menu-toggle.is-spotlight-target{z-index:960!important;box-shadow:0 0 0 4px rgba(244,214,170,.65),0 8px 24px rgba(0,0,0,.38)}
 .page-help-btn.is-spotlight-target{background:var(--wine);color:#fff;border-color:var(--wine);box-shadow:0 0 0 4px rgba(244,214,170,.55),0 8px 24px rgba(0,0,0,.35);animation:spotlightPulse 1.8s ease-in-out infinite}
-.guide-spotlight-card{position:fixed;z-index:965;width:min(320px,calc(100vw - 28px));background:#fff;color:var(--ink);border-radius:12px;padding:12px 14px;box-shadow:0 10px 28px rgba(0,0,0,.36);display:flex;flex-direction:column;gap:8px;font-size:12.5px}
-.guide-spotlight-card[data-step="0"]{top:130px;left:256px}
-.guide-spotlight-card[data-step="1"]{top:68px;right:24px}
-@media(max-width:760px){
-  .guide-spotlight-card[data-step="0"]{top:60px;left:14px;right:auto}
-  .guide-spotlight-card[data-step="1"]{top:68px;left:14px;right:14px;width:auto;max-width:340px;margin-left:auto}
-}
-.guide-spotlight-head{display:flex;align-items:center;gap:6px;font-size:13px}
-.guide-spotlight-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
-.guide-spotlight-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
-[data-theme="dark"] .guide-spotlight-card{background:#1f2536;color:#f3f5fa;border:1px solid #394158}
-[data-theme="dark"] .guide-spotlight-card p{color:#c5cde0}
-.guide-spotlight-arrow{display:inline-flex;align-items:center;justify-content:center;color:var(--wine);animation:spotlightBounce 1.1s ease-in-out infinite}
-.guide-spotlight-arrow svg{width:18px;height:18px;stroke-width:2.4}
-.guide-spotlight-skip{border:1px solid var(--line);background:var(--surface-subtle);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
+.guide-spotlight-card{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:965;width:min(540px,calc(100vw - 24px));background:rgba(255,255,255,0.97);color:var(--ink);border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.38);display:flex;flex-direction:column;gap:8px;font-size:13px;backdrop-filter:blur(8px)}
+.guide-spotlight-head{display:flex;align-items:center;gap:8px;font-size:14px}
+.guide-spotlight-step{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:var(--wine);color:#fff;font-size:11px;font-weight:700;letter-spacing:.03em;flex-shrink:0}
+.guide-spotlight-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+.guide-spotlight-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:4px}
+.guide-spotlight-actions .button{min-height:38px;padding:6px 16px}
+.guide-spotlight-skip{margin-right:auto;min-height:38px;border:1px solid var(--line);background:var(--surface-subtle);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
 .guide-spotlight-skip:hover{background:#eceef2;color:var(--ink)}
-[data-theme="dark"] .guide-spotlight-arrow{color:#f4a8b8}
+[data-theme="dark"] .guide-spotlight-card{background:rgba(27,32,46,0.97);color:#f3f5fa;border-color:#3b445e}
+[data-theme="dark"] .guide-spotlight-card p{color:#c5cde0}
+[data-theme="dark"] .guide-spotlight-step{background:#f4a8b8;color:#1b202e}
 [data-theme="dark"] .guide-spotlight-skip{background:#283044;border-color:#3a445d;color:#cfd6e6}
+.guide-spotlight-pointer{position:fixed;z-index:964;width:40px;height:52px;pointer-events:none;transform:translate(-50%,-50%) rotate(var(--pointer-angle,0deg));color:#f4d6aa;filter:drop-shadow(0 3px 8px rgba(0,0,0,.55))}
+.guide-spotlight-pointer svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;animation:pointerNudge 1.05s ease-in-out infinite}
+@keyframes pointerNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes spotlightPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 @keyframes spotlightBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .help-guide-links{margin-top:10px;display:flex;flex-direction:column;gap:8px}
