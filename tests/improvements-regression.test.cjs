@@ -477,12 +477,18 @@ test('IMP-15: Mobile-first onboarding banner, apple-touch-icon, 2-step spotlight
   assert.match(homeHtml, /id="guide-spotlight-backdrop"/, 'First-visit spotlight backdrop renders on initial #home');
   assert.match(homeHtml, /id="guide-spotlight-card"/, 'First-visit spotlight card renders on initial #home');
   assert.match(homeHtml, /id="guide-spotlight-skip"/, 'First-visit spotlight includes skip button');
-  assert.match(homeHtml, /id="guide-spotlight-next"/, 'First-visit spotlight starts at menu step with Next button');
+  assert.match(homeHtml, /id="guide-spotlight-open-help"/, 'Desktop spotlight skips hamburger step and highlights page help directly');
+  assert.doesNotMatch(homeHtml, /id="guide-spotlight-next"/, 'Desktop spotlight does not show mobile hamburger step');
   assert.match(homeHtml, /data-open-help="home"/, '#home includes page help button');
 
-  app.document.getElementById('guide-spotlight-next').click();
-  const step2Html = app.document.getElementById('main')?.innerHTML || '';
-  assert.match(step2Html, /id="guide-spotlight-open-help"/, 'Step 2 highlights per-page help button');
+  const mobileApp = createAppInstance({ mockDate: '2026-11-26T09:00:00+09:00', mobile: true });
+  const mobileHomeHtml = mobileApp.document.getElementById('main')?.innerHTML || '';
+  assert.match(mobileHomeHtml, /id="guide-spotlight-next"/, 'Mobile spotlight starts at hamburger menu step with Next button');
+  mobileApp.document.getElementById('guide-spotlight-next').click();
+  const step2Html = mobileApp.document.getElementById('main')?.innerHTML || '';
+  assert.match(step2Html, /id="guide-spotlight-open-help"/, 'Mobile step 2 highlights per-page help button');
+  mobileApp.document.getElementById('guide-spotlight-skip').click();
+  assert.equal(mobileApp.document.body.classList.contains('guide-spotlight-active'), false, 'Skip button dismisses mobile first-visit spotlight');
 
   app.document.getElementById('guide-spotlight-skip').click();
   assert.equal(app.document.body.classList.contains('guide-spotlight-active'), false, 'Skip button dismisses first-visit spotlight');
