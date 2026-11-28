@@ -691,8 +691,8 @@ function getAcademicLessonWeekInfo(date = new Date()) {
       isSpare: false,
       isSubstituted: entry.isSubstituted,
       totalWeeks,
-      label: `${dayPrefix} 第${entry.weekNum}回 / ${totalWeeks}`,
-      badgeLabel: `${entry.term} ${dayPrefix} 第${entry.weekNum}回 / 全${totalWeeks}回`
+      label: `${dayPrefix} 第${entry.weekNum}週`,
+      badgeLabel: `${entry.term} ${dayPrefix} 第${entry.weekNum}週 / 全${totalWeeks}週`
     };
   }
   return {
@@ -744,7 +744,6 @@ function renderTodaySchedule(currentDate) {
   const lessonWeekInfo = getAcademicLessonWeekInfo(currentDate);
   const dateParts = todayDateStr.split('-');
   const shortDateText = dateParts.length === 3 ? `${Number(dateParts[1])}/${Number(dateParts[2])}(${['日','月','火','水','木','金','土'][jsDay] || ''})` : todayDateStr;
-  const offsetTag = dashboardOffsetDays === 0 ? '' : ` (${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日)`;
 
   const subBanner = isSubstituted ? `
     <div class="alert alert-warning day-sub-alert">
@@ -754,7 +753,7 @@ function renderTodaySchedule(currentDate) {
   ` : '';
 
   const renderTodayShell = (badgesHtml, bodyHtml, customMetaLabel = '') => {
-    const metaSummary = `${shortDateText}${offsetTag} · ${customMetaLabel || lessonWeekInfo.label}`;
+    const metaSummary = `${shortDateText} · ${customMetaLabel || lessonWeekInfo.label}`;
     return `
     <section class="panel today-schedule" id="today-schedule">
       <div class="panel-head">
@@ -1642,8 +1641,54 @@ function renderQuickLinks() {
   `;
 }
 
+function formatClockTimeJst(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return '00:00:00';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(d);
+}
+
+function renderClockPanel(now = new Date()) {
+  const { dateStr } = getJstParts(now);
+  const weekInfo = getAcademicLessonWeekInfo(now);
+  const timeStr = formatClockTimeJst(now);
+  return `
+    <section class="panel home-clock-panel" id="home-clock-panel" aria-label="現在時刻と今日の日付">
+      <div class="panel-head">
+        <h2>${icon('clock')}時計</h2>
+        <span class="home-clock-week">${escapeHTML(weekInfo.label)}</span>
+      </div>
+      <div class="home-clock-body">
+        <strong class="home-clock-time" id="home-clock-time">${escapeHTML(timeStr)}</strong>
+        <span class="home-clock-date" id="home-clock-date">${escapeHTML(longDate(dateStr))}</span>
+      </div>
+    </section>
+  `;
+}
+
+let homeClockTimer = null;
+function ensureHomeClockTick() {
+  if (typeof document === 'undefined' || typeof setInterval !== 'function') return;
+  if (homeClockTimer) return;
+  homeClockTimer = setInterval(() => {
+    const timeEl = document.getElementById('home-clock-time');
+    if (!timeEl) return;
+    const now = new Date();
+    timeEl.textContent = formatClockTimeJst(now);
+    const dateEl = document.getElementById('home-clock-date');
+    if (dateEl) dateEl.textContent = longDate(getJstParts(now).dateStr);
+  }, 1000);
+  homeClockTimer?.unref?.();
+}
+
 function renderTodayOverview(currentDate = new Date()) {
   const sidePanels = [
+    renderClockPanel(new Date()),
     renderQuickLinks(),
     FEATURE_FLAGS.exam ? renderExamAlert() : '',
     FEATURE_FLAGS.cafeteria ? renderCafeteriaSummary(currentDate) : ''
@@ -3548,7 +3593,10 @@ function render() {
     : '';
   const sharedModals = spotlightBackdrop + renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal() + renderAppendixGuideModal();
   if (main) {
-    if (page === 'home') main.innerHTML = home() + sharedModals;
+    if (page === 'home') {
+      main.innerHTML = home() + sharedModals;
+      ensureHomeClockTick();
+    }
     else if (page === 'timetable') {
       main.innerHTML = timetable() + sharedModals;
       const sheetEl = document.getElementById('timetable-sheet');
