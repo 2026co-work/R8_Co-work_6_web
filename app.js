@@ -290,6 +290,7 @@ let selectedCafeteriaWeekIdx = -1;
 let lastModalTrigger = null;
 let onboardingDismissed = false;
 let firstVisitSpotlightDismissed = false;
+let forceSpotlightReplay = false;
 let spotlightStep = 0;
 let activeHelpTab = 'home';
 let draftProfile = null;
@@ -1633,7 +1634,7 @@ function home() {
   const targetDate = new Date(now.getTime() + dashboardOffsetDays * 86400000);
   const displayDateKey = dateKey(targetDate);
   const weekInfo = getAcademicWeek(targetDate);
-  const showSpotlight = !cookieSaved && !firstVisitSpotlightDismissed && spotlightStep === 1;
+  const showSpotlight = ((!cookieSaved && !firstVisitSpotlightDismissed) || forceSpotlightReplay) && spotlightStep === 1;
   const actions = `
     <div class="heading-actions">
       ${themeToggleBtn()}
@@ -2586,6 +2587,7 @@ function renderHelpModal() {
       </div>
       <div class="data-preview-body" id="help-modal-body">${renderHelpGuideContent(activeHelpTab)}</div>
       <div class="data-preview-foot">
+        <button type="button" class="button subtle" id="help-replay-tour" style="margin-right:auto;">初回案内をもう一度見る</button>
         <button type="button" class="button" id="help-modal-ok">閉じる</button>
       </div>
     </div>
@@ -2610,6 +2612,7 @@ function updateHelpModalBody(focusKey = activeHelpTab) {
 
 function dismissHelpSpotlight() {
   firstVisitSpotlightDismissed = true;
+  forceSpotlightReplay = false;
   if (typeof document === 'undefined') return;
   document.body?.classList?.remove?.('guide-spotlight-active');
   const backdrop = document.getElementById('guide-spotlight-backdrop');
@@ -3415,7 +3418,7 @@ function render() {
     footerMeta.textContent = `${fyLabel}${termLabel}`;
   }
   const main = document.getElementById('main');
-  const spotlightActive = page === 'home' && !cookieSaved && !firstVisitSpotlightDismissed;
+  const spotlightActive = page === 'home' && ((!cookieSaved && !firstVisitSpotlightDismissed) || forceSpotlightReplay);
   if (typeof document !== 'undefined') {
     document.body?.classList?.toggle?.('guide-spotlight-active', spotlightActive);
     document.getElementById('menu-toggle')?.classList?.toggle?.('is-spotlight-target', spotlightActive && spotlightStep === 0);
@@ -3576,6 +3579,14 @@ function render() {
   }
   document.getElementById('help-modal-close')?.addEventListener('click', closeHelpModal);
   document.getElementById('help-modal-ok')?.addEventListener('click', closeHelpModal);
+  document.getElementById('help-replay-tour')?.addEventListener('click', () => {
+    closeHelpModal();
+    firstVisitSpotlightDismissed = false;
+    forceSpotlightReplay = true;
+    spotlightStep = 0;
+    if (location.hash !== '#home') location.hash = '#home';
+    else render();
+  });
   document.getElementById('help-modal')?.addEventListener('click', e => {
     if (e.target === e.currentTarget) closeHelpModal();
   });
