@@ -1641,31 +1641,55 @@ function renderQuickLinks() {
   `;
 }
 
-function formatClockTimeJst(date = new Date()) {
+function getClockPartsJst(date = new Date()) {
   const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return '00:00:00';
-  return new Intl.DateTimeFormat('ja-JP', {
+  if (Number.isNaN(d.getTime())) return { hm: '00:00', sec: '00', h: 0, m: 0, s: 0 };
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Tokyo',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false
-  }).format(d);
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t)?.value || '00';
+  const hh = get('hour') === '24' ? '00' : get('hour');
+  const mm = get('minute');
+  const ss = get('second');
+  return { hm: `${hh}:${mm}`, sec: ss, h: Number(hh) || 0, m: Number(mm) || 0, s: Number(ss) || 0 };
 }
 
 function renderClockPanel(now = new Date()) {
   const { dateStr } = getJstParts(now);
   const weekInfo = getAcademicLessonWeekInfo(now);
-  const timeStr = formatClockTimeJst(now);
+  const { hm, sec, h, m, s } = getClockPartsJst(now);
+  const hDeg = ((h % 12) + m / 60) * 30;
+  const mDeg = (m + s / 60) * 6;
+  const sDeg = s * 6;
   return `
     <section class="panel home-clock-panel" id="home-clock-panel" aria-label="現在時刻と今日の日付">
-      <div class="panel-head">
-        <h2>${icon('clock')}時計</h2>
-        <span class="home-clock-week">${escapeHTML(weekInfo.label)}</span>
-      </div>
-      <div class="home-clock-body">
-        <strong class="home-clock-time" id="home-clock-time">${escapeHTML(timeStr)}</strong>
-        <span class="home-clock-date" id="home-clock-date">${escapeHTML(longDate(dateStr))}</span>
+      <div class="home-clock-card">
+        <div class="home-clock-main">
+          <div class="home-clock-digital" id="home-clock-time">
+            <strong class="home-clock-hm" id="home-clock-hm">${escapeHTML(hm)}</strong><span class="home-clock-sec" id="home-clock-sec">:${escapeHTML(sec)}</span>
+          </div>
+          <div class="home-clock-meta">
+            <span class="home-clock-date" id="home-clock-date">${escapeHTML(longDate(dateStr))}</span>
+            <span class="home-clock-week">${escapeHTML(weekInfo.label)}</span>
+          </div>
+        </div>
+        <div class="home-clock-dial" aria-hidden="true">
+          <svg viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="21" class="clock-face"/>
+            <line x1="24" y1="6" x2="24" y2="8.5" class="clock-tick"/>
+            <line x1="42" y1="24" x2="39.5" y2="24" class="clock-tick"/>
+            <line x1="24" y1="42" x2="24" y2="39.5" class="clock-tick"/>
+            <line x1="6" y1="24" x2="8.5" y2="24" class="clock-tick"/>
+            <line id="clock-hand-hour" x1="24" y1="24" x2="24" y2="14" class="clock-hand-hour" transform="rotate(${hDeg.toFixed(1)} 24 24)"/>
+            <line id="clock-hand-min" x1="24" y1="24" x2="24" y2="10" class="clock-hand-min" transform="rotate(${mDeg.toFixed(1)} 24 24)"/>
+            <line id="clock-hand-sec" x1="24" y1="26" x2="24" y2="9" class="clock-hand-sec" transform="rotate(${sDeg.toFixed(1)} 24 24)"/>
+            <circle cx="24" cy="24" r="1.8" class="clock-pivot"/>
+          </svg>
+        </div>
       </div>
     </section>
   `;
@@ -1676,12 +1700,18 @@ function ensureHomeClockTick() {
   if (typeof document === 'undefined' || typeof setInterval !== 'function') return;
   if (homeClockTimer) return;
   homeClockTimer = setInterval(() => {
-    const timeEl = document.getElementById('home-clock-time');
-    if (!timeEl) return;
+    const hmEl = document.getElementById('home-clock-hm');
+    if (!hmEl) return;
     const now = new Date();
-    timeEl.textContent = formatClockTimeJst(now);
+    const { hm, sec, h, m, s } = getClockPartsJst(now);
+    hmEl.textContent = hm;
+    const secEl = document.getElementById('home-clock-sec');
+    if (secEl) secEl.textContent = `:${sec}`;
     const dateEl = document.getElementById('home-clock-date');
     if (dateEl) dateEl.textContent = longDate(getJstParts(now).dateStr);
+    document.getElementById('clock-hand-hour')?.setAttribute?.('transform', `rotate(${(((h % 12) + m / 60) * 30).toFixed(1)} 24 24)`);
+    document.getElementById('clock-hand-min')?.setAttribute?.('transform', `rotate(${((m + s / 60) * 6).toFixed(1)} 24 24)`);
+    document.getElementById('clock-hand-sec')?.setAttribute?.('transform', `rotate(${(s * 6).toFixed(1)} 24 24)`);
   }, 1000);
   homeClockTimer?.unref?.();
 }
