@@ -178,3 +178,7 @@ h1 {
   border-color: var(--wine);
   color: #fff;
 }
+html.is-embedded body { background: transparent; }
+html.is-embedded .guide-wrap { padding: 8px 4px 16px; }
+html.is-embedded .guide-topbar,
+html.is-embedded .cross-links { display: none; }

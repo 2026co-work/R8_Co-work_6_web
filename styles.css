@@ -1135,5 +1135,13 @@ details.timetable-controls[open]{box-shadow:none}
 @keyframes pointerNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes spotlightPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 @keyframes spotlightBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-.help-guide-links{margin-top:10px;display:flex;flex-direction:column;gap:8px}
-.help-guide-links .button{width:100%;justify-content:flex-start;min-height:40px;font-size:12.5px}
+.help-install-desc{margin:8px 0 10px;color:var(--muted);line-height:1.55}
+.help-pwa-btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.help-pwa-btns .button{min-height:40px;justify-content:center;font-size:12.5px;padding:6px 10px}
+@media(max-width:440px){.help-pwa-btns{grid-template-columns:1fr}}
+.ical-import-help{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.6;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.ical-guide-btn{min-height:34px;padding:4px 12px;font-size:12px}
+#appendix-guide-modal{z-index:1020}
+.appendix-guide-card{max-width:680px;height:min(84vh,720px)}
+.appendix-guide-body{padding:8px 14px;display:flex;flex-direction:column;flex:1;min-height:0}
+.appendix-guide-frame{width:100%;flex:1;min-height:360px;border:0;border-radius:8px;background:transparent}
