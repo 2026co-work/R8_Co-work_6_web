@@ -1634,7 +1634,7 @@ function home() {
   const targetDate = new Date(now.getTime() + dashboardOffsetDays * 86400000);
   const displayDateKey = dateKey(targetDate);
   const weekInfo = getAcademicWeek(targetDate);
-  const showSpotlight = ((!cookieSaved && !firstVisitSpotlightDismissed) || forceSpotlightReplay) && spotlightStep === 1;
+  const showSpotlight = ((!cookieSaved && !firstVisitSpotlightDismissed) || forceSpotlightReplay) && (spotlightStep === 1 || !isHamburgerMenuVisible());
   const actions = `
     <div class="heading-actions">
       ${themeToggleBtn()}
