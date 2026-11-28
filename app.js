@@ -1660,7 +1660,6 @@ function getClockPartsJst(date = new Date()) {
 
 function renderClockPanel(now = new Date()) {
   const { dateStr } = getJstParts(now);
-  const weekInfo = getAcademicLessonWeekInfo(now);
   const { hm, sec, h, m, s } = getClockPartsJst(now);
   const hDeg = ((h % 12) + m / 60) * 30;
   const mDeg = (m + s / 60) * 6;
@@ -1672,10 +1671,7 @@ function renderClockPanel(now = new Date()) {
           <div class="home-clock-digital" id="home-clock-time">
             <strong class="home-clock-hm" id="home-clock-hm">${escapeHTML(hm)}</strong><span class="home-clock-sec" id="home-clock-sec">:${escapeHTML(sec)}</span>
           </div>
-          <div class="home-clock-meta">
-            <span class="home-clock-date" id="home-clock-date">${escapeHTML(longDate(dateStr))}</span>
-            <span class="home-clock-week">${escapeHTML(weekInfo.label)}</span>
-          </div>
+          <span class="home-clock-date" id="home-clock-date">${escapeHTML(longDate(dateStr))}</span>
         </div>
         <div class="home-clock-dial" aria-hidden="true">
           <svg viewBox="0 0 48 48">
