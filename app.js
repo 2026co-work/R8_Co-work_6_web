@@ -2470,7 +2470,7 @@ function applyLiveSheetSize(sheet) {
 }
 function getOpenModalEl() {
   if (typeof document === 'undefined') return null;
-  for (const id of ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'profile-switcher-modal', 'link-editor-modal']) {
+  for (const id of ['export-size-modal', 'data-preview-modal', 'ical-preview-modal', 'room-legends-modal', 'help-modal', 'profile-switcher-modal', 'link-editor-modal', 'appendix-guide-modal']) {
     const el = document.getElementById(id);
     if (el && el.hidden === false) return el;
   }
@@ -2565,17 +2565,63 @@ function renderHelpGuideContent(focusKey = 'home') {
     }).join('')}</ul>
   </div>
   <details class="help-install-details">
-    <summary>詳しい使い方・別添ガイド（PWA追加 / カレンダー連携）</summary>
-    <ul class="help-install-list">
-      <li><strong>ホーム画面に追加（PWA）：</strong>ブラウザのメニューから追加するとアプリのように開けます。</li>
-      <li><strong>カレンダー連携（.ics）：</strong>保存した予定ファイルを標準カレンダーやGoogleカレンダーに取り込めます。</li>
-    </ul>
-    <div class="help-guide-links">
-      <a href="./guide/ios.html" class="button secondary" target="_blank" rel="noopener noreferrer">${icon('external')}iPhone (Safari) でホーム画面に追加</a>
-      <a href="./guide/android.html" class="button secondary" target="_blank" rel="noopener noreferrer">${icon('external')}Android (Chrome) でホーム画面に追加</a>
-      <a href="./guide/ical.html" class="button secondary" target="_blank" rel="noopener noreferrer">${icon('external')}カレンダー形式（.ics）の取り込み方法</a>
+    <summary>スマホのホーム画面に追加（アプリとして使う）</summary>
+    <p class="help-install-desc">ブラウザの「ホーム画面に追加」を使うと、アイコンから1タップで全画面起動できます。</p>
+    <div class="help-pwa-btns">
+      <button type="button" class="button secondary" data-open-guide="./guide/ios.html?embed=1" data-guide-title="iPhone (Safari) でホーム画面に追加">iPhone (Safari) の手順</button>
+      <button type="button" class="button secondary" data-open-guide="./guide/android.html?embed=1" data-guide-title="Android (Chrome) でホーム画面に追加">Android (Chrome) の手順</button>
     </div>
   </details>`;
+}
+
+function renderAppendixGuideModal() {
+  return `<div class="data-preview-overlay" id="appendix-guide-modal" hidden data-export-exclude role="dialog" aria-modal="true" aria-labelledby="appendix-guide-title">
+    <div class="data-preview-card appendix-guide-card">
+      <div class="data-preview-head">
+        <h3 id="appendix-guide-title">${icon('document')}操作ガイド</h3>
+        <button type="button" class="button size-close-btn" id="appendix-guide-close" aria-label="閉じる">${icon('close')}</button>
+      </div>
+      <div class="data-preview-body appendix-guide-body">
+        <iframe id="appendix-guide-frame" class="appendix-guide-frame" title="操作ガイド" src="about:blank"></iframe>
+      </div>
+      <div class="data-preview-foot">
+        <button type="button" class="button" id="appendix-guide-ok">閉じる</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openAppendixGuideModal(url, titleText = '操作ガイド') {
+  const modal = document.getElementById('appendix-guide-modal');
+  const titleEl = document.getElementById('appendix-guide-title');
+  const frameEl = document.getElementById('appendix-guide-frame');
+  if (!modal || !frameEl) return;
+  if (titleEl) titleEl.innerHTML = `${icon('document')}${escapeHTML(titleText)}`;
+  frameEl.src = url;
+  lastModalTrigger = document.activeElement || null;
+  modal.hidden = false;
+  setModalBackdropInert(true, modal);
+  document.body.classList.add('size-modal-open');
+  document.getElementById('appendix-guide-close')?.focus?.();
+}
+
+function closeAppendixGuideModal() {
+  const modal = document.getElementById('appendix-guide-modal');
+  const frameEl = document.getElementById('appendix-guide-frame');
+  const wasOpen = modal && !modal.hidden;
+  if (modal) modal.hidden = true;
+  if (frameEl) frameEl.src = 'about:blank';
+  const parentModal = ['help-modal', 'ical-preview-modal'].map(id => document.getElementById(id)).find(el => el && !el.hidden);
+  if (parentModal) {
+    setModalBackdropInert(true, parentModal);
+  } else {
+    setModalBackdropInert(false);
+    document.body.classList.remove('size-modal-open');
+  }
+  if (wasOpen && lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+    lastModalTrigger.focus();
+    lastModalTrigger = null;
+  }
 }
 
 function renderHelpModal() {
@@ -2623,6 +2669,17 @@ function dismissHelpSpotlight() {
   document.getElementById('guide-spotlight-card')?.remove?.();
   document.getElementById('guide-spotlight-pointer')?.remove?.();
   document.querySelectorAll?.('.is-spotlight-target')?.forEach?.(el => el.classList?.remove?.('is-spotlight-target'));
+}
+
+function isHamburgerMenuVisible() {
+  if (typeof document !== 'undefined') {
+    const toggle = document.getElementById('menu-toggle');
+    if (toggle && typeof toggle.getBoundingClientRect === 'function') {
+      const r = toggle.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) return true;
+    }
+  }
+  return typeof window !== 'undefined' && typeof window.innerWidth === 'number' && window.innerWidth <= 760;
 }
 
 function positionSpotlightPointer() {
@@ -2900,7 +2957,10 @@ async function renderIcalPreviewBody() {
     ${optionsHtml}
     <p class="ical-preview-summary">${escapeHTML(summaryText)}</p>
     ${calHtml}
-    <p class="ical-import-help">取り込み方法：保存した .ics を開く（iPhone）か、<a href="https://support.google.com/calendar/answer/37118?hl=ja" target="_blank" rel="noopener noreferrer">Googleカレンダー ↗</a>（PC版設定→インポート）／<a href="https://support.apple.com/ja-jp/guide/calendar/icl1023/mac" target="_blank" rel="noopener noreferrer">Appleカレンダー ↗</a> から読み込めます（<a href="./guide/ical.html" target="_blank" rel="noopener noreferrer">詳しい取り込みガイド ↗</a>）。</p>
+    <div class="ical-import-help">
+      <span>保存した .ics ファイルは iPhone 標準カレンダーや Google カレンダーに取り込めます。</span>
+      <button type="button" class="button subtle ical-guide-btn" data-open-guide="./guide/ical.html?embed=1" data-guide-title="カレンダー形式（.ics）の取り込み方法">取り込み手順を見る</button>
+    </div>
     <details class="ical-raw-details">
       <summary>生成される .ics データを確認</summary>
       <pre class="preview-code-block" id="ical-preview-code" style="margin-top:8px;">${escapeHTML(rawIcs)}</pre>
@@ -3419,27 +3479,29 @@ function render() {
   }
   const main = document.getElementById('main');
   const spotlightActive = page === 'home' && ((!cookieSaved && !firstVisitSpotlightDismissed) || forceSpotlightReplay);
+  const showHamburgerStep = isHamburgerMenuVisible();
+  const effectiveSpotlightStep = (spotlightStep === 0 && !showHamburgerStep) ? 1 : spotlightStep;
   if (typeof document !== 'undefined') {
     document.body?.classList?.toggle?.('guide-spotlight-active', spotlightActive);
-    document.getElementById('menu-toggle')?.classList?.toggle?.('is-spotlight-target', spotlightActive && spotlightStep === 0);
-    document.getElementById('sidebar')?.classList?.toggle?.('is-spotlight-target', spotlightActive && spotlightStep === 0);
+    document.getElementById('menu-toggle')?.classList?.toggle?.('is-spotlight-target', spotlightActive && effectiveSpotlightStep === 0);
+    document.getElementById('sidebar')?.classList?.toggle?.('is-spotlight-target', spotlightActive && effectiveSpotlightStep === 0);
   }
   const spotlightCardHtml = spotlightActive
-    ? (spotlightStep === 0
+    ? (effectiveSpotlightStep === 0
       ? `<div class="guide-spotlight-card" id="guide-spotlight-card" data-step="0" role="dialog" aria-label="初回案内 1/2" data-export-exclude>
           <div class="guide-spotlight-head">
             <span class="guide-spotlight-step">1 / 2</span>
             <strong>メニューから画面を切り替え</strong>
           </div>
-          <p>時間割・年間予定・リンク集へ移動できます（スマホでは左上の ≡ ボタン）。</p>
+          <p>左上の ≡ ボタンから時間割・年間予定・リンク集へ切り替えられます。</p>
           <div class="guide-spotlight-actions">
             <button type="button" class="guide-spotlight-skip" id="guide-spotlight-skip">スキップ</button>
             <button type="button" class="button" id="guide-spotlight-next">次へ →</button>
           </div>
         </div>`
-      : `<div class="guide-spotlight-card" id="guide-spotlight-card" data-step="1" role="dialog" aria-label="初回案内 2/2" data-export-exclude>
+      : `<div class="guide-spotlight-card" id="guide-spotlight-card" data-step="1" role="dialog" aria-label="初回案内 ${showHamburgerStep ? '2/2' : '1/1'}" data-export-exclude>
           <div class="guide-spotlight-head">
-            <span class="guide-spotlight-step">2 / 2</span>
+            <span class="guide-spotlight-step">${showHamburgerStep ? '2 / 2' : '1 / 1'}</span>
             <strong>各ページの「使い方」</strong>
           </div>
           <p>操作に迷ったら、画面右上の「使い方」からいつでも確認できます。</p>
@@ -3455,7 +3517,7 @@ function render() {
   const spotlightBackdrop = spotlightActive
     ? `<div class="guide-spotlight-backdrop" id="guide-spotlight-backdrop" data-export-exclude aria-hidden="true"></div>${spotlightPointerHtml}${spotlightCardHtml}`
     : '';
-  const sharedModals = spotlightBackdrop + renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal();
+  const sharedModals = spotlightBackdrop + renderProfileSwitcherModal() + renderIcalPreviewModal() + renderHelpModal() + renderAppendixGuideModal();
   if (main) {
     if (page === 'home') main.innerHTML = home() + sharedModals;
     else if (page === 'timetable') {
@@ -3485,7 +3547,7 @@ function render() {
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(positionSpotlightPointer);
       else positionSpotlightPointer();
     }
-    for (const modalId of ['ical-preview-modal', 'room-legends-modal', 'help-modal', 'link-editor-modal']) {
+    for (const modalId of ['ical-preview-modal', 'room-legends-modal', 'help-modal', 'link-editor-modal', 'appendix-guide-modal']) {
       const mEl = document.getElementById(modalId);
       if (mEl) mEl.hidden = true;
     }
@@ -3589,6 +3651,11 @@ function render() {
   });
   document.getElementById('help-modal')?.addEventListener('click', e => {
     if (e.target === e.currentTarget) closeHelpModal();
+  });
+  document.getElementById('appendix-guide-close')?.addEventListener('click', closeAppendixGuideModal);
+  document.getElementById('appendix-guide-ok')?.addEventListener('click', closeAppendixGuideModal);
+  document.getElementById('appendix-guide-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeAppendixGuideModal();
   });
 
   // 教室略称モーダル
@@ -4235,8 +4302,20 @@ function render() {
   // Escape キーでモーダルを閉じる（グローバルリスナーは初回のみ登録）
   if (!globalListenersBound && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     globalListenersBound = true;
+    document.addEventListener?.('click', e => {
+      const btn = e.target?.closest?.('[data-open-guide]');
+      if (!btn) return;
+      const url = btn.dataset?.openGuide;
+      const titleText = btn.dataset?.guideTitle || '操作ガイド';
+      if (url) openAppendixGuideModal(url, titleText);
+    });
     window.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
+        const appendixEl = document.getElementById('appendix-guide-modal');
+        if (appendixEl && !appendixEl.hidden) {
+          closeAppendixGuideModal();
+          return;
+        }
         closeDataPreviewModal();
         closeIcalPreviewModal();
         closeRoomLegendsModal();
