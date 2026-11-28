@@ -2676,10 +2676,14 @@ function isHamburgerMenuVisible() {
     const toggle = document.getElementById('menu-toggle');
     if (toggle && typeof toggle.getBoundingClientRect === 'function') {
       const r = toggle.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) return true;
+      return r.width > 0 && r.height > 0;
     }
   }
-  return typeof window !== 'undefined' && typeof window.innerWidth === 'number' && window.innerWidth <= 760;
+  if (typeof window !== 'undefined') {
+    if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width:760px)')?.matches) return true;
+    if (typeof window.innerWidth === 'number') return window.innerWidth <= 760;
+  }
+  return false;
 }
 
 function positionSpotlightPointer() {
