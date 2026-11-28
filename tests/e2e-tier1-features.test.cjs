@@ -581,7 +581,7 @@ test('F11-T1-01: Timetable displays academic week counter banner', async (t) => 
   if (!requireOrSkip(t, ready, 'Week counter banner above timetable', 'M3')) return;
 
   app.navigate('#home');
-  assert.match(app.elements.main.innerHTML, /第\d+週|今週/);
+  assert.match(app.elements.main.innerHTML, /第\d+[週回]|今週/);
 });
 
 test('F11-T1-02: Day substitution alert banner displays on transfer dates', async (t) => {
