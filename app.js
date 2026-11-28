@@ -661,28 +661,49 @@ function getSyllabusUrl(selection) {
   return 'https://syllabus.kosen-k.go.jp/Pages/PublicDepartments?school_id=27&lang=ja';
 }
 
-function getAcademicWeek(date = new Date()) {
+function getAcademicLessonWeekInfo(date = new Date()) {
+  const cal = calendarData || FALLBACK_CALENDAR;
   const { dateStr, month } = getJstParts(date);
-  if (!dateStr) return { term: '後期', week: 1, label: '後期 第1週' };
-  const zenkiStart = calendarData.terms?.zenki?.classesStartDate || calendarData.terms?.zenki?.startDate || '2026-04-06';
-  const koukiStart = calendarData.terms?.kouki?.classesStartDate || calendarData.terms?.kouki?.startDate || '2026-09-24';
-  const isKouki = dateStr >= koukiStart || month <= 3;
+  const koukiStart = cal.terms?.kouki?.classesStartDate || cal.terms?.kouki?.startDate || '2026-09-24';
+  const isKouki = !dateStr || dateStr >= koukiStart || month <= 3;
   const termName = isKouki ? '後期' : '前期';
-  const startStr = isKouki ? koukiStart : zenkiStart;
-  const startParts = getJstParts(new Date(`${startStr}T00:00:00+09:00`));
-  const mondayOffset = (startParts.weekdayNum + 6) % 7;
-  const weekOneMondayMs = new Date(`${startStr}T00:00:00+09:00`).getTime() - mondayOffset * 86400000;
-  const currentMidnightMs = new Date(`${dateStr}T00:00:00+09:00`).getTime();
-  const diffTime = currentMidnightMs - weekOneMondayMs;
-  const diffDays = Number.isFinite(diffTime) ? Math.floor(diffTime / 86400000) : 0;
-  let weekNum = 1;
-  if (diffDays >= 0) {
-    weekNum = Math.min(15, Math.floor(diffDays / 7) + 1);
+  const totalWeeks = Number(isKouki ? cal.terms?.kouki?.totalWeeks : cal.terms?.zenki?.totalWeeks) || 15;
+  const lessonMap = computeAcademicLessonWeeks(cal);
+  const entry = dateStr ? lessonMap.get(dateStr) : null;
+  if (entry) {
+    if (entry.isSpare) {
+      return {
+        term: entry.term,
+        week: 0,
+        dayLabel: entry.dayLabel,
+        isSpare: true,
+        isSubstituted: false,
+        totalWeeks,
+        label: `${entry.term} 予備日`,
+        badgeLabel: `${entry.term} 予備日`
+      };
+    }
+    const dayPrefix = entry.isSubstituted ? `${entry.dayLabel}曜授業` : `${entry.dayLabel}曜`;
+    return {
+      term: entry.term,
+      week: entry.weekNum,
+      dayLabel: entry.dayLabel,
+      isSpare: false,
+      isSubstituted: entry.isSubstituted,
+      totalWeeks,
+      label: `${dayPrefix} 第${entry.weekNum}回 / ${totalWeeks}`,
+      badgeLabel: `${entry.term} ${dayPrefix} 第${entry.weekNum}回 / 全${totalWeeks}回`
+    };
   }
   return {
     term: termName,
-    week: weekNum,
-    label: `${termName} 第${weekNum}週`
+    week: null,
+    dayLabel: '',
+    isSpare: false,
+    isSubstituted: false,
+    totalWeeks,
+    label: `${termName} 休業日`,
+    badgeLabel: `${termName}（休業日）`
   };
 }
 
@@ -720,6 +741,11 @@ function renderTodaySchedule(currentDate) {
     </div>
   `;
 
+  const lessonWeekInfo = getAcademicLessonWeekInfo(currentDate);
+  const dateParts = todayDateStr.split('-');
+  const shortDateText = dateParts.length === 3 ? `${Number(dateParts[1])}/${Number(dateParts[2])}(${['日','月','火','水','木','金','土'][jsDay] || ''})` : todayDateStr;
+  const offsetTag = dashboardOffsetDays === 0 ? '' : ` (${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日)`;
+
   const subBanner = isSubstituted ? `
     <div class="alert alert-warning day-sub-alert">
       <span class="badge blue">授業振替</span>
@@ -727,26 +753,30 @@ function renderTodaySchedule(currentDate) {
     </div>
   ` : '';
 
-  const renderTodayShell = (badgesHtml, bodyHtml) => `
+  const renderTodayShell = (badgesHtml, bodyHtml, customMetaLabel = '') => {
+    const metaSummary = `${shortDateText}${offsetTag} · ${customMetaLabel || lessonWeekInfo.label}`;
+    return `
     <section class="panel today-schedule" id="today-schedule">
       <div class="panel-head">
-        <h2>${icon('calendar')}今日の時間割</h2>
-        ${badgesHtml ? `<div class="panel-head-meta">${badgesHtml}</div>` : ''}
+        <h2>${icon('calendar')}時間割</h2>
+        <div class="panel-head-meta"><span class="today-date-meta">${escapeHTML(metaSummary)}</span>${badgesHtml}</div>
         ${navControls}
       </div>
       ${subBanner}
       ${bodyHtml}
     </section>
   `;
+  };
 
   if (!isSubstituted && (effectiveDay === 0 || effectiveDay === 6 || holidayEv)) {
     const restLabel = holidayEv?.title || holidayEv?.name || '休業日';
     return renderTodayShell(
-      `<span class="badge yellow">${escapeHTML(restLabel)}</span>`,
+      '',
       `<div class="dashboard-rest-card">
         <p><strong>${escapeHTML(todayDateStr)}</strong> — ${escapeHTML(restLabel)}（授業予定なし）</p>
         <a class="button" href="#timetable">${icon('calendar')}週間時間割を見る</a>
-      </div>`
+      </div>`,
+      restLabel
     );
   }
 
@@ -757,13 +787,14 @@ function renderTodaySchedule(currentDate) {
   if (examEv) {
     const examLabel = examEv.title || examEv.name || '定期試験期間';
     return renderTodayShell(
-      `<span class="badge red">${escapeHTML(examLabel)}</span>`,
+      '',
       `<div class="dashboard-rest-card">
         <p><strong>${escapeHTML(todayDateStr)}</strong> — ${escapeHTML(examLabel)}</p>
         ${FEATURE_FLAGS.exam
           ? `<a class="button" href="#exam">${icon('document')}試験時間割を見る</a>`
           : `<a class="button" href="#calendar">${icon('calendar')}年間予定を見る</a>`}
-      </div>`
+      </div>`,
+      examLabel
     );
   }
 
@@ -875,7 +906,7 @@ function renderTodaySchedule(currentDate) {
   }).join('');
 
   return renderTodayShell(
-    `${allDoneToday ? '<span class="badge gray">授業終了</span>' : ''}<span class="badge gray">${DAYS[dayIdx]}曜</span>`,
+    allDoneToday ? '<span class="badge gray">授業終了</span>' : '',
     `<div class="today-periods-list">
       ${periodRows}
     </div>
@@ -1632,18 +1663,12 @@ function renderTodayOverview(currentDate = new Date()) {
 function home() {
   const now = new Date();
   const targetDate = new Date(now.getTime() + dashboardOffsetDays * 86400000);
-  const displayDateKey = dateKey(targetDate);
-  const weekInfo = getAcademicWeek(targetDate);
   const showSpotlight = ((!cookieSaved && !firstVisitSpotlightDismissed) || forceSpotlightReplay) && (spotlightStep === 1 || !isHamburgerMenuVisible());
   const actions = `
     <div class="heading-actions">
       ${themeToggleBtn()}
       ${pageHelpBtn('home', showSpotlight)}
-      <span class="term-badge badge blue">${escapeHTML(weekInfo.label)}</span>
       ${studentPillBtn()}
-      <div class="date-block">
-        <strong>${longDate(displayDateKey)}${dashboardOffsetDays === 0 ? '' : ` (${dashboardOffsetDays > 0 ? `+${dashboardOffsetDays}` : dashboardOffsetDays}日)`}</strong>
-      </div>
     </div>
   `;
   const onboardingHtml = (!cookieSaved && !onboardingDismissed)
@@ -1977,7 +2002,7 @@ function calendar() {
   const actions = `<div class="heading-actions">${themeToggleBtn()}${pageHelpBtn('calendar')}${studentPillBtn()}</div>`;
   const nowDate = new Date();
   const todayStr = dateKey(nowDate);
-  const weekInfo = getAcademicWeek(nowDate);
+  const weekInfo = getAcademicLessonWeekInfo(nowDate);
   const data = calendarData || FALLBACK_CALENDAR;
   const events = Array.isArray(data.events) && data.events.length ? data.events : FALLBACK_CALENDAR.events;
   const subs = Array.isArray(data.daySubstitutions) ? data.daySubstitutions : [];
@@ -2071,7 +2096,7 @@ function calendar() {
           <button type="button" class="cal-view-tab${calendarViewMode === 'month' ? ' is-active' : ''}" data-cal-view="month" role="tab" aria-selected="${calendarViewMode === 'month' ? 'true' : 'false'}">カレンダー</button>
           <button type="button" class="cal-view-tab${calendarViewMode === 'list' ? ' is-active' : ''}" data-cal-view="list" role="tab" aria-selected="${calendarViewMode === 'list' ? 'true' : 'false'}">イベント一覧</button>
         </div>
-        <span class="badge blue cal-week-badge">${escapeHTML(weekInfo.label)} / 全15週</span>
+        <span class="badge blue cal-week-badge">${escapeHTML(weekInfo.badgeLabel)}</span>
         <div class="cal-term-jump">
           <button type="button" class="cal-jump-link" data-cal-jump="zenki">前期 (4月)</button>
           <span class="cal-jump-sep" aria-hidden="true">/</span>

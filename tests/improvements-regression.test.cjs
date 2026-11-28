@@ -169,16 +169,17 @@ test('IMP-07: calendar.json matches official R8 PDF substitutions (incl. 2026-11
   assert.equal(new Set(subDates).size, subDates.length, 'substitution dates must be deduplicated');
 
   const app = createAppInstance({ mockDate: '2026-09-24T09:00:00+09:00' });
-  const weekInfo = app.context.getAcademicWeek(new Date('2026-09-24T09:00:00+09:00'));
+  const weekInfo = app.context.getAcademicLessonWeekInfo(new Date('2026-09-24T09:00:00+09:00'));
   assert.equal(weekInfo.week, 1, 'Sep 24 is week 1 of 後期');
+  assert.equal(weekInfo.dayLabel, '木', 'Sep 24 is Thursday');
 
   const subApp = createAppInstance({ mockDate: '2026-11-25T09:00:00+09:00' });
   subApp.navigate('#home');
   const subHtml = subApp.document.getElementById('main')?.innerHTML || '';
   assert.match(subHtml, /月曜日/, '2026-11-25 home schedule reflects Monday substitution');
   assert.match(subHtml, /各授業の振り替え情報は.*授業変更リスト/, 'Concise 授業変更リスト disclaimer is shown on home schedule');
-  // #home date nav controls stay pinned at the right end of .panel-head (after any badges) and subBanner stays below .panel-head
-  assert.match(subHtml, /<div class="panel-head">[\s\S]*?<span class="badge gray">月曜<\/span><\/div>\s*<div class="dashboard-date-nav"/, 'Date nav controls follow status badges at the right edge');
+  // #home date nav controls stay pinned at the right end of .panel-head (after .panel-head-meta) and subBanner stays below .panel-head
+  assert.match(subHtml, /<div class="panel-head">[\s\S]*?<div class="panel-head-meta">[\s\S]*?月曜授業[\s\S]*?<\/div>\s*<div class="dashboard-date-nav"/, 'Date nav controls follow status meta at the right edge');
   assert.match(subHtml, /<div class="panel-head">[\s\S]*?<\/div>\s*<div class="alert alert-warning day-sub-alert">/, 'Substitution alert renders below .panel-head so nav buttons do not jump vertically');
 });
 
